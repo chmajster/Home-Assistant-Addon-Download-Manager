@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Poprawiono katalog roboczy i ścieżkę importu Gunicorna dla aplikacji skopiowanej do `/app`.
+
 ## 1.0.2
 
 - Usunięto zależność buildu od serwerów pakietów Alpine.

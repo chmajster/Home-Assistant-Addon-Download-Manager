@@ -1,7 +1,7 @@
 name: "YouTube Web Downloader"
 slug: "youtube_downloader"
 description: "Webowy downloader YouTube oparty o yt-dlp z obsługą Ingress i panelem UI w Home Assistant"
-version: "1.0.2"
+version: "1.0.3"
 url: "https://github.com/example/home-assistant-youtube-downloader-addon"
 arch:
   - amd64
