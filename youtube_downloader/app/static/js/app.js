@@ -56,7 +56,10 @@
 
   document.querySelectorAll(".delete-form").forEach((form) => {
     form.addEventListener("submit", (event) => {
-      if (!window.confirm("Czy na pewno usunąć pobrany plik?")) {
+      const filename = form.dataset.filename || "brak danych";
+      const filesize = form.dataset.filesizeLabel || "brak danych";
+      const message = `Czy na pewno usunąć pobrany plik?\n\nNazwa: ${filename}\nRozmiar: ${filesize}`;
+      if (!window.confirm(message)) {
         event.preventDefault();
       }
     });

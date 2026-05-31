@@ -64,7 +64,7 @@
                       </td>
                       <td>
                         {% if item.file_exists %}
-                          <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form">
+                          <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-sm btn-outline-danger" type="submit">Usuń</button>
                           </form>
@@ -83,7 +83,7 @@
                   <div class="mt-2">
                     {% if item.file_exists %}
                       <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
-                      <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form d-inline">
+                      <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form d-inline" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <button class="btn btn-sm btn-outline-danger" type="submit">Usuń</button>
                       </form>

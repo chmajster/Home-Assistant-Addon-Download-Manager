@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+- Potwierdzenie usuwania pliku pokazuje teraz nazwę oraz rozmiar wybranego pliku.
+
 ## 1.2.0
 
 - Przebudowano interfejs na nowoczesny panel z wyraźnym hero, kartami, nową paletą kolorów i sygnetem aplikacji.

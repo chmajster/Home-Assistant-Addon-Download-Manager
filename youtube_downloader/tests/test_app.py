@@ -86,6 +86,21 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("platform-chip platform-kick", body)
         self.assertIn("hero-input-group", body)
 
+    def test_history_delete_form_contains_filename_and_size(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example video.mp4"
+        target.write_text("media", encoding="utf-8")
+        files.record_download(
+            "Example video",
+            "https://youtu.be/example",
+            "best",
+            target.name,
+            "completed",
+        )
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn('data-filename="example video.mp4"', body)
+        self.assertIn('data-filesize-label="5.0 B"', body)
+
 
 class MediaUrlTestCase(unittest.TestCase):
     """Keep extractor input limited to known public YouTube hosts."""
