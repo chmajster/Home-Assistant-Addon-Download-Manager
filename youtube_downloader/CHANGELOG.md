@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4
+
+- Dodano spinner, blokadę przycisku i komunikat oczekiwania po uruchomieniu analizy URL.
+
 ## 1.0.3
 
 - Poprawiono katalog roboczy i ścieżkę importu Gunicorna dla aplikacji skopiowanej do `/app`.

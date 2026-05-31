@@ -18,6 +18,21 @@ body {
   background: linear-gradient(135deg, #ffffff 0%, #fff5f5 100%);
 }
 
+.analyze-loading {
+  animation: loading-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.72;
+  }
+}
+
 .media-thumbnail {
   aspect-ratio: 16 / 9;
   object-fit: cover;

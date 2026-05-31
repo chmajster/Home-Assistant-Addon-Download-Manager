@@ -9,8 +9,15 @@
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="input-group input-group-lg">
           <input class="form-control youtube-url" type="url" name="url" placeholder="https://www.youtube.com/watch?v=..." required autocomplete="url">
-          <button class="btn btn-danger px-4" type="submit">Analizuj</button>
+          <button class="btn btn-danger px-4 analyze-submit" type="submit">
+            <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
+            <span class="analyze-submit-label">Analizuj</span>
+          </button>
           <div class="invalid-feedback">Wklej poprawny adres HTTP lub HTTPS z obsługiwanej domeny YouTube.</div>
+        </div>
+        <div class="analyze-loading alert alert-info d-none mt-3 mb-0" role="status" aria-live="polite">
+          <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+          Analizuję materiał przez yt-dlp. To może potrwać chwilę.
         </div>
       </form>
     </div>

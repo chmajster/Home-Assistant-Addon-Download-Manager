@@ -37,8 +37,16 @@
         event.preventDefault();
         event.stopPropagation();
         input?.classList.add("is-invalid");
+        return;
       }
       form.classList.add("was-validated");
+      const button = form.querySelector(".analyze-submit");
+      button?.setAttribute("disabled", "disabled");
+      button?.setAttribute("aria-disabled", "true");
+      button?.querySelector(".spinner-border")?.classList.remove("d-none");
+      const label = button?.querySelector(".analyze-submit-label");
+      if (label) label.textContent = "Analizuję...";
+      form.querySelector(".analyze-loading")?.classList.remove("d-none");
     });
   });
 
