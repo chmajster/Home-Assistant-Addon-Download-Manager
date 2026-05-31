@@ -77,6 +77,15 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Zajęte", body)
         self.assertIn("Łącznie", body)
 
+    def test_index_displays_modern_media_dashboard(self) -> None:
+        response = self.client.get("/")
+        body = response.get_data(as_text=True)
+        self.assertIn("Twoje media.", body)
+        self.assertIn("platform-chip platform-youtube", body)
+        self.assertIn("platform-chip platform-instagram", body)
+        self.assertIn("platform-chip platform-kick", body)
+        self.assertIn("hero-input-group", body)
+
 
 class MediaUrlTestCase(unittest.TestCase):
     """Keep extractor input limited to known public YouTube hosts."""
