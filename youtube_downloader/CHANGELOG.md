@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Dodano ponawianie instalacji pakietów Alpine podczas budowania obrazu po chwilowych błędach DNS.
+- Dodano jawne limity czasu i ponawianie pobierania zależności Python.
+
 ## 1.0.0
 
 - Pierwsze wydanie dodatku Home Assistant.

@@ -3,7 +3,7 @@ set -e
 
 if bashio::config.true 'update_ytdlp_on_start'; then
     bashio::log.info "Aktualizuję yt-dlp przed uruchomieniem aplikacji..."
-    if ! /venv/bin/python -m pip install --no-cache-dir --upgrade yt-dlp; then
+    if ! /venv/bin/python -m pip install --no-cache-dir --retries 3 --timeout 20 --upgrade yt-dlp; then
         bashio::log.warning "Aktualizacja yt-dlp nie powiodła się. Uruchamiam z obecną wersją."
     fi
 fi
