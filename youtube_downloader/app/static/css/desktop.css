@@ -10,4 +10,8 @@
   .format-card {
     display: none;
   }
+
+  .dashboard-grid > .col-lg-7 .card-body {
+    padding: 1.5rem;
+  }
 }

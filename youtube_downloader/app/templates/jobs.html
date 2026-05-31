@@ -1,16 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Zadania | Media Downloader{% endblock %}
 {% block content %}
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="page-heading d-flex justify-content-between align-items-center mb-4">
     <div>
-      <h1 class="h3 mb-1">Zadania</h1>
-      <p class="text-body-secondary mb-0">Status odświeża się automatycznie.</p>
+      <span class="eyebrow">Kolejka operacji</span>
+      <h1 class="h2 mb-1">Zadania</h1>
+      <p class="section-copy mb-0">Status odświeża się automatycznie.</p>
     </div>
-    <a class="btn btn-outline-secondary" href="{{ ingress_url('web.index') }}">Start</a>
+    <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">Start</a>
   </div>
-  <section class="card border-0 shadow-sm">
+  <section class="card app-card">
     <div class="card-body">
-      <div id="jobs-empty" class="text-body-secondary{% if jobs %} d-none{% endif %}">Brak zadań w tej sesji dodatku.</div>
+      <div id="jobs-empty" class="empty-state{% if jobs %} d-none{% endif %}">
+        <span class="empty-state-mark" aria-hidden="true">+</span>
+        <strong>Brak zadań w tej sesji</strong>
+        <small>Uruchom pobieranie lub zapis live, aby zobaczyć postęp.</small>
+      </div>
       <div class="desktop-only table-responsive">
         <table class="table align-middle mb-0">
           <thead><tr><th>Tytuł</th><th>Typ</th><th>Status</th><th>Postęp</th><th>Prędkość</th><th>ETA</th><th>Wynik</th><th></th></tr></thead>

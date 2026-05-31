@@ -140,7 +140,7 @@
     list.replaceChildren();
     jobs.forEach((job) => {
       const card = document.createElement("article");
-      card.className = "border rounded p-3 mb-3";
+      card.className = "mobile-list-card p-3 mb-3";
       const heading = text("strong", job.title, "d-block");
       const meta = text("small", `${job.download_type} | ${job.speed || "-"} | ETA ${job.eta || "-"}`, "d-block text-body-secondary mb-2");
       const status = statusBadge(job);

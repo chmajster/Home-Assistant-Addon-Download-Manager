@@ -69,6 +69,14 @@ class ApplicationTestCase(unittest.TestCase):
         finally:
             response.close()
 
+    def test_index_displays_storage_usage(self) -> None:
+        response = self.client.get("/")
+        body = response.get_data(as_text=True)
+        self.assertIn("Miejsce na dysku", body)
+        self.assertIn("Wolne", body)
+        self.assertIn("Zajęte", body)
+        self.assertIn("Łącznie", body)
+
 
 class MediaUrlTestCase(unittest.TestCase):
     """Keep extractor input limited to known public YouTube hosts."""
@@ -160,6 +168,13 @@ class JobManagerTestCase(unittest.TestCase):
         self.assertEqual(completed.output_file, "example.mp4")
         self.assertEqual(self.files.history()[0]["title"], "Example")
         self.assertEqual(self.files.history()[0]["size"], 5)
+
+    def test_storage_usage_reports_capacity(self) -> None:
+        storage = self.files.storage_usage()
+        self.assertGreater(storage["total"], 0)
+        self.assertGreaterEqual(storage["free"], 0)
+        self.assertGreaterEqual(storage["used_percent"], 0)
+        self.assertLessEqual(storage["used_percent"], 100)
 
     def test_duplicate_queued_live_is_rejected(self) -> None:
         self.manager._slots.acquire()

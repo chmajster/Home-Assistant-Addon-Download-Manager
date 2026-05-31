@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Analiza | Media Downloader{% endblock %}
 {% block content %}
-  <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
-    <h1 class="h3 mb-0">Wynik analizy</h1>
-    <a class="btn btn-outline-secondary" href="{{ ingress_url('web.index') }}">Nowy adres</a>
+  <div class="page-heading d-flex justify-content-between align-items-center mb-4 gap-2">
+    <div>
+      <span class="eyebrow">Gotowe do pobrania</span>
+      <h1 class="h2 mb-0">Wynik analizy</h1>
+    </div>
+    <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">Nowy adres</a>
   </div>
   {% if media.is_live %}
     <div class="alert alert-danger">To jest transmisja na żywo</div>
@@ -12,7 +15,7 @@
   {% endif %}
   <div class="row g-4">
     <div class="col-lg-7">
-      <section class="card border-0 shadow-sm">
+      <section class="card app-card overflow-hidden">
         {% if media.thumbnail %}<img class="card-img-top media-thumbnail" src="{{ media.thumbnail }}" alt="Miniatura materiału">{% endif %}
         <div class="card-body">
           <h1 class="h4">{{ media.title }}</h1>
@@ -29,7 +32,7 @@
       </section>
     </div>
     <div class="col-lg-5">
-      <section class="card border-0 shadow-sm action-panel">
+      <section class="card app-card action-panel">
         <div class="card-body">
           <h2 class="h5">Pobieranie</h2>
           {% if media.is_live %}
@@ -37,7 +40,7 @@
             <form action="{{ ingress_url('web.start_live') }}" method="post">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="url" value="{{ media.url }}">
-              <button class="btn btn-danger w-100" type="submit">Rozpocznij zapis live</button>
+              <button class="btn btn-accent w-100" type="submit">Rozpocznij zapis live</button>
             </form>
           {% elif media.content_type == "live" %}
             <p class="text-body-secondary mb-0">Zapis będzie dostępny po rozpoczęciu transmisji.</p>
@@ -55,7 +58,7 @@
               </select>
               <label class="form-label" for="format-id">ID konkretnego formatu</label>
               <input class="form-control mb-3" id="format-id" name="format_id" maxlength="80" placeholder="np. 137">
-              <button class="btn btn-danger w-100" type="submit">Rozpocznij pobieranie</button>
+              <button class="btn btn-accent w-100" type="submit">Rozpocznij pobieranie</button>
             </form>
           {% endif %}
         </div>
@@ -64,7 +67,7 @@
   </div>
 
   {% if media.formats %}
-    <section class="card border-0 shadow-sm mt-4">
+    <section class="card app-card mt-4">
       <div class="card-body">
         <h2 class="h5">Dostępne formaty</h2>
         <div class="desktop-only table-responsive">
@@ -79,7 +82,7 @@
         </div>
         <div class="mobile-only">
           {% for format in media.formats %}
-            <article class="format-card border rounded p-3 mb-2">
+            <article class="format-card mobile-list-card p-3 mb-2">
               <strong>ID {{ format.format_id }} | {{ format.ext or "?" }}</strong>
               <small class="d-block text-body-secondary">{{ format.resolution or "brak rozdzielczości" }} | audio: {{ format.acodec or "-" }} | wideo: {{ format.vcodec or "-" }}</small>
             </article>
@@ -90,7 +93,7 @@
   {% endif %}
 
   {% if media.entries %}
-    <section class="card border-0 shadow-sm mt-4">
+    <section class="card app-card mt-4">
       <div class="card-body">
         <h2 class="h5">Elementy playlisty</h2>
         <ol class="playlist-list mb-0">

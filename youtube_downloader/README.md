@@ -34,6 +34,19 @@ preferred_format: best
 
 Supervisor zapisuje opcje w `/data/options.json`. Aplikacja odczytuje ten plik przy uruchomieniu i stosuje bezpieczne wartości domyślne dla błędnych danych. Po zmianie opcji uruchom dodatek ponownie.
 
+## Przełączniki na karcie Informacje
+
+Home Assistant zarządza czterema standardowymi przełącznikami dodatku. Repozytorium aplikacji nie może zmieniać ich etykiet, ponieważ pochodzą z systemowego frontendu Home Assistant.
+
+| Etykieta widoczna w Home Assistant | Polskie znaczenie | Zalecenie |
+| --- | --- | --- |
+| `Start on boot` | Uruchamiaj automatycznie przy starcie Home Assistant | Włącz |
+| `Watchdog` | Automatycznie uruchom ponownie aplikację po awarii | Włącz |
+| `Automatyczna aktualizacja` / `Auto update` | Automatycznie instaluj nowsze wersje dodatku | Opcjonalnie włącz |
+| `Show in sidebar` | Pokaż skrót do panelu Media Downloader w menu bocznym | Włącz |
+
+Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawiony w profilu użytkownika oraz zaktualizuj Home Assistant. Własne opcje dodatku na karcie **Konfiguracja** mają tłumaczenia polskie w `translations/pl.yaml`.
+
 ## Katalogi
 
 - `/data` zawiera trwałą historię w `/data/jobs/history.json`.

@@ -14,6 +14,19 @@ Dodatek jest budowany dla oficjalnie wspieranych obecnie architektur Home Assist
 
 Przed publikacją własnego forka zmień placeholder URL w `repository.yaml` oraz `youtube_downloader/config.yaml`.
 
+## Przełączniki Home Assistant
+
+Na karcie **Informacje** dodatku Home Assistant może wyświetlać systemowe etykiety po angielsku. Ich polskie znaczenie:
+
+| Etykieta Home Assistant | Znaczenie po polsku | Zalecenie |
+| --- | --- | --- |
+| `Start on boot` | Uruchamiaj automatycznie przy starcie Home Assistant | Włącz |
+| `Watchdog` | Automatycznie uruchom ponownie aplikację po awarii | Włącz |
+| `Automatyczna aktualizacja` / `Auto update` | Aktualizuj dodatek automatycznie, gdy pojawi się nowa wersja | Opcjonalnie włącz |
+| `Show in sidebar` | Pokaż skrót do panelu aplikacji w menu bocznym | Włącz |
+
+Etykiety tych przełączników są dostarczane przez frontend Home Assistant, a nie przez repozytorium dodatku. Ich język zależy od ustawień języka profilu użytkownika i wersji Home Assistant.
+
 ## Panel i Ingress
 
 Dodatek korzysta z natywnego Home Assistant Ingress. Panel **Media Downloader** z ikoną `mdi:download` jest dostępny w lewym menu Home Assistant i otwiera pełny interfejs aplikacji: analizę URL, formaty, pobieranie, historię, aktywne zadania oraz zapis transmisji live.

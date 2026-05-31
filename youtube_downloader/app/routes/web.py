@@ -53,10 +53,12 @@ def _valid_form() -> bool:
 def index():
     """Main panel with URL form and persistent history."""
 
+    file_service = _file_service()
     return render_template(
         "index.html",
-        history=_file_service().history(),
-        files=_file_service().list_files(),
+        history=file_service.history(),
+        files=file_service.list_files(),
+        storage=file_service.storage_usage(),
         options=current_app.config["APP_SETTINGS"],
     )
 

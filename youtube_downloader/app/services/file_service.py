@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -71,6 +72,24 @@ class FileService:
                     }
                 )
         return files
+
+    def storage_usage(self) -> dict[str, int | float]:
+        """Return filesystem capacity available to the configured download folder."""
+
+        usage = shutil.disk_usage(self.download_dir)
+        used_percent = (
+            round((usage.used / usage.total) * 100, 1) if usage.total else 0.0
+        )
+        free_percent = (
+            round((usage.free / usage.total) * 100, 1) if usage.total else 0.0
+        )
+        return {
+            "total": usage.total,
+            "used": usage.used,
+            "free": usage.free,
+            "used_percent": used_percent,
+            "free_percent": free_percent,
+        }
 
     def delete_file(self, filename: str) -> None:
         """Delete one managed file and update history."""

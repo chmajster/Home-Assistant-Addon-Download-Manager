@@ -12,24 +12,66 @@
     padding-right: 0.8rem;
   }
 
-  .navbar-brand {
-    font-size: 1rem;
+  .app-brand strong {
+    font-size: 0.96rem;
+  }
+
+  .brand-mark {
+    border-radius: 0.65rem;
+    height: 2rem;
+    width: 2rem;
+  }
+
+  .app-nav .nav-link {
+    font-size: 0.82rem;
+    padding: 0.48rem 0.6rem !important;
+  }
+
+  .hero-card .card-body {
+    padding: 1.4rem !important;
+  }
+
+  .hero-card .display-6 {
+    font-size: 2rem;
   }
 
   .url-form .input-group {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
     display: block;
+    padding: 0;
+  }
+
+  .url-form .input-group-text {
+    display: none;
   }
 
   .url-form .form-control,
   .url-form .btn {
-    border-radius: 0.5rem !important;
+    border-radius: 0.75rem !important;
     display: block;
     margin-bottom: 0.75rem;
+    min-height: 3.3rem;
     width: 100%;
+  }
+
+  .url-form .form-control {
+    border: 1px solid rgba(103, 88, 232, 0.18);
+    box-shadow: 0 8px 18px rgba(41, 54, 97, 0.08);
+    padding-left: 1rem;
+  }
+
+  .page-heading {
+    align-items: start !important;
   }
 
   .action-panel {
     position: static;
+  }
+
+  .card-body {
+    padding: 1.05rem;
   }
 
   .mobile-action {

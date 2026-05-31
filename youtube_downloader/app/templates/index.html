@@ -1,15 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Start | Media Downloader{% endblock %}
 {% block content %}
-  <section class="hero-card card border-0 shadow-sm mb-4">
+  <section class="hero-card card mb-4">
     <div class="card-body p-4 p-lg-5">
-      <h1 class="h3 mb-2">Pobierz dozwolony materiał</h1>
-      <p class="text-body-secondary mb-4">Wklej publiczny link z YouTube, Instagram albo Kick. Obsługiwane są filmy, Shorts, reels, publiczne posty, playlisty, klipy, VOD oraz transmisje live rozpoznawane przez yt-dlp. Pobieraj wyłącznie materiały, do których masz prawa lub które możesz legalnie zachować.</p>
+      <div class="hero-content">
+        <span class="eyebrow">Prywatny panel pobierania</span>
+        <h1 class="display-6 fw-bold mb-3">Twoje media.<br><span class="hero-highlight">Jedno miejsce.</span></h1>
+        <p class="hero-copy mb-3">Analizuj i zapisuj publiczne materiały, do których masz prawa. Wklej link, wybierz format i obserwuj postęp bez opuszczania Home Assistant.</p>
+        <div class="platform-list mb-4" aria-label="Obsługiwane serwisy">
+          <span class="platform-chip platform-youtube">YouTube</span>
+          <span class="platform-chip platform-instagram">Instagram</span>
+          <span class="platform-chip platform-kick">Kick</span>
+        </div>
+      </div>
       <form action="{{ ingress_url('web.analyze') }}" method="post" class="url-form needs-validation" novalidate>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <div class="input-group input-group-lg">
-          <input class="form-control media-url" type="url" name="url" placeholder="https://www.youtube.com/watch?v=... lub https://kick.com/kanal" required autocomplete="url">
-          <button class="btn btn-danger px-4 analyze-submit" type="submit">
+        <label class="visually-hidden" for="media-url">Adres materiału</label>
+        <div class="input-group input-group-lg hero-input-group">
+          <span class="input-group-text" aria-hidden="true">URL</span>
+          <input class="form-control media-url" id="media-url" type="url" name="url" placeholder="Wklej link z YouTube, Instagram albo Kick" required autocomplete="url">
+          <button class="btn btn-accent px-4 analyze-submit" type="submit">
             <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
             <span class="analyze-submit-label">Analizuj</span>
           </button>
@@ -23,11 +33,17 @@
     </div>
   </section>
 
-  <section class="row g-4 mb-4">
+  <section class="row g-4 mb-4 dashboard-grid">
     <div class="col-lg-7">
-      <div class="card border-0 shadow-sm h-100">
+      <div class="card app-card h-100">
         <div class="card-body">
-          <h2 class="h5">Historia pobrań</h2>
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Biblioteka</span>
+              <h2 class="h4 mb-1">Historia pobrań</h2>
+              <p class="section-copy mb-0">Ostatnie pliki zapisane przez dodatek.</p>
+            </div>
+          </div>
           {% if history %}
             <div class="desktop-only table-responsive">
               <table class="table align-middle mb-0">
@@ -61,7 +77,7 @@
             </div>
             <div class="mobile-only">
               {% for item in history %}
-                <article class="border rounded p-3 mb-2">
+                <article class="mobile-list-card p-3 mb-2">
                   <strong class="d-block">{{ item.title }}</strong>
                   <small class="text-body-secondary">{{ item.type }} | {{ item.downloaded_at|replace("T", " ")|truncate(19, True, "") }} | {{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</small>
                   <div class="mt-2">
@@ -79,20 +95,42 @@
               {% endfor %}
             </div>
           {% else %}
-            <p class="text-body-secondary mb-0">Historia jest jeszcze pusta.</p>
+            <div class="empty-state">
+              <span class="empty-state-mark" aria-hidden="true">+</span>
+              <strong>Historia jest jeszcze pusta</strong>
+              <small>Przeanalizuj pierwszy link, aby rozpocząć.</small>
+            </div>
           {% endif %}
         </div>
       </div>
     </div>
     <div class="col-lg-5">
-      <div class="card border-0 shadow-sm h-100">
+      <div class="card app-card mb-4">
         <div class="card-body">
+          <span class="eyebrow">Konfiguracja</span>
           <h2 class="h5">Ustawienia dodatku</h2>
           <dl class="row mb-0 small">
             <dt class="col-6">Katalog pobrań</dt><dd class="col-6 text-break">{{ options.download_dir }}</dd>
             <dt class="col-6">Limit zadań</dt><dd class="col-6">{{ options.max_concurrent_jobs }}</dd>
             <dt class="col-6">Format domyślny</dt><dd class="col-6">{{ options.preferred_format }}</dd>
             <dt class="col-6">Port zewnętrzny</dt><dd class="col-6">{{ "dozwolony" if options.allow_external_port else "wyłączony" }}</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="card app-card storage-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="h5 mb-0">Miejsce na dysku</h2>
+            <span class="badge {% if storage.used_percent >= 90 %}text-bg-danger{% elif storage.used_percent >= 75 %}text-bg-warning{% else %}text-bg-success{% endif %}">{{ storage.free_percent }}% wolne</span>
+          </div>
+          <p class="small text-body-secondary mb-3">Dostępne dla katalogu pobrań: <span class="text-break">{{ options.download_dir }}</span></p>
+          <div class="progress storage-progress mb-3" role="progressbar" aria-label="Zajęte miejsce na dysku" aria-valuenow="{{ storage.used_percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar {% if storage.used_percent >= 90 %}bg-danger{% elif storage.used_percent >= 75 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ storage.used_percent }}%">{{ storage.used_percent }}%</div>
+          </div>
+          <dl class="row mb-0 small">
+            <dt class="col-6">Wolne</dt><dd class="col-6 text-end fw-semibold">{{ storage.free|filesize }}</dd>
+            <dt class="col-6">Zajęte</dt><dd class="col-6 text-end">{{ storage.used|filesize }}</dd>
+            <dt class="col-6">Łącznie</dt><dd class="col-6 text-end">{{ storage.total|filesize }}</dd>
           </dl>
         </div>
       </div>

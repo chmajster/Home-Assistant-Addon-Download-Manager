@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.2.0
+
+- Przebudowano interfejs na nowoczesny panel z wyraźnym hero, kartami, nową paletą kolorów i sygnetem aplikacji.
+- Dodano chipy obsługiwanych serwisów, czytelniejsze stany puste oraz spójny wygląd widoków analizy i zadań.
+- Ulepszono responsywny układ na telefonach.
+
+## 1.1.2
+
+- Dodano panel miejsca na dysku dla skonfigurowanego katalogu pobrań.
+- Dodano wykres zajętości oraz wartości: wolne, zajęte i łączne miejsce.
+
+## 1.1.1
+
+- Dodano polskie objaśnienia standardowych przełączników Home Assistant: `Start on boot`, `Watchdog`, `Auto update` oraz `Show in sidebar`.
+- Wyjaśniono, że etykiety tych przełączników są tłumaczone przez frontend Home Assistant, a nie przez pliki tłumaczeń dodatku.
+
 ## 1.1.0
 
 - Dodano publiczne materiały Instagram obsługiwane przez `yt-dlp`: posty, reels, stories, tagi i profile.

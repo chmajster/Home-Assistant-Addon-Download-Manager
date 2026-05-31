@@ -12,10 +12,16 @@
     <link href="{{ ingress_url('static', filename='css/desktop.css') }}" rel="stylesheet">
   </head>
   <body>
-    <nav class="navbar navbar-expand navbar-dark bg-dark sticky-top shadow-sm">
+    <nav class="navbar navbar-expand sticky-top app-navbar">
       <div class="container-fluid app-container">
-        <a class="navbar-brand fw-semibold" href="{{ ingress_url('web.index') }}">Media Downloader</a>
-        <div class="navbar-nav ms-auto">
+        <a class="navbar-brand app-brand" href="{{ ingress_url('web.index') }}">
+          <span class="brand-mark" aria-hidden="true">MD</span>
+          <span>
+            <strong>Media Downloader</strong>
+            <small>Home Assistant</small>
+          </span>
+        </a>
+        <div class="navbar-nav app-nav ms-auto">
           <a class="nav-link" href="{{ ingress_url('web.index') }}">Start</a>
           <a class="nav-link" href="{{ ingress_url('web.jobs') }}">Zadania</a>
         </div>
@@ -24,7 +30,7 @@
     <main class="container-fluid app-container py-4">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          <div class="alert alert-{{ category }} alert-dismissible fade show app-alert" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zamknij"></button>
           </div>
