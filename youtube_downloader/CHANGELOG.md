@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+- Usunięto zależność buildu od serwerów pakietów Alpine.
+- Dodano statyczne wieloarchitekturowe binaria `ffmpeg` i `ffprobe`.
+- Dodano lokalny wheelhouse Pythona instalowany offline podczas budowania obrazu.
+
 ## 1.0.1
 
 - Dodano ponawianie instalacji pakietów Alpine podczas budowania obrazu po chwilowych błędach DNS.

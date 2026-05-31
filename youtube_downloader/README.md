@@ -63,7 +63,7 @@ W Home Assistant otwórz kartę dodatku:
 3. Karta **Konfiguracja** pokazuje opcje zapisane przez Supervisor.
 4. Jeśli analiza przestaje działać po zmianach serwisu, sprawdź log startowy aktualizacji `yt-dlp`.
 
-Jeśli budowanie obrazu kończy się komunikatem `DNS: transient error`, Supervisor chwilowo nie mógł pobrać indeksu pakietów Alpine. Dockerfile ponawia instalację kilka razy. Przy dłuższej awarii sprawdź połączenie sieciowe i DNS hosta Home Assistant, a następnie ponów instalację dodatku.
+Build obrazu nie pobiera już pakietów z serwerów Alpine ani PyPI wewnątrz kroków `RUN`. Statyczne binaria `ffmpeg` i `ffprobe` są kopiowane z wieloarchitekturowego obrazu, a zależności Python instalowane z lokalnego katalogu `wheels/`. Jeśli Docker nadal zgłasza błąd DNS podczas pobierania obrazu bazowego, sprawdź połączenie sieciowe i DNS hosta Home Assistant.
 
 Przy starcie aktualizowany jest `yt-dlp`, a nie YouTube. Jeśli aktualizacja się nie uda, dodatek uruchamia poprzednią wersję extractora.
 

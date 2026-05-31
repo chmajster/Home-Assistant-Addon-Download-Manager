@@ -1,27 +1,23 @@
-FROM ghcr.io/home-assistant/base-python:3.14-alpine3.23
+ARG BUILD_FROM=ghcr.io/home-assistant/base-python:3.14-alpine3.23
 
-ARG BUILD_VERSION="1.0.1"
+FROM mwader/static-ffmpeg:8.1.1 AS ffmpeg
+
+FROM ${BUILD_FROM}
+
+ARG BUILD_VERSION="1.0.2"
 ARG BUILD_ARCH="amd64"
 
-RUN set -eux; \
-    attempt=1; \
-    until apk add --no-cache bash ca-certificates ffmpeg; do \
-        if [ "${attempt}" -ge 5 ]; then \
-            echo "Instalacja pakietów Alpine nie powiodła się po ${attempt} próbach." >&2; \
-            exit 1; \
-        fi; \
-        delay=$((attempt * 5)); \
-        echo "Chwilowy błąd apk. Ponawiam za ${delay} s..." >&2; \
-        sleep "${delay}"; \
-        attempt=$((attempt + 1)); \
-    done
+COPY --from=ffmpeg /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg /ffprobe /usr/local/bin/ffprobe
 
 COPY requirements.txt /tmp/requirements.txt
+COPY wheels /tmp/wheels
 
 RUN python3.14 -m venv /venv \
-    && /venv/bin/python -m pip install --no-cache-dir --retries 8 --timeout 30 --upgrade pip setuptools wheel \
-    && /venv/bin/python -m pip install --no-cache-dir --retries 8 --timeout 30 -r /tmp/requirements.txt \
-    && rm -f /tmp/requirements.txt
+    && /venv/bin/python -m pip install --no-cache-dir --no-index --find-links=/tmp/wheels -r /tmp/requirements.txt \
+    && ffmpeg -version \
+    && ffprobe -version \
+    && rm -rf /tmp/requirements.txt /tmp/wheels
 
 COPY app /app
 COPY rootfs /
