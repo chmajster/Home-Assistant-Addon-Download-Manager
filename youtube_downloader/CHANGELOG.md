@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2
+
+- Dodano czytelny komunikat błędu pollingu zadań bez usuwania ostatniego poprawnego stanu listy.
+- Dodano licznik aktywnych zadań w nagłówku oraz walidację pola identyfikatora konkretnego formatu.
+
 ## 1.3.1
 
 - Ujednolicono nazwę dodatku, repozytorium, obrazu i logów startowych na `Media Web Downloader`.

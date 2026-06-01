@@ -45,7 +45,7 @@
           {% elif media.content_type == "live" %}
             <p class="text-body-secondary mb-0">Zapis będzie dostępny po rozpoczęciu transmisji.</p>
           {% else %}
-            <form action="{{ ingress_url('web.start_download') }}" method="post">
+            <form action="{{ ingress_url('web.start_download') }}" method="post" class="download-form" novalidate>
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="url" value="{{ media.url }}">
               <input type="hidden" name="title" value="{{ media.title }}">
@@ -57,7 +57,10 @@
                 <option value="format">Konkretny format z tabeli</option>
               </select>
               <label class="form-label" for="format-id">ID konkretnego formatu</label>
-              <input class="form-control mb-3" id="format-id" name="format_id" maxlength="80" placeholder="np. 137">
+              <div class="mb-3">
+                <input class="form-control" id="format-id" name="format_id" maxlength="80" placeholder="np. 137" disabled>
+                <div class="invalid-feedback">Podaj ID konkretnego formatu.</div>
+              </div>
               <button class="btn btn-accent w-100" type="submit">Rozpocznij pobieranie</button>
             </form>
           {% endif %}

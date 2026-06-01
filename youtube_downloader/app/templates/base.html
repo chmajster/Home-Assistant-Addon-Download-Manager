@@ -23,11 +23,16 @@
         </a>
         <div class="navbar-nav app-nav ms-auto">
           <a class="nav-link" href="{{ ingress_url('web.index') }}">Start</a>
-          <a class="nav-link" href="{{ ingress_url('web.jobs') }}">Zadania</a>
+          <a class="nav-link" href="{{ ingress_url('web.jobs') }}">
+            Zadania <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="Aktywne zadania">0</span>
+          </a>
         </div>
       </div>
     </nav>
     <main class="container-fluid app-container py-4">
+      <div id="jobs-refresh-error" class="alert alert-warning app-alert d-none" role="status">
+        Brak połączenia / nie można odświeżyć zadań
+      </div>
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
           <div class="alert alert-{{ category }} alert-dismissible fade show app-alert" role="alert">

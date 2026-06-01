@@ -65,6 +65,39 @@
     });
   });
 
+  document.querySelectorAll(".download-form").forEach((form) => {
+    const downloadType = form.querySelector('[name="download_type"]');
+    const formatId = form.querySelector('[name="format_id"]');
+    if (!downloadType || !formatId) return;
+
+    const syncFormatId = () => {
+      const enabled = downloadType.value === "format";
+      formatId.disabled = !enabled;
+      formatId.required = enabled;
+      if (!enabled) {
+        formatId.value = "";
+        formatId.classList.remove("is-invalid");
+      }
+    };
+
+    downloadType.addEventListener("change", syncFormatId);
+    formatId.addEventListener("input", () => {
+      if (formatId.value.trim()) formatId.classList.remove("is-invalid");
+    });
+    form.addEventListener("submit", (event) => {
+      if (downloadType.value === "format" && !formatId.value.trim()) {
+        event.preventDefault();
+        event.stopPropagation();
+        formatId.classList.add("is-invalid");
+        formatId.focus();
+      }
+    });
+    syncFormatId();
+  });
+
+  const activeJobStatuses = new Set(["pending", "downloading"]);
+  const isActiveJob = (job) => activeJobStatuses.has(job.status);
+
   const statusBadge = (job) => {
     const colors = {
       pending: "text-bg-secondary",
@@ -99,7 +132,7 @@
   };
 
   const stopForm = (job) => {
-    if (!job.is_live || !["pending", "downloading"].includes(job.status)) return text("span", "");
+    if (!job.is_live || !isActiveJob(job)) return text("span", "");
     const form = document.createElement("form");
     form.method = "post";
     form.action = route(`/live/stop/${encodeURIComponent(job.job_id)}`);
@@ -158,23 +191,48 @@
     });
   };
 
-  const refreshJobs = async () => {
+  const updateActiveJobsBadge = (jobs) => {
+    const badge = document.getElementById("active-jobs-badge");
+    if (badge) badge.textContent = String(jobs.filter(isActiveJob).length);
+  };
+
+  const updateJobsView = (jobs) => {
+    updateActiveJobsBadge(jobs);
     if (!document.getElementById("jobs-table-body")) return;
+    document.getElementById("jobs-empty")?.classList.toggle("d-none", jobs.length > 0);
+    renderTable(jobs);
+    renderCards(jobs);
+  };
+
+  const setJobsRefreshError = (visible) => {
+    document.getElementById("jobs-refresh-error")?.classList.toggle("d-none", !visible);
+  };
+
+  let lastSuccessfulJobs = null;
+  let jobsRefreshInProgress = false;
+
+  const refreshJobs = async () => {
+    if (!document.getElementById("active-jobs-badge") || jobsRefreshInProgress) return;
+    jobsRefreshInProgress = true;
     try {
       const response = await fetch(route("/api/jobs"), { headers: { Accept: "application/json" } });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
-      const jobs = payload.jobs || [];
-      document.getElementById("jobs-empty")?.classList.toggle("d-none", jobs.length > 0);
-      renderTable(jobs);
-      renderCards(jobs);
+      if (!payload || !Array.isArray(payload.jobs)) throw new Error("Niepoprawna odpowiedź API");
+      lastSuccessfulJobs = payload.jobs;
+      setJobsRefreshError(false);
+      updateJobsView(lastSuccessfulJobs);
     } catch (error) {
       console.error("Nie można odświeżyć listy zadań:", error);
+      setJobsRefreshError(true);
+      if (lastSuccessfulJobs) updateJobsView(lastSuccessfulJobs);
+    } finally {
+      jobsRefreshInProgress = false;
     }
   };
 
   refreshJobs();
-  if (document.getElementById("jobs-table-body")) {
+  if (document.getElementById("active-jobs-badge")) {
     window.setInterval(refreshJobs, 2500);
   }
 })();
