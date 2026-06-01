@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="ingress-path" content="{{ ingress_path }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}Media Downloader{% endblock %}</title>
+    <title>{% block title %}Media Web Downloader{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ ingress_url('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ ingress_url('static', filename='css/mobile.css') }}" rel="stylesheet">
@@ -15,9 +15,9 @@
     <nav class="navbar navbar-expand sticky-top app-navbar">
       <div class="container-fluid app-container">
         <a class="navbar-brand app-brand" href="{{ ingress_url('web.index') }}">
-          <span class="brand-mark" aria-hidden="true">MD</span>
+          <span class="brand-mark" aria-hidden="true">MWD</span>
           <span>
-            <strong>Media Downloader</strong>
+            <strong>Media Web Downloader</strong>
             <small>Home Assistant</small>
           </span>
         </a>

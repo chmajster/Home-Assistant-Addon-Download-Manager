@@ -14,7 +14,7 @@ W `config.yaml` aktywne są:
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:download
-panel_title: Media Downloader
+panel_title: Media Web Downloader
 ```
 
 Supervisor przekazuje ruch z panelu bocznego do wewnętrznego portu `8099`. Aplikacja uwzględnia nagłówek `X-Ingress-Path` przy generowaniu formularzy, linków do CSS i JavaScriptu, wywołań API oraz adresów pobieranych plików. Dzięki temu nie zakłada uruchomienia pod ścieżką `/`.

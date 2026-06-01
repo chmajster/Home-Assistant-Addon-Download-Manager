@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+- Ujednolicono nazwę dodatku, repozytorium, obrazu i logów startowych na `Media Web Downloader`.
+
 ## 1.3.0
 
 - Dodano jawny tryb magazynu `nfs` dla udziałów zamontowanych przez Home Assistant.

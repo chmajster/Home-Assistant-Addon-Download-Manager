@@ -60,7 +60,7 @@ Home Assistant zarządza czterema standardowymi przełącznikami dodatku. Repozy
 | `Start on boot` | Uruchamiaj automatycznie przy starcie Home Assistant | Włącz |
 | `Watchdog` | Automatycznie uruchom ponownie aplikację po awarii | Włącz |
 | `Automatyczna aktualizacja` / `Auto update` | Automatycznie instaluj nowsze wersje dodatku | Opcjonalnie włącz |
-| `Show in sidebar` | Pokaż skrót do panelu Media Downloader w menu bocznym | Włącz |
+| `Show in sidebar` | Pokaż skrót do panelu Media Web Downloader w menu bocznym | Włącz |
 
 Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawiony w profilu użytkownika oraz zaktualizuj Home Assistant. Własne opcje dodatku na karcie **Konfiguracja** mają tłumaczenia polskie w `translations/pl.yaml`.
 

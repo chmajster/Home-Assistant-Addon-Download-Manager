@@ -1,4 +1,4 @@
-# Home Assistant Media Downloader Add-ons
+# Media Web Downloader
 
 Repozytorium zawiera dodatek **Media Web Downloader** dla Home Assistant Supervisor. Dodatek uruchamia panel webowy oparty o Flask, Bootstrap 5 i `yt-dlp`. Służy do analizy oraz pobierania publicznych materiałów z YouTube, Instagram i Kick wyłącznie wtedy, gdy użytkownik ma do nich prawa lub może je legalnie pobrać.
 
@@ -29,7 +29,7 @@ Etykiety tych przełączników są dostarczane przez frontend Home Assistant, a 
 
 ## Panel i Ingress
 
-Dodatek korzysta z natywnego Home Assistant Ingress. Panel **Media Downloader** z ikoną `mdi:download` jest dostępny w lewym menu Home Assistant i otwiera pełny interfejs aplikacji: analizę URL, formaty, pobieranie, historię, aktywne zadania oraz zapis transmisji live.
+Dodatek korzysta z natywnego Home Assistant Ingress. Panel **Media Web Downloader** z ikoną `mdi:download` jest dostępny w lewym menu Home Assistant i otwiera pełny interfejs aplikacji: analizę URL, formaty, pobieranie, historię, aktywne zadania oraz zapis transmisji live.
 
 Port `8099/tcp` jest domyślnie niewystawiony na hosta. W typowej instalacji wystarcza bezpieczny dostęp przez Ingress.
 
