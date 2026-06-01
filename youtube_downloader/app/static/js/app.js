@@ -195,6 +195,7 @@
     const colors = {
       pending: "text-bg-secondary",
       downloading: "text-bg-primary",
+      stopping: "text-bg-warning",
       completed: "text-bg-success",
       error: "text-bg-danger",
       stopped: "text-bg-warning",
@@ -220,24 +221,49 @@
 
   const outputLink = (job) => {
     if (!job.output_file) return text("span", "-", "text-body-secondary");
-    const link = text("a", job.output_file);
+    const link = text("a", "Pobierz", "btn btn-sm btn-soft");
     link.href = route(`/downloaded/${encodeURIComponent(job.output_file)}`);
+    link.title = job.output_file;
     return link;
   };
 
-  const stopForm = (job) => {
-    if (!job.is_live || !isActiveJob(job)) return text("span", "");
+  const actionForm = (action, label, className) => {
     const form = document.createElement("form");
     form.method = "post";
-    form.action = route(`/live/stop/${encodeURIComponent(job.job_id)}`);
+    form.action = action;
     const token = document.createElement("input");
     token.type = "hidden";
     token.name = "_csrf_token";
     token.value = csrfToken;
-    const button = text("button", "Zatrzymaj", "btn btn-sm btn-outline-danger");
+    const button = text("button", label, className);
     button.type = "submit";
     form.append(token, button);
     return form;
+  };
+
+  const jobActions = (job) => {
+    const actions = document.createElement("span");
+    actions.className = "d-flex gap-2";
+    if (job.is_live && ["pending", "downloading"].includes(job.status)) {
+      actions.append(actionForm(
+        route(`/live/stop/${encodeURIComponent(job.job_id)}`),
+        "Zatrzymaj",
+        "btn btn-sm btn-outline-danger"
+      ));
+    } else if (!job.is_live && ["pending", "downloading"].includes(job.status)) {
+      actions.append(actionForm(
+        route(`/download/stop/${encodeURIComponent(job.job_id)}`),
+        "Zatrzymaj",
+        "btn btn-sm btn-outline-danger"
+      ));
+    } else if (!job.is_live && ["stopped", "interrupted"].includes(job.status)) {
+      actions.append(actionForm(
+        route(`/download/resume/${encodeURIComponent(job.job_id)}`),
+        "Wznów",
+        "btn btn-sm btn-outline-primary"
+      ));
+    }
+    return actions;
   };
 
   const renderTable = (jobs) => {
@@ -258,7 +284,7 @@
       const outputCell = document.createElement("td");
       outputCell.append(outputLink(job));
       const actionCell = document.createElement("td");
-      actionCell.append(stopForm(job));
+      actionCell.append(jobActions(job));
       row.append(titleCell, typeCell, statusCell, progressCell, speedCell, etaCell, outputCell, actionCell);
       body.append(row);
     });
@@ -279,7 +305,7 @@
       const error = text("small", job.error_message || "", "d-block text-danger mb-2");
       const actions = document.createElement("div");
       actions.className = "d-flex gap-2 align-items-center";
-      actions.append(outputLink(job), stopForm(job));
+      actions.append(outputLink(job), jobActions(job));
       card.append(heading, meta, status, progress, text("small", `${job.progress || 0}%`, "text-body-secondary"), error, actions);
       list.append(card);
     });

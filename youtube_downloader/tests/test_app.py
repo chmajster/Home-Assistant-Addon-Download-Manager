@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -240,6 +241,32 @@ class FakeMediaService:
         return ["/venv/bin/python", "-m", "yt_dlp", url]
 
 
+class BlockingMediaService(FakeMediaService):
+    """Pause the first transfer so stopping can be exercised deterministically."""
+
+    def __init__(self, download_dir: Path) -> None:
+        super().__init__(download_dir)
+        self.started = threading.Event()
+        self.release = threading.Event()
+        self.calls = 0
+
+    def download(self, **kwargs):
+        self.calls += 1
+        target = self.download_dir / "example.mp4"
+        kwargs["progress_hook"](
+            {"status": "downloading", "downloaded_bytes": 25, "total_bytes": 100}
+        )
+        if self.calls == 1:
+            self.started.set()
+            self.release.wait(timeout=2)
+            kwargs["progress_hook"](
+                {"status": "downloading", "downloaded_bytes": 50, "total_bytes": 100}
+            )
+        target.write_text("media", encoding="utf-8")
+        kwargs["progress_hook"]({"status": "finished", "filename": str(target)})
+        return [target]
+
+
 class JobManagerTestCase(unittest.TestCase):
     """Exercise queue completion and duplicate-live protection."""
 
@@ -285,6 +312,47 @@ class JobManagerTestCase(unittest.TestCase):
         )
         self.assertEqual(restored.list_jobs(), [])
 
+    def test_queued_download_can_be_stopped_and_resumed(self) -> None:
+        self.manager._slots.acquire()
+        try:
+            job = self.manager.start_download("https://youtu.be/abc", "Example", "best")
+            stopped = self.manager.stop_download(job.job_id)
+            self.assertEqual(stopped.status, "stopped")
+            resumed = self.manager.resume_download(job.job_id)
+            self.assertEqual(resumed.status, "pending")
+        finally:
+            self.manager._slots.release()
+        self.assertEqual(self._wait_for_status(job.job_id, "completed").progress, 100.0)
+
+    def test_explicit_format_is_kept_for_resuming(self) -> None:
+        job = self.manager._new_job(
+            "https://youtu.be/abc", "Example", "format", is_live=False, format_id="137"
+        )
+        restored = JobManager(
+            FakeMediaService(self.download_dir), self.files, max_concurrent_jobs=1
+        ).get_job(job.job_id)
+        self.assertEqual(restored.format_id, "137")
+
+    def test_active_download_can_be_stopped_and_resumed(self) -> None:
+        media = BlockingMediaService(self.download_dir)
+        manager = JobManager(media, self.files, max_concurrent_jobs=1)
+        job = manager.start_download("https://youtu.be/abc", "Example", "best")
+        try:
+            self.assertTrue(media.started.wait(timeout=2))
+            self.assertEqual(manager.stop_download(job.job_id).status, "stopping")
+            media.release.set()
+            self.assertEqual(
+                self._wait_for_status(job.job_id, "stopped", manager).status, "stopped"
+            )
+            self.assertEqual(manager.resume_download(job.job_id).status, "pending")
+            self.assertEqual(
+                self._wait_for_status(job.job_id, "completed", manager).output_file,
+                "example.mp4",
+            )
+        finally:
+            media.release.set()
+            manager._executor.shutdown()
+
     def test_storage_usage_reports_capacity(self) -> None:
         storage = self.files.storage_usage()
         self.assertGreater(storage["total"], 0)
@@ -303,10 +371,11 @@ class JobManagerTestCase(unittest.TestCase):
         finally:
             self.manager._slots.release()
 
-    def _wait_for_status(self, job_id: str, expected: str):
+    def _wait_for_status(self, job_id: str, expected: str, manager=None):
+        manager = manager or self.manager
         deadline = time.monotonic() + 2
         while time.monotonic() < deadline:
-            job = self.manager.get_job(job_id)
+            job = manager.get_job(job_id)
             if job.status == expected:
                 return job
             time.sleep(0.01)

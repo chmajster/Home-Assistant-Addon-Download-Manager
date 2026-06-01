@@ -28,6 +28,10 @@ DESTINATION_RE = re.compile(
 )
 
 
+class DownloadStoppedError(RuntimeError):
+    """Raised inside a yt-dlp hook when the user stops a regular download."""
+
+
 def now_iso() -> str:
     """Return an ISO 8601 UTC timestamp."""
 
@@ -43,6 +47,7 @@ class Job:
     title: str
     status: str
     download_type: str
+    format_id: str | None = None
     progress: float = 0.0
     speed: str | None = None
     eta: str | None = None
@@ -58,10 +63,13 @@ class Job:
 class JobManager:
     """Queue downloads, persist snapshots, and supervise dedicated live processes."""
 
-    ACTIVE_STATUSES = {"pending", "downloading"}
+    ACTIVE_STATUSES = {"pending", "downloading", "stopping"}
+    STOPPABLE_STATUSES = {"pending", "downloading"}
+    RESUMABLE_STATUSES = {"stopped", "interrupted"}
     STATUS_LABELS = {
         "pending": "oczekuje",
         "downloading": "pobieranie",
+        "stopping": "zatrzymywanie",
         "completed": "zakończone",
         "error": "błąd",
         "stopped": "zatrzymane",
@@ -96,10 +104,59 @@ class JobManager:
 
         validated_url = self.media_service.validate_url(url)
         self.media_service.format_selection(download_type, format_id)
-        job = self._new_job(validated_url, title, download_type, is_live=False)
-        self._executor.submit(self._run_download, job.job_id, format_id)
+        job = self._new_job(
+            validated_url, title, download_type, is_live=False, format_id=format_id
+        )
+        stop_event = threading.Event()
+        with self._lock:
+            self._stop_events[job.job_id] = stop_event
+        self._executor.submit(self._run_download, job.job_id, stop_event)
         LOGGER.info("Dodano zadanie pobierania %s", job.job_id)
         return job
+
+    def stop_download(self, job_id: str) -> Job:
+        """Stop a queued or running regular download while keeping partial files."""
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job or job.is_live:
+                raise KeyError(job_id)
+            if job.status not in self.STOPPABLE_STATUSES:
+                return Job(**asdict(job))
+            event = self._stop_events.get(job_id)
+            if event:
+                event.set()
+            if job.status == "pending":
+                self._finish(job, "stopped")
+            else:
+                job.status = "stopping"
+                job.speed = None
+                job.eta = None
+                self._persist_jobs()
+        LOGGER.info("Zlecono zatrzymanie pobierania %s", job_id)
+        return self.get_job(job_id)
+
+    def resume_download(self, job_id: str) -> Job:
+        """Resume a stopped regular download using yt-dlp partial-file support."""
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job or job.is_live:
+                raise KeyError(job_id)
+            if job.status not in self.RESUMABLE_STATUSES:
+                raise MediaServiceError("To zadanie nie może zostać wznowione.")
+            self.media_service.format_selection(job.download_type, job.format_id)
+            job.status = "pending"
+            job.finished_at = None
+            job.error_message = None
+            job.speed = None
+            job.eta = None
+            stop_event = threading.Event()
+            self._stop_events[job_id] = stop_event
+            self._persist_jobs()
+        self._executor.submit(self._run_download, job_id, stop_event)
+        LOGGER.info("Wznowiono pobieranie %s", job_id)
+        return self.get_job(job_id)
 
     def start_live(self, url: str, title: str) -> Job:
         """Queue a uniquely identified live stream recording process."""
@@ -137,7 +194,7 @@ class JobManager:
             job = self._jobs.get(job_id)
             if not job or not job.is_live:
                 raise KeyError(job_id)
-            if job.status not in self.ACTIVE_STATUSES:
+            if job.status not in self.STOPPABLE_STATUSES:
                 return job
             event = self._stop_events.get(job_id)
             process = self._live_processes.get(job_id)
@@ -172,13 +229,21 @@ class JobManager:
         payload["status_label"] = self.STATUS_LABELS.get(job.status, job.status)
         return payload
 
-    def _new_job(self, url: str, title: str, download_type: str, is_live: bool) -> Job:
+    def _new_job(
+        self,
+        url: str,
+        title: str,
+        download_type: str,
+        is_live: bool,
+        format_id: str | None = None,
+    ) -> Job:
         job = Job(
             job_id=uuid.uuid4().hex,
             url=url,
             title=(title or "Bez tytułu")[:300],
             status="pending",
             download_type=download_type,
+            format_id=format_id,
             is_live=is_live,
         )
         with self._lock:
@@ -186,66 +251,82 @@ class JobManager:
             self._persist_jobs()
         return Job(**asdict(job))
 
-    def _run_download(self, job_id: str, format_id: str | None) -> None:
-        with self._slots:
-            with self._lock:
-                job = self._jobs[job_id]
-                self._start(job)
-            collected: set[Path] = set()
-
-            def collect_path(data: dict[str, Any]) -> None:
-                info = data.get("info_dict") or {}
-                values = [
-                    data.get("filename"),
-                    info.get("filepath"),
-                    info.get("_filename"),
-                ]
-                files_to_move = info.get("__files_to_move") or {}
-                if isinstance(files_to_move, dict):
-                    values.extend(files_to_move)
-                    values.extend(files_to_move.values())
-                for path_value in values:
-                    if path_value:
-                        path = Path(str(path_value)).resolve()
-                        if self.file_service.is_managed_file(path):
-                            collected.add(path)
-
-            def progress_hook(data: dict[str, Any]) -> None:
-                collect_path(data)
+    def _run_download(self, job_id: str, stop_event: threading.Event) -> None:
+        try:
+            with self._slots:
                 with self._lock:
-                    active = self._jobs[job_id]
-                    if data.get("status") == "downloading":
-                        active.progress = self._percentage(data)
-                        active.speed = self._display_speed(data.get("speed"))
-                        active.eta = self._display_eta(data.get("eta"))
-                    elif data.get("status") == "finished":
-                        active.progress = 100.0
+                    job = self._jobs[job_id]
+                    if stop_event.is_set():
+                        if self._stop_events.get(job_id) is stop_event:
+                            self._finish(job, "stopped")
+                        return
+                    self._start(job)
+                collected: set[Path] = set()
 
-            try:
-                paths = self.media_service.download(
-                    url=job.url,
-                    download_type=job.download_type,
-                    format_id=format_id,
-                    progress_hook=progress_hook,
-                    postprocessor_hook=collect_path,
-                )
-                collected.update(paths)
-                files = self._record_existing_outputs(job_id, collected, "completed")
-                if not files:
-                    raise MediaServiceError(
-                        "Pobieranie zakończyło się bez gotowego pliku. Sprawdź logi dodatku."
+                def collect_path(data: dict[str, Any]) -> None:
+                    info = data.get("info_dict") or {}
+                    values = [
+                        data.get("filename"),
+                        info.get("filepath"),
+                        info.get("_filename"),
+                    ]
+                    files_to_move = info.get("__files_to_move") or {}
+                    if isinstance(files_to_move, dict):
+                        values.extend(files_to_move)
+                        values.extend(files_to_move.values())
+                    for path_value in values:
+                        if path_value:
+                            path = Path(str(path_value)).resolve()
+                            if self.file_service.is_managed_file(path):
+                                collected.add(path)
+
+                def progress_hook(data: dict[str, Any]) -> None:
+                    if stop_event.is_set():
+                        raise DownloadStoppedError
+                    collect_path(data)
+                    with self._lock:
+                        active = self._jobs[job_id]
+                        if data.get("status") == "downloading":
+                            active.progress = self._percentage(data)
+                            active.speed = self._display_speed(data.get("speed"))
+                            active.eta = self._display_eta(data.get("eta"))
+                        elif data.get("status") == "finished":
+                            active.progress = 100.0
+
+                try:
+                    paths = self.media_service.download(
+                        url=job.url,
+                        download_type=job.download_type,
+                        format_id=job.format_id,
+                        progress_hook=progress_hook,
+                        postprocessor_hook=collect_path,
                     )
-                with self._lock:
-                    active = self._jobs[job_id]
-                    active.output_files = files
-                    active.output_file = files[0] if files else None
-                    active.progress = 100.0
-                    self._finish(active, "completed")
-            except MediaServiceError as error:
-                self._fail(job_id, str(error))
-            except Exception:
-                LOGGER.exception("Nieoczekiwany błąd zadania %s", job_id)
-                self._fail(job_id, "Nieoczekiwany błąd podczas pobierania.")
+                    if stop_event.is_set():
+                        raise DownloadStoppedError
+                    collected.update(paths)
+                    files = self._record_existing_outputs(job_id, collected, "completed")
+                    if not files:
+                        raise MediaServiceError(
+                            "Pobieranie zakończyło się bez gotowego pliku. Sprawdź logi dodatku."
+                        )
+                    with self._lock:
+                        active = self._jobs[job_id]
+                        active.output_files = files
+                        active.output_file = files[0] if files else None
+                        active.progress = 100.0
+                        self._finish(active, "completed")
+                except DownloadStoppedError:
+                    with self._lock:
+                        self._finish(self._jobs[job_id], "stopped")
+                except MediaServiceError as error:
+                    self._fail(job_id, str(error))
+                except Exception:
+                    LOGGER.exception("Nieoczekiwany błąd zadania %s", job_id)
+                    self._fail(job_id, "Nieoczekiwany błąd podczas pobierania.")
+        finally:
+            with self._lock:
+                if self._stop_events.get(job_id) is stop_event:
+                    self._stop_events.pop(job_id, None)
 
     def _run_live(self, job_id: str) -> None:
         stop_event = self._stop_events[job_id]

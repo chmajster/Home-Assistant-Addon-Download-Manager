@@ -123,6 +123,39 @@ def start_live():
     return redirect(ingress_url("web.jobs"))
 
 
+@web_bp.post("/download/stop/<job_id>")
+def stop_download(job_id: str):
+    """Stop a regular download and keep its partial files for resuming."""
+
+    if not _valid_form():
+        return redirect(ingress_url("web.jobs"))
+    try:
+        _job_manager().stop_download(job_id)
+        flash("Zlecono zatrzymanie pobierania.", "success")
+    except KeyError:
+        flash("Nie znaleziono aktywnego pobierania.", "danger")
+    return redirect(ingress_url("web.jobs"))
+
+
+@web_bp.post("/download/resume/<job_id>")
+def resume_download(job_id: str):
+    """Resume a stopped regular download."""
+
+    if not _valid_form():
+        return redirect(ingress_url("web.jobs"))
+    if _limited("download-resume", 10):
+        flash("Zbyt wiele prób wznowienia pobierania. Odczekaj chwilę.", "warning")
+        return redirect(ingress_url("web.jobs"))
+    try:
+        job = _job_manager().resume_download(job_id)
+        flash(f"Wznowiono zadanie {job.job_id[:8]}.", "success")
+    except KeyError:
+        flash("Nie znaleziono pobierania do wznowienia.", "danger")
+    except MediaServiceError as error:
+        flash(str(error), "danger")
+    return redirect(ingress_url("web.jobs"))
+
+
 @web_bp.post("/live/stop/<job_id>")
 def stop_live(job_id: str):
     """Stop a live stream recording process."""

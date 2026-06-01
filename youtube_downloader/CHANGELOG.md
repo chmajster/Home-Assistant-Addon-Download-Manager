@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.6
+
+- Dodano zatrzymywanie i wznawianie zwykłych pobrań z zachowaniem częściowych plików `yt-dlp`.
+- Zapamiętywany jest wybrany identyfikator formatu, aby wznowienie używało tego samego wariantu.
+
+## 1.3.5
+
+- Zastąpiono nazwę pliku przy zadaniu czytelnym przyciskiem `Pobierz`.
+
 ## 1.3.4
 
 - Dodano przycisk `Pobierz` przy każdym formacie zwróconym przez analizę materiału.
