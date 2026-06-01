@@ -75,10 +75,10 @@
         <h2 class="h5">Dostępne formaty</h2>
         <div class="desktop-only table-responsive">
           <table class="table table-striped align-middle mb-0">
-            <thead><tr><th>ID</th><th>Rozszerzenie</th><th>Rozdzielczość</th><th>FPS</th><th>Wideo</th><th>Audio</th><th>Rozmiar</th></tr></thead>
+            <thead><tr><th>ID</th><th>Rozszerzenie</th><th>Rozdzielczość</th><th>FPS</th><th>Wideo</th><th>Audio</th><th>Rozmiar</th><th></th></tr></thead>
             <tbody>
               {% for format in media.formats %}
-                <tr><td>{{ format.format_id }}</td><td>{{ format.ext or "-" }}</td><td>{{ format.resolution or "-" }}</td><td>{{ format.fps or "-" }}</td><td>{{ format.vcodec or "-" }}</td><td>{{ format.acodec or "-" }}</td><td>{{ format.filesize|filesize if format.filesize else "-" }}</td></tr>
+                <tr><td>{{ format.format_id }}</td><td>{{ format.ext or "-" }}</td><td>{{ format.resolution or "-" }}</td><td>{{ format.fps or "-" }}</td><td>{{ format.vcodec or "-" }}</td><td>{{ format.acodec or "-" }}</td><td>{{ format.filesize|filesize if format.filesize else "-" }}</td><td><button class="btn btn-sm btn-soft format-download" type="button" data-format-id="{{ format.format_id }}">Pobierz</button></td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -88,6 +88,7 @@
             <article class="format-card mobile-list-card p-3 mb-2">
               <strong>ID {{ format.format_id }} | {{ format.ext or "?" }}</strong>
               <small class="d-block text-body-secondary">{{ format.resolution or "brak rozdzielczości" }} | audio: {{ format.acodec or "-" }} | wideo: {{ format.vcodec or "-" }}</small>
+              <button class="btn btn-sm btn-soft format-download mt-2" type="button" data-format-id="{{ format.format_id }}">Pobierz</button>
             </article>
           {% endfor %}
         </div>

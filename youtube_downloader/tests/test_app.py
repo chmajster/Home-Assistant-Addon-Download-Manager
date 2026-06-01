@@ -116,6 +116,45 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('data-history-type="best"', body)
         self.assertIn('data-history-status="completed"', body)
 
+    def test_result_displays_format_download_button(self) -> None:
+        media = {
+            "is_live": False,
+            "content_type": "video",
+            "thumbnail": None,
+            "title": "Example",
+            "channel": "Channel",
+            "channel_id": "channel-id",
+            "platform": "youtube",
+            "duration": 10,
+            "live_status": None,
+            "playlist_count": None,
+            "formats": [
+                {
+                    "format_id": "137",
+                    "ext": "mp4",
+                    "resolution": "1080p",
+                    "fps": 30,
+                    "vcodec": "avc1",
+                    "acodec": "none",
+                    "filesize": 1024,
+                }
+            ],
+            "entries": [],
+            "url": "https://youtu.be/example",
+        }
+        with self.app.test_request_context("/"):
+            body = self.app.jinja_env.get_template("result.html").render(
+                media=media,
+                app_settings=self.app.config["APP_SETTINGS"],
+                ingress_url=lambda endpoint, **values: "/",
+                csrf_token=lambda: "token",
+                ingress_path="",
+                allowed_hosts=[],
+                active_job_statuses=[],
+            )
+        self.assertIn('class="btn btn-sm btn-soft format-download"', body)
+        self.assertIn('data-format-id="137"', body)
+
 
 class MediaUrlTestCase(unittest.TestCase):
     """Keep extractor input limited to known public YouTube hosts."""

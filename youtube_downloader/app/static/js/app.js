@@ -88,6 +88,16 @@
       }
     });
     syncFormatId();
+
+    document.querySelectorAll(".format-download").forEach((button) => {
+      button.addEventListener("click", () => {
+        downloadType.value = "format";
+        syncFormatId();
+        formatId.value = button.dataset.formatId || "";
+        formatId.classList.remove("is-invalid");
+        form.requestSubmit();
+      });
+    });
   });
 
   const historyItems = Array.from(document.querySelectorAll(".history-item"));

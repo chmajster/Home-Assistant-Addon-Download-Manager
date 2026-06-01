@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.4
+
+- Dodano przycisk `Pobierz` przy każdym formacie zwróconym przez analizę materiału.
+
 ## 1.3.3
 
 - Dodano trwałą kolejkę zadań w `/data/jobs/queue.json` oraz status `przerwane` dla operacji aktywnych podczas restartu.
