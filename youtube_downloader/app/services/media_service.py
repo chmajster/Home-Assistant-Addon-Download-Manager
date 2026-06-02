@@ -11,6 +11,8 @@ from urllib.parse import urlsplit, urlunsplit
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
+from .error_messages import operational_error_message
+
 LOGGER = logging.getLogger(__name__)
 ALLOWED_DOMAINS = {
     "youtube.com": "youtube",
@@ -24,6 +26,11 @@ ALLOWED_DOMAINS = {
     "www.kick.com": "kick",
 }
 FORMAT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
+VIDEO_QUALITY_LIMITS = {
+    "video-360": 360,
+    "video-720": 720,
+    "video-1080": 1080,
+}
 
 
 class MediaServiceError(RuntimeError):
@@ -98,7 +105,8 @@ class MediaService:
         except Exception as error:
             LOGGER.exception("Nieoczekiwany błąd analizy URL")
             raise MediaServiceError(
-                "Nie udało się przeanalizować materiału przez yt-dlp."
+                operational_error_message(str(error))
+                or "Nie udało się przeanalizować materiału przez yt-dlp."
             ) from error
         if not raw_info:
             raise MediaServiceError("yt-dlp nie zwrócił metadanych dla tego adresu.")
@@ -124,6 +132,11 @@ class MediaService:
                 paths = self._paths_from_info(ydl, info)
         except DownloadError as error:
             raise MediaServiceError(self.polish_error(str(error))) from error
+        except OSError as error:
+            raise MediaServiceError(
+                operational_error_message(str(error))
+                or "Nie udało się zapisać pobieranego pliku. Sprawdź logi dodatku."
+            ) from error
         if download_type == "audio":
             paths.extend(path.with_suffix(".mp3") for path in list(paths))
         return self._existing_managed_paths(paths)
@@ -169,6 +182,12 @@ class MediaService:
             )
         if download_type in {"best", "video"}:
             return "bestvideo*+bestaudio/best", []
+        if download_type in VIDEO_QUALITY_LIMITS:
+            height = VIDEO_QUALITY_LIMITS[download_type]
+            return (
+                f"bestvideo*[height<={height}]+bestaudio/best[height<={height}]",
+                [],
+            )
         if download_type == "format":
             if not format_id or not FORMAT_ID_RE.fullmatch(format_id):
                 raise MediaServiceError(
@@ -207,6 +226,9 @@ class MediaService:
         """Convert common extractor errors to clear Polish messages."""
 
         lowered = message.lower()
+        known_error = operational_error_message(message)
+        if known_error:
+            return known_error
         if (
             "private video" in lowered
             or "sign in if you've been granted access" in lowered

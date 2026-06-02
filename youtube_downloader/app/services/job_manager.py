@@ -156,9 +156,10 @@ class JobManager:
             stop_event = threading.Event()
             self._stop_events[job_id] = stop_event
             self._persist_jobs()
+            snapshot = Job(**asdict(job))
         self._executor.submit(self._run_download, job_id, stop_event)
         LOGGER.info("Wznowiono pobieranie %s", job_id)
-        return self.get_job(job_id)
+        return snapshot
 
     def start_live(self, url: str, title: str) -> Job:
         """Queue a uniquely identified live stream recording process."""
@@ -313,7 +314,9 @@ class JobManager:
                     if stop_event.is_set():
                         raise DownloadStoppedError
                     collected.update(paths)
-                    files = self._record_existing_outputs(job_id, collected, "completed")
+                    files = self._record_existing_outputs(
+                        job_id, collected, "completed"
+                    )
                     if not files:
                         raise MediaServiceError(
                             "Pobieranie zakończyło się bez gotowego pliku. Sprawdź logi dodatku."
@@ -420,8 +423,15 @@ class JobManager:
             ):
                 files.append(path.name)
                 try:
+                    thumbnail_filename = self.file_service.generate_thumbnail(path.name)
                     self.file_service.record_download(
-                        job.title, job.url, job.download_type, path.name, status
+                        job.title,
+                        job.url,
+                        job.download_type,
+                        path.name,
+                        status,
+                        thumbnail_filename,
+                        job.format_id,
                     )
                 except (FileNotFoundError, ValueError):
                     LOGGER.warning("Pominięto wynik poza katalogiem pobrań: %s", path)
@@ -525,7 +535,13 @@ class JobManager:
                 LOGGER.warning("Pominięto niepoprawny rekord trwałej kolejki zadań")
                 continue
             try:
-                job = Job(**{key: value for key, value in record.items() if key in field_names})
+                job = Job(
+                    **{
+                        key: value
+                        for key, value in record.items()
+                        if key in field_names
+                    }
+                )
             except TypeError as error:
                 LOGGER.warning("Pominięto niepoprawny rekord zadania: %s", error)
                 continue

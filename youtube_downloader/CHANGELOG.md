@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.10
+
+- Dodano przycisk `Pobierz ponownie` przy rekordach historii zwykłych pobrań, także po usunięciu lokalnego pliku.
+- Historia zachowuje ID konkretnego formatu, aby ponowne pobranie odtwarzało również wybór z tabeli formatów.
+
+## 1.3.9
+
+- Uproszczono wybór jakości filmu do wariantów: najlepsza dostępna, `1080p`, `720p` i `360p`.
+- Zachowano pobieranie samego audio oraz zaawansowany wybór konkretnego formatu z tabeli.
+
+## 1.3.8
+
+- Dodano generowanie miniaturek JPG pobranych filmów i zakończonych zapisów live przez `ffmpeg`.
+- Dodano podgląd miniaturek w historii pobrań oraz automatyczne usuwanie miniatury razem z plikiem wideo.
+
 ## 1.3.7
 
 - Dodano rozmiar pobierania w widoku `Zadania`, w tym bieżącą i całkowitą liczbę bajtów, gdy `yt-dlp` ją udostępnia.

@@ -6,6 +6,8 @@ Po przesłaniu URL aplikacja sprawdza schemat i domenę, a następnie uruchamia 
 
 Przy właściwym pobieraniu aplikacja nie przyjmuje ścieżki docelowej od użytkownika. Wybiera szablon nazwy wewnątrz skonfigurowanego katalogu trwałego i ogranicza nazwy plików do bezpiecznego zestawu znaków obsługiwanego przez `yt-dlp`.
 
+Podstawowy formularz udostępnia prosty wybór jakości filmu: najlepsza dostępna, `1080p`, `720p` albo `360p`. Wybrana rozdzielczość jest limitem maksymalnym, więc przy braku dokładnego wariantu `yt-dlp` pobiera najlepszą dostępną niższą jakość. Nadal można pobrać samo audio MP3 albo wskazać konkretny format z tabeli.
+
 ## Ingress i panel Home Assistant
 
 W `config.yaml` aktywne są:
@@ -33,7 +35,7 @@ Po zakończeniu operacji wynik jest zapisywany w historii JSON:
 /data/jobs/history.json
 ```
 
-Historia przetrwa restart kontenera. Po skasowaniu materiału rekord pozostaje widoczny, ale panel oznacza brak pliku.
+Historia przetrwa restart kontenera. Po skasowaniu materiału rekord pozostaje widoczny, ale panel oznacza brak pliku. Przycisk **Pobierz ponownie** uruchamia nowe zadanie z zapisanym URL i wariantem jakości również wtedy, gdy lokalny plik został już usunięty.
 
 ## Zapis transmisji live
 

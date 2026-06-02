@@ -293,6 +293,18 @@ a:hover {
   object-fit: cover;
 }
 
+.history-thumbnail {
+  aspect-ratio: 16 / 9;
+  border-radius: 0.45rem;
+  object-fit: cover;
+  width: 6.5rem;
+}
+
+.history-thumbnail-mobile {
+  display: block;
+  width: 100%;
+}
+
 .action-panel {
   position: sticky;
   top: 5.8rem;

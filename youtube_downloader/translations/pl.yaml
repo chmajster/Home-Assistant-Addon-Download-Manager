@@ -25,6 +25,6 @@ configuration:
     description: "Włącza rozszerzone logi aplikacji."
   preferred_format:
     name: "Preferowany format"
-    description: "Domyślny wariant pobierania prezentowany przez aplikację."
+    description: "Domyślna jakość filmu lub wariant audio prezentowany przez aplikację."
 network:
   8099/tcp: "Opcjonalny zewnętrzny dostęp do interfejsu webowego"

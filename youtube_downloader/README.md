@@ -20,7 +20,7 @@ Opcje ustawia się na karcie **Konfiguracja** dodatku w Home Assistant:
 | `allow_external_port` | `false` | Informacyjna zgoda na planowane użycie zewnętrznego portu |
 | `external_port` | `8099` | Preferowany port dostępu zewnętrznego |
 | `debug` | `false` | Rozszerzone logowanie aplikacji |
-| `preferred_format` | `best` | Preferencja prezentowana przez aplikację: `best`, `audio` albo `video` |
+| `preferred_format` | `best` | Domyślna jakość: `best`, `video-1080`, `video-720`, `video-360` albo `audio` |
 
 Przykład:
 
@@ -70,6 +70,7 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 - `/share` jest zalecanym miejscem na pliki dostępne dla użytkownika; domyślnie używany jest `/share/youtube_downloader`.
 - `/media` może być alternatywnym katalogiem pobrań.
 - `/media/<nazwa>` zawiera magazyny sieciowe typu **Media** dodane w Home Assistant.
+- `<katalog pobrań>/.thumbnails` zawiera generowane przez `ffmpeg` podglądy JPG pobranych filmów.
 
 ## Endpointy
 
@@ -84,6 +85,7 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 | `GET` | `/api/jobs` | Lista zadań JSON |
 | `GET` | `/api/jobs/<job_id>` | Stan zadania JSON |
 | `GET` | `/downloaded/<filename>` | Pobranie gotowego pliku |
+| `GET` | `/thumbnails/<filename>` | Podgląd wygenerowanej miniatury filmu |
 | `POST` | `/delete/<filename>` | Usunięcie pliku |
 | `GET` | `/health` | Healthcheck watchdoga |
 

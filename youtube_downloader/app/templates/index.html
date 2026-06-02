@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Start | Media Web Downloader{% endblock %}
 {% block content %}
+  {% set download_type_labels = {"best": "najlepsza", "video": "najlepsza", "video-1080": "1080p", "video-720": "720p", "video-360": "360p", "audio": "audio MP3", "format": "konkretny format", "live": "live"} %}
   <section class="hero-card card mb-4">
     <div class="card-body p-4 p-lg-5">
       <div class="hero-content">
@@ -68,12 +69,19 @@
             </div>
             <div class="desktop-only table-responsive history-list">
               <table class="table align-middle mb-0">
-                <thead><tr><th>Tytuł</th><th>Typ</th><th>Data</th><th>Rozmiar</th><th>Plik</th><th></th></tr></thead>
+                <thead><tr><th>Miniatura</th><th>Tytuł</th><th>Typ</th><th>Data</th><th>Rozmiar</th><th>Plik</th><th></th></tr></thead>
                 <tbody class="history-items">
                   {% for item in history %}
                     <tr class="history-item" data-history-index="{{ loop.index0 }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-date="{{ item.downloaded_at }}">
+                      <td>
+                        {% if item.thumbnail_exists %}
+                          <img class="history-thumbnail" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                        {% else %}
+                          <span class="text-body-secondary">-</span>
+                        {% endif %}
+                      </td>
                       <td>{{ item.title }}</td>
-                      <td>{{ item.type }}</td>
+                      <td>{{ download_type_labels.get(item.type, item.type) }}</td>
                       <td>{{ item.downloaded_at|replace("T", " ")|truncate(19, True, "") }}</td>
                       <td>{{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</td>
                       <td>
@@ -84,12 +92,24 @@
                         {% endif %}
                       </td>
                       <td>
-                        {% if item.file_exists %}
-                          <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Usuń</button>
-                          </form>
-                        {% endif %}
+                        <div class="d-flex gap-2 align-items-center">
+                          {% if item.type != "live" and (item.type != "format" or (item.format_id is defined and item.format_id)) %}
+                            <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
+                              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                              <input type="hidden" name="url" value="{{ item.url }}">
+                              <input type="hidden" name="title" value="{{ item.title }}">
+                              <input type="hidden" name="download_type" value="{{ item.type }}">
+                              {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
+                              <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
+                            </form>
+                          {% endif %}
+                          {% if item.file_exists %}
+                            <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
+                              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                              <button class="btn btn-sm btn-outline-danger" type="submit">Usuń</button>
+                            </form>
+                          {% endif %}
+                        </div>
                       </td>
                     </tr>
                   {% endfor %}
@@ -99,9 +119,22 @@
             <div class="mobile-only history-list history-items">
               {% for item in history %}
                 <article class="mobile-list-card p-3 mb-2 history-item" data-history-index="{{ loop.index0 }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-date="{{ item.downloaded_at }}">
+                  {% if item.thumbnail_exists %}
+                    <img class="history-thumbnail history-thumbnail-mobile mb-3" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                  {% endif %}
                   <strong class="d-block">{{ item.title }}</strong>
-                  <small class="text-body-secondary">{{ item.type }} | {{ item.downloaded_at|replace("T", " ")|truncate(19, True, "") }} | {{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</small>
+                  <small class="text-body-secondary">{{ download_type_labels.get(item.type, item.type) }} | {{ item.downloaded_at|replace("T", " ")|truncate(19, True, "") }} | {{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</small>
                   <div class="mt-2">
+                    {% if item.type != "live" and (item.type != "format" or (item.format_id is defined and item.format_id)) %}
+                      <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form d-inline">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="url" value="{{ item.url }}">
+                        <input type="hidden" name="title" value="{{ item.title }}">
+                        <input type="hidden" name="download_type" value="{{ item.type }}">
+                        {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
+                        <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
+                      </form>
+                    {% endif %}
                     {% if item.file_exists %}
                       <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
                       <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form d-inline" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
@@ -142,7 +175,7 @@
             <dt class="col-6">Tryb magazynu</dt><dd class="col-6">{{ "NFS Home Assistant" if options.storage_mode == "nfs" else "lokalny" }}</dd>
             <dt class="col-6">Katalog pobrań</dt><dd class="col-6 text-break">{{ options.download_dir }}</dd>
             <dt class="col-6">Limit zadań</dt><dd class="col-6">{{ options.max_concurrent_jobs }}</dd>
-            <dt class="col-6">Format domyślny</dt><dd class="col-6">{{ options.preferred_format }}</dd>
+            <dt class="col-6">Format domyślny</dt><dd class="col-6">{{ download_type_labels.get(options.preferred_format, options.preferred_format) }}</dd>
             <dt class="col-6">Port zewnętrzny</dt><dd class="col-6">{{ "dozwolony" if options.allow_external_port else "wyłączony" }}</dd>
           </dl>
         </div>

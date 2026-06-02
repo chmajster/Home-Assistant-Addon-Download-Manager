@@ -51,9 +51,11 @@
               <input type="hidden" name="title" value="{{ media.title }}">
               <label class="form-label" for="download-type">Wybierz wariant</label>
               <select class="form-select mb-3" id="download-type" name="download_type">
-                <option value="best"{% if app_settings.preferred_format == "best" %} selected{% endif %}>Najlepsza jakość wideo</option>
+                <option value="best"{% if app_settings.preferred_format == "best" %} selected{% endif %}>Najlepsza dostępna jakość</option>
+                <option value="video-1080"{% if app_settings.preferred_format == "video-1080" %} selected{% endif %}>1080p</option>
+                <option value="video-720"{% if app_settings.preferred_format == "video-720" %} selected{% endif %}>720p</option>
+                <option value="video-360"{% if app_settings.preferred_format == "video-360" %} selected{% endif %}>360p</option>
                 <option value="audio"{% if app_settings.preferred_format == "audio" %} selected{% endif %}>Tylko audio MP3</option>
-                <option value="video"{% if app_settings.preferred_format == "video" %} selected{% endif %}>Wideo z najlepszym dostępnym audio</option>
                 <option value="format">Konkretny format z tabeli</option>
               </select>
               <label class="form-label" for="format-id">ID konkretnego formatu</label>

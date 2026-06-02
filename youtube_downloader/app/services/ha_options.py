@@ -13,7 +13,7 @@ LOGGER = logging.getLogger(__name__)
 OPTIONS_FILE = Path("/data/options.json")
 DEFAULT_DOWNLOAD_DIR = Path("/share/youtube_downloader")
 ALLOWED_DOWNLOAD_ROOTS = (Path("/share"), Path("/media"))
-PREFERRED_FORMATS = {"best", "audio", "video"}
+PREFERRED_FORMATS = {"best", "audio", "video", "video-360", "video-720", "video-1080"}
 
 DEFAULT_OPTIONS: dict[str, Any] = {
     "storage_mode": "local",
@@ -147,6 +147,8 @@ def load_options() -> HomeAssistantOptions:
     preferred_format = str(values["preferred_format"])
     if preferred_format not in PREFERRED_FORMATS:
         preferred_format = str(DEFAULT_OPTIONS["preferred_format"])
+    elif preferred_format == "video":
+        preferred_format = "best"
 
     return HomeAssistantOptions(
         storage_mode=storage_mode,

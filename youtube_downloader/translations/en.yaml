@@ -25,6 +25,6 @@ configuration:
     description: "Enables verbose application logging."
   preferred_format:
     name: "Preferred format"
-    description: "Default download variant presented by the application."
+    description: "Default video quality or audio variant presented by the application."
 network:
   8099/tcp: "Optional external access to the web interface"

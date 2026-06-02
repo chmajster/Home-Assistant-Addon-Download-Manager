@@ -19,6 +19,17 @@
     return node;
   };
 
+  const downloadTypeLabel = (downloadType) => ({
+    best: "najlepsza",
+    video: "najlepsza",
+    "video-1080": "1080p",
+    "video-720": "720p",
+    "video-360": "360p",
+    audio: "audio MP3",
+    format: "konkretny format",
+    live: "live",
+  })[downloadType] || downloadType;
+
   const isValidMediaUrl = (value) => {
     try {
       const url = new URL(value);
@@ -115,15 +126,15 @@
     const pageSize = 10;
     let currentPage = 1;
 
-    const addOptions = (select, values) => {
+    const addOptions = (select, values, labeler = (value) => value) => {
       values.forEach((value) => {
-        const option = text("option", value);
+        const option = text("option", labeler(value));
         option.value = value;
         select?.append(option);
       });
     };
 
-    addOptions(typeFilter, [...new Set(records.map((item) => item.dataset.historyType).filter(Boolean))].sort());
+    addOptions(typeFilter, [...new Set(records.map((item) => item.dataset.historyType).filter(Boolean))].sort(), downloadTypeLabel);
     addOptions(statusFilter, [...new Set(records.map((item) => item.dataset.historyStatus).filter(Boolean))].sort());
 
     const renderHistory = () => {
@@ -292,7 +303,7 @@
       const row = document.createElement("tr");
       const titleCell = document.createElement("td");
       titleCell.append(text("strong", job.title), text("small", job.error_message || "", "job-error d-block text-danger"));
-      const typeCell = text("td", job.download_type);
+      const typeCell = text("td", downloadTypeLabel(job.download_type));
       const statusCell = document.createElement("td");
       statusCell.append(statusBadge(job));
       const progressCell = document.createElement("td");
@@ -317,7 +328,7 @@
       const card = document.createElement("article");
       card.className = "mobile-list-card p-3 mb-3";
       const heading = text("strong", job.title, "d-block");
-      const meta = text("small", `${job.download_type} | ${jobSize(job)} | ${job.speed || "-"} | ETA ${job.eta || "-"}`, "d-block text-body-secondary mb-2");
+      const meta = text("small", `${downloadTypeLabel(job.download_type)} | ${jobSize(job)} | ${job.speed || "-"} | ETA ${job.eta || "-"}`, "d-block text-body-secondary mb-2");
       const status = statusBadge(job);
       const progress = progressBar(job);
       progress.classList.add("my-2");

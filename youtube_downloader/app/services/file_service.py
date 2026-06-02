@@ -6,16 +6,42 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import threading
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .error_messages import thumbnail_warning_message
+
 LOGGER = logging.getLogger(__name__)
+THUMBNAIL_DIRNAME = ".thumbnails"
+VIDEO_EXTENSIONS = {
+    ".3gp",
+    ".avi",
+    ".flv",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp4",
+    ".mpeg",
+    ".mpg",
+    ".ts",
+    ".webm",
+}
 
 
 class UnsafeFilenameError(ValueError):
     """Raised when a client-provided filename escapes the download folder."""
+
+
+@dataclass(frozen=True)
+class ThumbnailResult:
+    """Generated thumbnail basename and an optional non-fatal warning."""
+
+    filename: str | None = None
+    warning_message: str | None = None
 
 
 class FileService:
@@ -23,9 +49,11 @@ class FileService:
 
     def __init__(self, download_dir: Path, history_file: Path) -> None:
         self.download_dir = download_dir.resolve()
+        self.thumbnail_dir = self.download_dir / THUMBNAIL_DIRNAME
         self.history_file = history_file
         self._history_lock = threading.RLock()
         self.download_dir.mkdir(parents=True, exist_ok=True)
+        self.thumbnail_dir.mkdir(parents=True, exist_ok=True)
         self.history_file.parent.mkdir(parents=True, exist_ok=True)
         if not self.history_file.exists():
             self._write_history([])
@@ -38,6 +66,18 @@ class FileService:
         candidate = (self.download_dir / filename).resolve()
         if candidate.parent != self.download_dir:
             raise UnsafeFilenameError("Niepoprawna ścieżka pliku.")
+        if require_exists and not candidate.is_file():
+            raise FileNotFoundError(filename)
+        return candidate
+
+    def resolve_thumbnail(self, filename: str, require_exists: bool = True) -> Path:
+        """Resolve a generated thumbnail basename inside its private folder."""
+
+        if not filename or filename in {".", ".."} or Path(filename).name != filename:
+            raise UnsafeFilenameError("Niepoprawna nazwa miniatury.")
+        candidate = (self.thumbnail_dir / filename).resolve()
+        if candidate.parent != self.thumbnail_dir:
+            raise UnsafeFilenameError("Niepoprawna sciezka miniatury.")
         if require_exists and not candidate.is_file():
             raise FileNotFoundError(filename)
         return candidate
@@ -96,8 +136,73 @@ class FileService:
 
         path = self.resolve_download(filename)
         path.unlink()
+        self.delete_thumbnail(filename)
         self.mark_file_deleted(filename)
         LOGGER.info("Usunięto plik %s", filename)
+
+    def generate_thumbnail(self, filename: str) -> ThumbnailResult:
+        """Create a JPG preview for a managed video file."""
+
+        source = self.resolve_download(filename)
+        if source.suffix.lower() not in VIDEO_EXTENSIONS:
+            return ThumbnailResult()
+        thumbnail = self.resolve_thumbnail(f"{source.name}.jpg", require_exists=False)
+        temporary = self.resolve_thumbnail(
+            f"{source.name}.{os.getpid()}.{threading.get_ident()}.tmp.jpg",
+            require_exists=False,
+        )
+        try:
+            error_message = ""
+            for seek_seconds in ("1", None):
+                temporary.unlink(missing_ok=True)
+                command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
+                if seek_seconds is not None:
+                    command.extend(["-ss", seek_seconds])
+                command.extend(
+                    [
+                        "-i",
+                        str(source),
+                        "-frames:v",
+                        "1",
+                        "-vf",
+                        "scale=640:-2:force_original_aspect_ratio=decrease",
+                        "-q:v",
+                        "3",
+                        str(temporary),
+                    ]
+                )
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    check=False,
+                    text=True,
+                    timeout=30,
+                )
+                if result.returncode == 0 and temporary.is_file():
+                    os.replace(temporary, thumbnail)
+                    return ThumbnailResult(filename=thumbnail.name)
+                error_message = result.stderr.strip()
+            LOGGER.warning(
+                "Nie mozna wygenerowac miniatury dla %s: %s",
+                filename,
+                error_message,
+            )
+            return ThumbnailResult(
+                warning_message=thumbnail_warning_message(error_message)
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            LOGGER.warning(
+                "Nie mozna wygenerowac miniatury dla %s: %s", filename, error
+            )
+            return ThumbnailResult(warning_message=thumbnail_warning_message(str(error)))
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def delete_thumbnail(self, filename: str) -> None:
+        """Remove a generated thumbnail associated with a managed download."""
+
+        thumbnail = self.resolve_thumbnail(f"{filename}.jpg", require_exists=False)
+        thumbnail.unlink(missing_ok=True)
 
     def history(self) -> list[dict[str, Any]]:
         """Load download history and enrich it with current file existence."""
@@ -112,10 +217,26 @@ class FileService:
                 record["size"] = path.stat().st_size
             except (FileNotFoundError, UnsafeFilenameError):
                 record["file_exists"] = False
+            thumbnail_filename = record.get("thumbnail_filename")
+            try:
+                record["thumbnail_exists"] = bool(
+                    thumbnail_filename
+                    and self.resolve_thumbnail(str(thumbnail_filename)).is_file()
+                )
+            except (FileNotFoundError, UnsafeFilenameError):
+                record["thumbnail_exists"] = False
         return records
 
     def record_download(
-        self, title: str, url: str, download_type: str, filename: str, status: str
+        self,
+        title: str,
+        url: str,
+        download_type: str,
+        filename: str,
+        status: str,
+        thumbnail_filename: str | None = None,
+        format_id: str | None = None,
+        warning_message: str | None = None,
     ) -> None:
         """Append a completed or partial output to persistent history."""
 
@@ -129,6 +250,9 @@ class FileService:
             "downloaded_at": datetime.now(UTC).isoformat(),
             "status": status,
             "file_exists": True,
+            "thumbnail_filename": thumbnail_filename,
+            "format_id": format_id,
+            "warning_message": warning_message,
         }
         with self._history_lock:
             records = self._read_history()

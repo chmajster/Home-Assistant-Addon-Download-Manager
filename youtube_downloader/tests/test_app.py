@@ -12,7 +12,11 @@ from unittest.mock import patch
 
 from app import create_app
 from app.services.file_service import FileService
-from app.services.ha_options import _network_mount_root, _validated_storage_mode
+from app.services.ha_options import (
+    _network_mount_root,
+    _validated_storage_mode,
+    load_options,
+)
 from app.services.job_manager import JobManager
 from app.services.media_service import MediaService, MediaServiceError
 
@@ -73,6 +77,17 @@ class ApplicationTestCase(unittest.TestCase):
         finally:
             response.close()
 
+    def test_generated_thumbnail_can_be_displayed(self) -> None:
+        files = self.app.extensions["file_service"]
+        expected = files.thumbnail_dir / "example.mp4.jpg"
+        expected.write_bytes(b"thumbnail")
+        response = self.client.get("/thumbnails/example.mp4.jpg")
+        try:
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data, b"thumbnail")
+        finally:
+            response.close()
+
     def test_index_displays_storage_usage(self) -> None:
         response = self.client.get("/")
         body = response.get_data(as_text=True)
@@ -116,6 +131,59 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('id="history-pagination"', body)
         self.assertIn('data-history-type="best"', body)
         self.assertIn('data-history-status="completed"', body)
+        self.assertIn('class="repeat-download-form"', body)
+        self.assertIn(">Pobierz ponownie</button>", body)
+        self.assertIn('name="url" value="https://youtu.be/example"', body)
+        self.assertIn('name="download_type" value="best"', body)
+
+    def test_history_repeat_download_is_available_after_file_deletion(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        files.record_download(
+            "Example",
+            "https://youtu.be/example",
+            "video-720",
+            target.name,
+            "completed",
+        )
+        files.delete_file(target.name)
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn(">Pobierz ponownie</button>", body)
+        self.assertIn('name="download_type" value="video-720"', body)
+        self.assertIn('class="badge text-bg-secondary"', body)
+
+    def test_history_repeat_download_keeps_explicit_format_id(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        files.record_download(
+            "Example",
+            "https://youtu.be/example",
+            "format",
+            target.name,
+            "completed",
+            format_id="137",
+        )
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn('name="download_type" value="format"', body)
+        self.assertIn('name="format_id" value="137"', body)
+
+    def test_history_repeat_download_is_hidden_for_legacy_format_without_id(
+        self,
+    ) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        files.record_download(
+            "Example",
+            "https://youtu.be/example",
+            "format",
+            target.name,
+            "completed",
+        )
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertNotIn(">Pobierz ponownie</button>", body)
 
     def test_result_displays_format_download_button(self) -> None:
         media = {
@@ -155,6 +223,9 @@ class ApplicationTestCase(unittest.TestCase):
             )
         self.assertIn('class="btn btn-sm btn-soft format-download"', body)
         self.assertIn('data-format-id="137"', body)
+        self.assertIn('<option value="video-1080">1080p</option>', body)
+        self.assertIn('<option value="video-720">720p</option>', body)
+        self.assertIn('<option value="video-360">360p</option>', body)
 
 
 class MediaUrlTestCase(unittest.TestCase):
@@ -196,6 +267,33 @@ class MediaUrlTestCase(unittest.TestCase):
         )
 
 
+class MediaFormatSelectionTestCase(unittest.TestCase):
+    """Map simple quality choices to controlled yt-dlp selectors."""
+
+    def test_best_quality_has_no_height_limit(self) -> None:
+        selection, postprocessors = MediaService.format_selection("best")
+        self.assertEqual(selection, "bestvideo*+bestaudio/best")
+        self.assertEqual(postprocessors, [])
+
+    def test_simple_video_quality_limits_height(self) -> None:
+        for download_type, height in (
+            ("video-360", 360),
+            ("video-720", 720),
+            ("video-1080", 1080),
+        ):
+            with self.subTest(download_type=download_type):
+                selection, postprocessors = MediaService.format_selection(download_type)
+                self.assertEqual(
+                    selection,
+                    f"bestvideo*[height<={height}]+bestaudio/best[height<={height}]",
+                )
+                self.assertEqual(postprocessors, [])
+
+    def test_legacy_video_variant_still_uses_best_quality(self) -> None:
+        selection, _ = MediaService.format_selection("video")
+        self.assertEqual(selection, "bestvideo*+bestaudio/best")
+
+
 class HomeAssistantOptionsTestCase(unittest.TestCase):
     """Validate Home Assistant network-storage option helpers."""
 
@@ -211,6 +309,80 @@ class HomeAssistantOptionsTestCase(unittest.TestCase):
 
     def test_unknown_storage_mode_falls_back_to_local(self) -> None:
         self.assertEqual(_validated_storage_mode("unknown"), "local")
+
+    def test_legacy_preferred_video_format_is_migrated_to_best(self) -> None:
+        with patch(
+            "app.services.ha_options._read_json",
+            return_value={"preferred_format": "video"},
+        ):
+            self.assertEqual(load_options().preferred_format, "best")
+
+
+class FileServiceThumbnailTestCase(unittest.TestCase):
+    """Generate and clean up derived video thumbnails."""
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        root = Path(self.temp_dir.name)
+        self.files = FileService(root / "downloads", root / "jobs" / "history.json")
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def test_video_thumbnail_is_generated_recorded_and_deleted(self) -> None:
+        video = self.files.download_dir / "example.mp4"
+        video.write_bytes(b"video")
+
+        def fake_ffmpeg(command, **kwargs):
+            Path(command[-1]).write_bytes(b"thumbnail")
+            return SimpleNamespace(returncode=0, stderr="")
+
+        with patch("app.services.file_service.subprocess.run", side_effect=fake_ffmpeg):
+            thumbnail = self.files.generate_thumbnail(video.name)
+
+        self.assertEqual(thumbnail, "example.mp4.jpg")
+        self.assertEqual(
+            self.files.resolve_thumbnail(thumbnail).read_bytes(), b"thumbnail"
+        )
+        self.assertEqual(
+            [item["filename"] for item in self.files.list_files()], ["example.mp4"]
+        )
+        self.files.record_download(
+            "Example",
+            "https://youtu.be/example",
+            "best",
+            video.name,
+            "completed",
+            thumbnail,
+        )
+        self.assertTrue(self.files.history()[0]["thumbnail_exists"])
+        self.files.delete_file(video.name)
+        self.assertFalse(self.files.history()[0]["thumbnail_exists"])
+
+    def test_audio_file_does_not_create_thumbnail(self) -> None:
+        audio = self.files.download_dir / "example.mp3"
+        audio.write_bytes(b"audio")
+        with patch("app.services.file_service.subprocess.run") as ffmpeg:
+            self.assertIsNone(self.files.generate_thumbnail(audio.name))
+        ffmpeg.assert_not_called()
+
+    def test_short_video_uses_first_frame_as_thumbnail_fallback(self) -> None:
+        video = self.files.download_dir / "short.mp4"
+        video.write_bytes(b"video")
+        calls = 0
+
+        def fake_ffmpeg(command, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                Path(command[-1]).write_bytes(b"thumbnail")
+            return SimpleNamespace(returncode=0 if calls == 2 else 1, stderr="short")
+
+        with patch("app.services.file_service.subprocess.run", side_effect=fake_ffmpeg):
+            thumbnail = self.files.generate_thumbnail(video.name)
+
+        self.assertEqual(thumbnail, "short.mp4.jpg")
+        self.assertEqual(calls, 2)
 
 
 class FakeMediaService:
@@ -276,11 +448,17 @@ class JobManagerTestCase(unittest.TestCase):
         self.download_dir = root / "downloads"
         self.download_dir.mkdir()
         self.files = FileService(self.download_dir, root / "jobs" / "history.json")
+        self.thumbnail_patcher = patch.object(
+            self.files, "generate_thumbnail", return_value=None
+        )
+        self.thumbnail_generator = self.thumbnail_patcher.start()
         self.manager = JobManager(
             FakeMediaService(self.download_dir), self.files, max_concurrent_jobs=1
         )
 
     def tearDown(self) -> None:
+        self.manager._executor.shutdown()
+        self.thumbnail_patcher.stop()
         self.temp_dir.cleanup()
 
     def test_regular_download_completes_and_is_recorded(self) -> None:
@@ -292,6 +470,7 @@ class JobManagerTestCase(unittest.TestCase):
         self.assertEqual(completed.total_bytes, 5)
         self.assertEqual(self.files.history()[0]["title"], "Example")
         self.assertEqual(self.files.history()[0]["size"], 5)
+        self.thumbnail_generator.assert_called_once_with("example.mp4")
         restored = JobManager(
             FakeMediaService(self.download_dir), self.files, max_concurrent_jobs=1
         )
@@ -306,6 +485,15 @@ class JobManagerTestCase(unittest.TestCase):
         ).get_job(job.job_id)
         self.assertEqual(restored.status, "interrupted")
         self.assertIn("restart", restored.error_message)
+
+    def test_explicit_format_id_is_recorded_in_history(self) -> None:
+        job = self.manager.start_download(
+            "https://youtu.be/abc", "Example", "format", format_id="137"
+        )
+        self._wait_for_status(job.job_id, "completed")
+        record = self.files.history()[0]
+        self.assertEqual(record["type"], "format")
+        self.assertEqual(record["format_id"], "137")
 
     def test_corrupted_persistent_queue_does_not_break_startup(self) -> None:
         self.manager.jobs_file.write_text("{", encoding="utf-8")

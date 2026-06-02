@@ -193,6 +193,17 @@ def downloaded(filename: str):
         ), 404
 
 
+@web_bp.get("/thumbnails/<filename>")
+def thumbnail(filename: str):
+    """Serve one generated thumbnail without exposing arbitrary files."""
+
+    try:
+        path = _file_service().resolve_thumbnail(filename)
+        return send_file(path)
+    except (FileNotFoundError, UnsafeFilenameError):
+        return render_template("error.html", message="Nie znaleziono miniatury."), 404
+
+
 @web_bp.post("/delete/<filename>")
 def delete(filename: str):
     """Delete one managed file."""
