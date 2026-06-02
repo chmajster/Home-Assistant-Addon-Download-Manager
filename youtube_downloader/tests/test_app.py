@@ -73,6 +73,21 @@ class ApplicationTestCase(unittest.TestCase):
     def test_empty_job_api(self) -> None:
         response = self.client.get("/api/jobs")
         self.assertEqual(response.get_json(), {"jobs": []})
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+
+    def test_jobs_page_describes_live_refresh(self) -> None:
+        body = self.client.get("/jobs").get_data(as_text=True)
+        self.assertIn("Status odświeża się na żywo.", body)
+
+    def test_jobs_frontend_uses_live_refresh(self) -> None:
+        response = self.client.get("/static/js/app.js")
+        try:
+            body = response.get_data(as_text=True)
+            self.assertIn("jobsViewVisible ? 500 : 2500", body)
+            self.assertIn('cache: "no-store"', body)
+            self.assertIn('"visibilitychange"', body)
+        finally:
+            response.close()
 
     def test_managed_file_can_be_downloaded(self) -> None:
         downloads = self.app.extensions["file_service"].download_dir
@@ -315,6 +330,40 @@ class MediaFormatSelectionTestCase(unittest.TestCase):
     def test_legacy_video_variant_still_uses_best_quality(self) -> None:
         selection, _ = MediaService.format_selection("video")
         self.assertEqual(selection, "bestvideo*+bestaudio/best")
+
+    def test_storyboard_format_id_is_rejected(self) -> None:
+        with self.assertRaises(MediaServiceError):
+            MediaService.format_selection("format", "sb0")
+
+    def test_storyboard_formats_are_hidden_from_analysis(self) -> None:
+        media = MediaService(Path.cwd())._normalize_info(
+            {
+                "id": "example",
+                "formats": [
+                    {
+                        "format_id": "sb0",
+                        "ext": "mhtml",
+                        "resolution": "320x180",
+                        "vcodec": "none",
+                        "acodec": "none",
+                    },
+                    {
+                        "format_id": "sb-custom",
+                        "ext": "mhtml",
+                        "protocol": "mhtml",
+                    },
+                    {
+                        "format_id": "137",
+                        "ext": "mp4",
+                        "resolution": "1920x1080",
+                        "vcodec": "avc1",
+                        "acodec": "none",
+                    },
+                ],
+            },
+            "https://youtu.be/example",
+        )
+        self.assertEqual([item["format_id"] for item in media["formats"]], ["137"])
 
 
 class MediaErrorMessageTestCase(unittest.TestCase):

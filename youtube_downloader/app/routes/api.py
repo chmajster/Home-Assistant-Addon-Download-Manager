@@ -18,7 +18,9 @@ def jobs_list():
     """Return all in-memory jobs for polling clients."""
 
     manager = _job_manager()
-    return jsonify({"jobs": [manager.job_dict(job) for job in manager.list_jobs()]})
+    response = jsonify({"jobs": [manager.job_dict(job) for job in manager.list_jobs()]})
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @api_bp.get("/api/jobs/<job_id>")
@@ -27,7 +29,9 @@ def job_status(job_id: str):
 
     manager = _job_manager()
     try:
-        return jsonify(manager.job_dict(manager.get_job(job_id)))
+        response = jsonify(manager.job_dict(manager.get_job(job_id)))
+        response.headers["Cache-Control"] = "no-store"
+        return response
     except KeyError:
         return jsonify({"error": "Nie znaleziono zadania."}), 404
 

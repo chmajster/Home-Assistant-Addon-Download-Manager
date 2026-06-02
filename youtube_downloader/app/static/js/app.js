@@ -3,6 +3,8 @@
 
   const ingressPath = document.querySelector('meta[name="ingress-path"]')?.content || "";
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+  const jobsViewVisible = Boolean(document.getElementById("jobs-table-body"));
+  const jobsRefreshIntervalMs = jobsViewVisible ? 500 : 2500;
   let allowedHosts = new Set();
   try {
     allowedHosts = new Set(JSON.parse(document.getElementById("allowed-hosts")?.textContent || "[]"));
@@ -370,7 +372,10 @@
     if (!document.getElementById("active-jobs-badge") || jobsRefreshInProgress) return;
     jobsRefreshInProgress = true;
     try {
-      const response = await fetch(route("/api/jobs"), { headers: { Accept: "application/json" } });
+      const response = await fetch(route("/api/jobs"), {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       if (!payload || !Array.isArray(payload.jobs)) throw new Error("Niepoprawna odpowiedź API");
@@ -388,6 +393,10 @@
 
   refreshJobs();
   if (document.getElementById("active-jobs-badge")) {
-    window.setInterval(refreshJobs, 2500);
+    window.setInterval(refreshJobs, jobsRefreshIntervalMs);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) refreshJobs();
+    });
+    window.addEventListener("focus", refreshJobs);
   }
 })();

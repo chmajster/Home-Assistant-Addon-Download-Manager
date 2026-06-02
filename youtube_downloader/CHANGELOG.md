@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.13
+
+- Widok `Zadania` odświeża postęp pobierania na żywo co `500 ms` i synchronizuje się natychmiast po powrocie do karty.
+- Wyłączono cache odpowiedzi API zadań, aby Home Assistant Ingress nie pokazywał nieaktualnego postępu.
+
+## 1.3.12
+
+- Ukryto storyboardy YouTube `sb*` w formacie `mhtml` na liście plików do pobrania.
+- Zablokowano ręczne uruchamianie pobierania storyboardów przez pole ID konkretnego formatu.
+
 ## 1.3.11
 
 - Dodano proste komunikaty błędów dla problemów z internetem, braku miejsca na dysku oraz błędów `ffmpeg`.

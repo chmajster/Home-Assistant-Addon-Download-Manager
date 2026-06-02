@@ -26,6 +26,7 @@ ALLOWED_DOMAINS = {
     "www.kick.com": "kick",
 }
 FORMAT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
+STORYBOARD_FORMAT_RE = re.compile(r"^sb\d+$", re.IGNORECASE)
 VIDEO_QUALITY_LIMITS = {
     "video-360": 360,
     "video-720": 720,
@@ -189,7 +190,11 @@ class MediaService:
                 [],
             )
         if download_type == "format":
-            if not format_id or not FORMAT_ID_RE.fullmatch(format_id):
+            if (
+                not format_id
+                or not FORMAT_ID_RE.fullmatch(format_id)
+                or STORYBOARD_FORMAT_RE.fullmatch(format_id)
+            ):
                 raise MediaServiceError(
                     "Wybrany identyfikator formatu jest niepoprawny."
                 )
@@ -269,11 +274,17 @@ class MediaService:
                 )
         formats: list[dict[str, Any]] = []
         for item in info.get("formats") or []:
-            if not item.get("format_id"):
+            format_id = str(item.get("format_id") or "")
+            if (
+                not format_id
+                or STORYBOARD_FORMAT_RE.fullmatch(format_id)
+                or str(item.get("ext") or "").lower() == "mhtml"
+                or str(item.get("protocol") or "").lower() == "mhtml"
+            ):
                 continue
             formats.append(
                 {
-                    "format_id": str(item["format_id"]),
+                    "format_id": format_id,
                     "ext": item.get("ext"),
                     "resolution": item.get("resolution") or self._resolution(item),
                     "fps": item.get("fps"),
