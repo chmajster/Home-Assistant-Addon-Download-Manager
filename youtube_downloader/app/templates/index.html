@@ -35,7 +35,7 @@
   </section>
 
   <section class="row g-4 mb-4 dashboard-grid">
-    <div class="col-lg-7">
+    <div class="col-12 history-panel">
       <div class="card app-card h-100">
         <div class="card-body">
           <div class="section-heading">
@@ -170,35 +170,41 @@
         </div>
       </div>
     </div>
-    <div class="col-lg-5">
-      <div class="card app-card mb-4">
-        <div class="card-body">
-          <span class="eyebrow">Konfiguracja</span>
-          <h2 class="h5">Ustawienia dodatku</h2>
-          <dl class="row mb-0 small">
-            <dt class="col-6">Tryb magazynu</dt><dd class="col-6">{{ "NFS Home Assistant" if options.storage_mode == "nfs" else "lokalny" }}</dd>
-            <dt class="col-6">Katalog pobrań</dt><dd class="col-6 text-break">{{ options.download_dir }}</dd>
-            <dt class="col-6">Limit zadań</dt><dd class="col-6">{{ options.max_concurrent_jobs }}</dd>
-            <dt class="col-6">Format domyślny</dt><dd class="col-6">{{ download_type_labels.get(options.preferred_format, options.preferred_format) }}</dd>
-            <dt class="col-6">Port zewnętrzny</dt><dd class="col-6">{{ "dozwolony" if options.allow_external_port else "wyłączony" }}</dd>
-          </dl>
+    <div class="col-12">
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="card app-card h-100">
+            <div class="card-body">
+              <span class="eyebrow">Konfiguracja</span>
+              <h2 class="h5">Ustawienia dodatku</h2>
+              <dl class="row mb-0 small">
+                <dt class="col-6">Tryb magazynu</dt><dd class="col-6">{{ "NFS Home Assistant" if options.storage_mode == "nfs" else "lokalny" }}</dd>
+                <dt class="col-6">Katalog pobrań</dt><dd class="col-6 text-break">{{ options.download_dir }}</dd>
+                <dt class="col-6">Limit zadań</dt><dd class="col-6">{{ options.max_concurrent_jobs }}</dd>
+                <dt class="col-6">Format domyślny</dt><dd class="col-6">{{ download_type_labels.get(options.preferred_format, options.preferred_format) }}</dd>
+                <dt class="col-6">Port zewnętrzny</dt><dd class="col-6">{{ "dozwolony" if options.allow_external_port else "wyłączony" }}</dd>
+              </dl>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="card app-card storage-card">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-            <h2 class="h5 mb-0">Miejsce na dysku</h2>
-            <span class="badge {% if storage.used_percent >= 90 %}text-bg-danger{% elif storage.used_percent >= 75 %}text-bg-warning{% else %}text-bg-success{% endif %}">{{ storage.free_percent }}% wolne</span>
+        <div class="col-lg-6">
+          <div class="card app-card storage-card h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h2 class="h5 mb-0">Miejsce na dysku</h2>
+                <span class="badge {% if storage.used_percent >= 90 %}text-bg-danger{% elif storage.used_percent >= 75 %}text-bg-warning{% else %}text-bg-success{% endif %}">{{ storage.free_percent }}% wolne</span>
+              </div>
+              <p class="small text-body-secondary mb-3">Dostępne dla katalogu pobrań: <span class="text-break">{{ options.download_dir }}</span></p>
+              <div class="progress storage-progress mb-3" role="progressbar" aria-label="Zajęte miejsce na dysku" aria-valuenow="{{ storage.used_percent }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar {% if storage.used_percent >= 90 %}bg-danger{% elif storage.used_percent >= 75 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ storage.used_percent }}%">{{ storage.used_percent }}%</div>
+              </div>
+              <dl class="row mb-0 small">
+                <dt class="col-6">Wolne</dt><dd class="col-6 text-end fw-semibold">{{ storage.free|filesize }}</dd>
+                <dt class="col-6">Zajęte</dt><dd class="col-6 text-end">{{ storage.used|filesize }}</dd>
+                <dt class="col-6">Łącznie</dt><dd class="col-6 text-end">{{ storage.total|filesize }}</dd>
+              </dl>
+            </div>
           </div>
-          <p class="small text-body-secondary mb-3">Dostępne dla katalogu pobrań: <span class="text-break">{{ options.download_dir }}</span></p>
-          <div class="progress storage-progress mb-3" role="progressbar" aria-label="Zajęte miejsce na dysku" aria-valuenow="{{ storage.used_percent }}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar {% if storage.used_percent >= 90 %}bg-danger{% elif storage.used_percent >= 75 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ storage.used_percent }}%">{{ storage.used_percent }}%</div>
-          </div>
-          <dl class="row mb-0 small">
-            <dt class="col-6">Wolne</dt><dd class="col-6 text-end fw-semibold">{{ storage.free|filesize }}</dd>
-            <dt class="col-6">Zajęte</dt><dd class="col-6 text-end">{{ storage.used|filesize }}</dd>
-            <dt class="col-6">Łącznie</dt><dd class="col-6 text-end">{{ storage.total|filesize }}</dd>
-          </dl>
         </div>
       </div>
     </div>

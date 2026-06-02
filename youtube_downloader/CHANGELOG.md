@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.15
+
+- Historia pobrań w sekcji `Biblioteka` wykorzystuje pełną szerokość widoku na komputerze.
+- Panele ustawień i miejsca na dysku są wyświetlane poniżej biblioteki w dwóch równych kolumnach.
+
 ## 1.3.14
 
 - Dodano usuwanie pojedynczych zakończonych zadań z widoku `Zadania`.

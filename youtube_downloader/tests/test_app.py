@@ -188,6 +188,8 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("platform-chip platform-instagram", body)
         self.assertIn("platform-chip platform-kick", body)
         self.assertIn("hero-input-group", body)
+        self.assertIn('class="col-12 history-panel"', body)
+        self.assertNotIn('class="col-lg-7"', body)
 
     def test_base_exposes_frontend_configuration(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
