@@ -69,7 +69,7 @@
             </div>
             <div class="desktop-only table-responsive history-list">
               <table class="table align-middle mb-0">
-                <thead><tr><th>Miniatura</th><th>Tytuł</th><th>Typ</th><th>Data</th><th>Rozmiar</th><th>Plik</th><th></th></tr></thead>
+                <thead><tr><th>Miniatura</th><th>Typ</th><th>Data</th><th>Rozmiar</th><th>Plik</th><th></th></tr></thead>
                 <tbody class="history-items">
                   {% for item in history %}
                     <tr class="history-item" data-history-index="{{ loop.index0 }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-date="{{ item.downloaded_at }}">
@@ -79,10 +79,6 @@
                         {% else %}
                           <span class="text-body-secondary">-</span>
                         {% endif %}
-                      </td>
-                      <td>
-                        {{ item.title }}
-                        {% if item.warning_message is defined and item.warning_message %}<small class="d-block text-warning">{{ item.warning_message }}</small>{% endif %}
                       </td>
                       <td>{{ download_type_labels.get(item.type, item.type) }}</td>
                       <td>{{ item.downloaded_at|replace("T", " ")|truncate(19, True, "") }}</td>
