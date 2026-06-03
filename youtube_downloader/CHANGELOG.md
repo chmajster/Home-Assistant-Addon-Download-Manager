@@ -37,14 +37,15 @@
 - Dodano przycisk `Pobierz ponownie` przy rekordach historii zwykłych pobrań, także po usunięciu lokalnego pliku.
 - Historia zachowuje ID konkretnego formatu, aby ponowne pobranie odtwarzało również wybór z tabeli formatów.
 
-## 1.3.9
+## 1.3.17
 
-- Uproszczono wybór jakości filmu do wariantów: najlepsza dostępna, `1080p`, `720p` i `360p`.
-- Zachowano pobieranie samego audio oraz zaawansowany wybór konkretnego formatu z tabeli.
+- Dodano tryb oczekiwania na transmisje live i automatyczny start nagrywania po rozpoczęciu.
 
-## 1.3.8
+## 1.3.16
 
-- Dodano generowanie miniaturek JPG pobranych filmów i zakończonych zapisów live przez `ffmpeg`.
+- Dodano przycisk `Usuń wpis` obok `Pobierz ponownie` w historii pobrań.
+- Usunięcie wpisu z historii nie kasuje pobranego pliku z dysku.
+- Dotychczasową akcję zwalniania miejsca opisano wyraźniej jako `Usuń plik`.
 - Dodano podgląd miniaturek w historii pobrań oraz automatyczne usuwanie miniatury razem z plikiem wideo.
 
 ## 1.3.7
@@ -91,14 +92,12 @@
 
 ## 1.2.0
 
-- Przebudowano interfejs na nowoczesny panel z wyraźnym hero, kartami, nową paletą kolorów i sygnetem aplikacji.
-- Dodano chipy obsługiwanych serwisów, czytelniejsze stany puste oraz spójny wygląd widoków analizy i zadań.
-- Ulepszono responsywny układ na telefonach.
+## 1.3.17
+
+- Dodano tryb oczekiwania na transmisje live i automatyczny start nagrywania po rozpoczęciu.
 
 ## 1.1.2
 
-- Dodano panel miejsca na dysku dla skonfigurowanego katalogu pobrań.
-- Dodano wykres zajętości oraz wartości: wolne, zajęte i łączne miejsce.
 
 ## 1.1.1
 

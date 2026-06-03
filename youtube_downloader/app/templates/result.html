@@ -43,7 +43,12 @@
               <button class="btn btn-accent w-100" type="submit">Rozpocznij zapis live</button>
             </form>
           {% elif media.content_type == "live" %}
-            <p class="text-body-secondary mb-0">Zapis będzie dostępny po rozpoczęciu transmisji.</p>
+            <p class="text-body-secondary">Transmisja jeszcze się nie rozpoczęła. Włącz oczekiwanie, a zapis ruszy automatycznie po starcie.</p>
+            <form action="{{ ingress_url('web.watch_live') }}" method="post">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="url" value="{{ media.url }}">
+              <button class="btn btn-accent w-100" type="submit">Oczekuj na live</button>
+            </form>
           {% else %}
             <form action="{{ ingress_url('web.start_download') }}" method="post" class="download-form" novalidate>
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">

@@ -220,6 +220,7 @@
     const colors = {
       pending: "text-bg-secondary",
       downloading: "text-bg-primary",
+      waiting: "text-bg-info",
       stopping: "text-bg-warning",
       completed: "text-bg-success",
       error: "text-bg-danger",
@@ -345,7 +346,7 @@
   const jobActions = (job) => {
     const actions = document.createElement("span");
     actions.className = "d-flex flex-wrap gap-2";
-    if (job.is_live && ["pending", "downloading"].includes(job.status)) {
+    if (job.is_live && ["pending", "downloading", "waiting"].includes(job.status)) {
       actions.append(actionForm(
         route(`/live/stop/${encodeURIComponent(job.job_id)}`),
         "Zatrzymaj",

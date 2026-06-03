@@ -123,6 +123,33 @@ def start_live():
     return redirect(ingress_url("web.jobs"))
 
 
+@web_bp.post("/live/watch")
+def watch_live():
+    """Wait for a live stream to begin and start recording automatically."""
+
+    if not _valid_form():
+        return redirect(ingress_url("web.index"))
+    if _limited("live-watch", 6):
+        flash("Zbyt wiele prób uruchomienia oczekiwania live. Odczekaj chwilę.", "warning")
+        return redirect(ingress_url("web.jobs"))
+    try:
+        media = _media_service().analyze(request.form.get("url", ""))
+        if media["content_type"] != "live":
+            raise MediaServiceError("Podany adres nie prowadzi do transmisji live.")
+        if media["is_live"]:
+            job = _job_manager().start_live(media["url"], media["title"])
+            flash(f"Uruchomiono zapis transmisji {job.job_id[:8]}.", "success")
+        else:
+            job = _job_manager().start_live_wait(media["url"], media["title"])
+            flash(
+                f"Rozpoczęto oczekiwanie na transmisję {job.job_id[:8]}.",
+                "success",
+            )
+    except MediaServiceError as error:
+        flash(str(error), "danger")
+    return redirect(ingress_url("web.jobs"))
+
+
 @web_bp.post("/download/stop/<job_id>")
 def stop_download(job_id: str):
     """Stop a regular download and keep its partial files for resuming."""

@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .error_messages import operational_error_message
+from .error_messages import INTERNET_ERROR_MESSAGE, operational_error_message
 from .file_service import FileService
 from .media_service import MediaService, MediaServiceError
 
@@ -28,6 +28,7 @@ PROGRESS_RE = re.compile(
 DESTINATION_RE = re.compile(
     r"(?:Destination:|Merging formats into|Correcting container in|Extracting audio from)\s+[\"']?(?P<path>.+?)[\"']?$"
 )
+LIVE_WAIT_INTERVAL_SECONDS = 30
 
 
 class DownloadStoppedError(RuntimeError):
@@ -68,13 +69,14 @@ class Job:
 class JobManager:
     """Queue downloads, persist snapshots, and supervise dedicated live processes."""
 
-    ACTIVE_STATUSES = {"pending", "downloading", "stopping"}
-    STOPPABLE_STATUSES = {"pending", "downloading"}
+    ACTIVE_STATUSES = {"pending", "downloading", "stopping", "waiting"}
+    STOPPABLE_STATUSES = {"pending", "downloading", "waiting"}
     RESUMABLE_STATUSES = {"stopped", "interrupted"}
     REMOVABLE_STATUSES = {"completed", "error", "stopped", "interrupted"}
     STATUS_LABELS = {
         "pending": "oczekuje",
         "downloading": "pobieranie",
+        "waiting": "oczekuje na live",
         "stopping": "zatrzymywanie",
         "completed": "zakończone",
         "error": "błąd",
@@ -195,6 +197,39 @@ class JobManager:
         LOGGER.info("Dodano zapis transmisji live %s", job.job_id)
         return job
 
+    def start_live_wait(self, url: str, title: str) -> Job:
+        """Queue a live stream monitor that starts recording when live begins."""
+
+        validated_url = self.media_service.validate_url(url)
+        with self._lock:
+            duplicate = any(
+                job.url == validated_url
+                and job.is_live
+                and job.status in self.ACTIVE_STATUSES
+                for job in self._jobs.values()
+            )
+            if duplicate:
+                raise MediaServiceError(
+                    "Nagrywanie tej transmisji jest już uruchomione."
+                )
+        job = self._new_job(validated_url, title, "live", is_live=True)
+        stop_event = threading.Event()
+        with self._lock:
+            active = self._jobs[job.job_id]
+            active.status = "waiting"
+            self._persist_jobs()
+            self._stop_events[job.job_id] = stop_event
+            snapshot = Job(**asdict(active))
+        thread = threading.Thread(
+            target=self._run_live_wait,
+            args=(job.job_id,),
+            daemon=True,
+            name=f"live-wait-{job.job_id[:8]}",
+        )
+        thread.start()
+        LOGGER.info("Dodano oczekiwanie na transmisję live %s", job.job_id)
+        return snapshot
+
     def stop_live(self, job_id: str) -> Job:
         """Stop a queued or running live recording gracefully."""
 
@@ -208,7 +243,7 @@ class JobManager:
             process = self._live_processes.get(job_id)
             if event:
                 event.set()
-            if job.status == "pending":
+            if job.status in {"pending", "waiting"}:
                 self._finish(job, "stopped")
         if process and process.poll() is None:
             self._interrupt_process(process)
@@ -459,6 +494,49 @@ class JobManager:
                 with self._lock:
                     self._live_processes.pop(job_id, None)
                     self._stop_events.pop(job_id, None)
+
+    def _run_live_wait(self, job_id: str) -> None:
+        stop_event = self._stop_events[job_id]
+        handed_off = False
+        try:
+            while not stop_event.is_set():
+                with self._lock:
+                    job = self._jobs.get(job_id)
+                    if not job:
+                        return
+                try:
+                    media = self.media_service.analyze(job.url)
+                except MediaServiceError as error:
+                    message = str(error)
+                    if message not in {
+                        "Ta transmisja jeszcze się nie rozpoczęła.",
+                        INTERNET_ERROR_MESSAGE,
+                    }:
+                        self._fail(job_id, message)
+                        return
+                else:
+                    if stop_event.is_set():
+                        break
+                    if media.get("content_type") != "live":
+                        self._fail(
+                            job_id, "Podany adres nie prowadzi do transmisji live."
+                        )
+                        return
+                    if media.get("is_live"):
+                        handed_off = True
+                        self._run_live(job_id)
+                        return
+                if stop_event.wait(LIVE_WAIT_INTERVAL_SECONDS):
+                    break
+            with self._lock:
+                job = self._jobs.get(job_id)
+                if job and job.status == "waiting":
+                    self._finish(job, "stopped")
+        finally:
+            if not handed_off:
+                with self._lock:
+                    if self._stop_events.get(job_id) is stop_event:
+                        self._stop_events.pop(job_id, None)
 
     def _parse_live_line(self, job_id: str, line: str, paths: set[Path]) -> None:
         progress_match = PROGRESS_RE.search(line.strip())

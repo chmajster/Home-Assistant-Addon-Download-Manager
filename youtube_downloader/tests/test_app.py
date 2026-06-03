@@ -359,6 +359,41 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('<option value="video-720">720p</option>', body)
         self.assertIn('<option value="video-360">360p</option>', body)
 
+    def test_result_displays_live_wait_action(self) -> None:
+        media = {
+            "is_live": False,
+            "content_type": "live",
+            "thumbnail": None,
+            "title": "Example live",
+            "channel": "Channel",
+            "channel_id": "channel-id",
+            "platform": "youtube",
+            "duration": None,
+            "live_status": "is_upcoming",
+            "playlist_count": None,
+            "formats": [],
+            "entries": [],
+            "url": "https://youtu.be/example",
+        }
+
+        def fake_ingress_url(endpoint: str, **_: object) -> str:
+            if endpoint == "web.watch_live":
+                return "/live/watch"
+            return "/"
+
+        with self.app.test_request_context("/"):
+            body = self.app.jinja_env.get_template("result.html").render(
+                media=media,
+                app_settings=self.app.config["APP_SETTINGS"],
+                ingress_url=fake_ingress_url,
+                csrf_token=lambda: "token",
+                ingress_path="",
+                allowed_hosts=[],
+                active_job_statuses=[],
+            )
+        self.assertIn("/live/watch", body)
+        self.assertIn("Oczekuj na live", body)
+
 
 class MediaUrlTestCase(unittest.TestCase):
     """Keep extractor input limited to known public YouTube hosts."""

@@ -1,7 +1,7 @@
 name: "Media Web Downloader"
 slug: "youtube_downloader"
 description: "Webowy downloader YouTube, Instagram i Kick oparty o yt-dlp z obsługą Ingress i panelem UI w Home Assistant"
-version: "1.3.16"
+version: "1.3.17"
 url: "https://github.com/example/home-assistant-media-web-downloader-addon"
 arch:
   - amd64

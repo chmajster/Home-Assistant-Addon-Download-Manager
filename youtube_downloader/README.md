@@ -80,6 +80,7 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 | `POST` | `/analyze` | Analiza URL bez pobierania |
 | `POST` | `/download` | Uruchomienie pobrania |
 | `POST` | `/live/start` | Uruchomienie zapisu aktywnego live |
+| `POST` | `/live/watch` | Oczekiwanie na start transmisji i automatyczny zapis |
 | `POST` | `/live/stop/<job_id>` | Zatrzymanie zapisu live |
 | `GET` | `/jobs` | Lista zadań |
 | `GET` | `/api/jobs` | Lista zadań JSON |
