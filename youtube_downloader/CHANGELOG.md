@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.18
+
+- Dodano miniatury w widoku `Zadania`.
+- Rozszerzono opcje NFS o adres serwera, export, login, hasło i opcje montowania.
+- Dodano nową ikonę aplikacji.
+
 ## 1.3.16
 
 - Dodano przycisk `Usuń wpis` obok `Pobierz ponownie` w historii pobrań.
