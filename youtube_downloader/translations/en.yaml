@@ -30,11 +30,11 @@ configuration:
     name: "Update yt-dlp on start"
     description: "Attempts to update the yt-dlp extractor before the panel starts."
   allow_external_port:
-    name: "Allow external access"
-    description: "Informational option for access outside Ingress. Configure port mapping in Network."
+    name: "Enable page without Ingress"
+    description: "Starts an additional public application port, for example 999, available without Home Assistant login. Use only on a trusted network."
   external_port:
-    name: "Preferred external port"
-    description: "Port used when planning optional external access."
+    name: "Port without Ingress"
+    description: "Port used by the additional unauthenticated listener. Defaults to 999; the port must also be exposed in the add-on Network section."
   debug:
     name: "Debug mode"
     description: "Enables verbose application logging."
@@ -43,3 +43,4 @@ configuration:
     description: "Default video quality or audio variant presented by the application."
 network:
   8099/tcp: "Optional external access to the web interface"
+  999/tcp: "Public access without Ingress after enabling the option"

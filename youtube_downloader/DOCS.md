@@ -21,6 +21,8 @@ panel_title: Media Web Downloader
 
 Supervisor przekazuje ruch z panelu bocznego do wewnętrznego portu `8099`. Aplikacja uwzględnia nagłówek `X-Ingress-Path` przy generowaniu formularzy, linków do CSS i JavaScriptu, wywołań API oraz adresów pobieranych plików. Dzięki temu nie zakłada uruchomienia pod ścieżką `/`.
 
+Jeżeli `allow_external_port` ma wartość `true`, skrypt startowy uruchamia dodatkowy bind Gunicorna na porcie z opcji `external_port`, domyślnie `999`. Ten adres omija Ingress i nie wymaga logowania do Home Assistant. W `config.yaml` zadeklarowano port `999/tcp`, więc domyślna konfiguracja może być wystawiona jako `http://<adres-home-assistant>:999`. Zmiana portu wymaga zgodnego mapowania w sekcji **Sieć** dodatku.
+
 Standardowe przełączniki `Start on boot`, `Watchdog`, `Auto update` oraz `Show in sidebar` są renderowane i tłumaczone przez frontend Home Assistant. Dodatek może ustawić wartości wspierające te funkcje, takie jak `boot`, `watchdog`, `ingress`, `panel_title` i `panel_icon`, ale nie może nadpisać tekstów systemowego interfejsu. Polskie objaśnienia znajdują się w `README.md`.
 
 ## Zadania i historia

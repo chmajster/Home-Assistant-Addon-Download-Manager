@@ -198,7 +198,7 @@
                 {% endif %}
                 <dt class="col-6">Limit zadań</dt><dd class="col-6">{{ options.max_concurrent_jobs }}</dd>
                 <dt class="col-6">Format domyślny</dt><dd class="col-6">{{ download_type_labels.get(options.preferred_format, options.preferred_format) }}</dd>
-                <dt class="col-6">Port zewnętrzny</dt><dd class="col-6">{{ "dozwolony" if options.allow_external_port else "wyłączony" }}</dd>
+                <dt class="col-6">Dostęp bez Ingress</dt><dd class="col-6">{{ "port " ~ options.external_port if options.allow_external_port else "wyłączony" }}</dd>
               </dl>
             </div>
           </div>

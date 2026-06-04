@@ -8,10 +8,27 @@ if bashio::config.true 'update_ytdlp_on_start'; then
     fi
 fi
 
+EXTERNAL_PORT="$(bashio::config 'external_port')"
+BIND_ARGS=(--bind 0.0.0.0:8099)
+
+if bashio::config.true 'allow_external_port'; then
+    if [ "${EXTERNAL_PORT}" = "8099" ]; then
+        bashio::log.info "Dostęp zewnętrzny używa głównego portu 8099."
+    else
+        BIND_ARGS+=(--bind "0.0.0.0:${EXTERNAL_PORT}")
+        bashio::log.info "Włączono publiczny dostęp bez Ingress na porcie ${EXTERNAL_PORT}."
+        if [ "${EXTERNAL_PORT}" != "999" ]; then
+            bashio::log.warning "Jeśli port ${EXTERNAL_PORT} ma działać z sieci, ustaw zgodne mapowanie w sekcji Sieć dodatku."
+        fi
+    fi
+else
+    bashio::log.info "Publiczny dostęp bez Ingress jest wyłączony."
+fi
+
 bashio::log.info "Uruchamiam Media Web Downloader na porcie 8099."
 exec /venv/bin/gunicorn \
     --chdir / \
-    --bind 0.0.0.0:8099 \
+    "${BIND_ARGS[@]}" \
     --workers 1 \
     --threads 4 \
     --timeout 0 \

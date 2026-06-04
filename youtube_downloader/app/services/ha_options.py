@@ -27,7 +27,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "max_concurrent_jobs": 2,
     "update_ytdlp_on_start": True,
     "allow_external_port": False,
-    "external_port": 8099,
+    "external_port": 999,
     "debug": False,
     "preferred_format": "best",
 }
@@ -179,7 +179,7 @@ def load_options() -> HomeAssistantOptions:
         max_concurrent_jobs=_validated_int(values["max_concurrent_jobs"], 2, 1, 5),
         update_ytdlp_on_start=_validated_bool(values["update_ytdlp_on_start"], True),
         allow_external_port=_validated_bool(values["allow_external_port"], False),
-        external_port=_validated_int(values["external_port"], 8099, 1, 65535),
+        external_port=_validated_int(values["external_port"], 999, 1, 65535),
         debug=_validated_bool(values["debug"], False),
         preferred_format=preferred_format,
     )

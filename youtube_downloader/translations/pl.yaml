@@ -30,11 +30,11 @@ configuration:
     name: "Aktualizuj yt-dlp przy starcie"
     description: "Próbuje zaktualizować extractor yt-dlp przed uruchomieniem panelu."
   allow_external_port:
-    name: "Zezwalaj na dostęp zewnętrzny"
-    description: "Opcja informacyjna dla dostępu poza Ingress. Mapowanie portu ustawia się w sekcji Sieć."
+    name: "Włącz stronę bez Ingress"
+    description: "Uruchamia dodatkowy publiczny port aplikacji, np. 999, dostępny bez logowania do Home Assistant. Używaj tylko w zaufanej sieci."
   external_port:
-    name: "Preferowany port zewnętrzny"
-    description: "Port używany przy planowaniu opcjonalnego dostępu zewnętrznego."
+    name: "Port strony bez Ingress"
+    description: "Port, na którym aplikacja uruchamia dodatkowy dostęp bez logowania. Domyślnie 999; port musi być też udostępniony w sekcji Sieć dodatku."
   debug:
     name: "Tryb debug"
     description: "Włącza rozszerzone logi aplikacji."
@@ -43,3 +43,4 @@ configuration:
     description: "Domyślna jakość filmu lub wariant audio prezentowany przez aplikację."
 network:
   8099/tcp: "Opcjonalny zewnętrzny dostęp do interfejsu webowego"
+  999/tcp: "Publiczny dostęp bez Ingress po włączeniu opcji"

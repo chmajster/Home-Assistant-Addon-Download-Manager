@@ -49,7 +49,7 @@ class ApplicationTestCase(unittest.TestCase):
             max_concurrent_jobs=2,
             update_ytdlp_on_start=False,
             allow_external_port=False,
-            external_port=8099,
+            external_port=999,
             debug=False,
             preferred_format="best",
             secret_key="test-secret",

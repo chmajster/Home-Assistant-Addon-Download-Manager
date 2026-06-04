@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.19
+
+- Dodano opcję uruchomienia panelu na osobnym porcie bez Home Assistant Ingress.
+- Dodano domyślne mapowanie portu `999/tcp` dla publicznego dostępu w zaufanej sieci.
+
 ## 1.3.18
 
 - Dodano miniatury w widoku `Zadania`.

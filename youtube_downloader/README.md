@@ -22,8 +22,8 @@ Opcje ustawia się na karcie **Konfiguracja** dodatku w Home Assistant:
 | `nfs_mount_options` | `vers=4` | Opcje montowania NFS używane jako opis konfiguracji udziału |
 | `max_concurrent_jobs` | `2` | Limit równoległych pobrań i zapisów live, od 1 do 5 |
 | `update_ytdlp_on_start` | `true` | Próba aktualizacji `yt-dlp` przed startem aplikacji |
-| `allow_external_port` | `false` | Informacyjna zgoda na planowane użycie zewnętrznego portu |
-| `external_port` | `8099` | Preferowany port dostępu zewnętrznego |
+| `allow_external_port` | `false` | Włącza dodatkowy dostęp do panelu bez Ingress i bez logowania do Home Assistant |
+| `external_port` | `999` | Port dodatkowego dostępu bez Ingress; domyślnie mapowany jako `999/tcp` |
 | `debug` | `false` | Rozszerzone logowanie aplikacji |
 | `preferred_format` | `best` | Domyślna jakość: `best`, `video-1080`, `video-720`, `video-360` albo `audio` |
 
@@ -41,12 +41,25 @@ nfs_mount_options: vers=4
 max_concurrent_jobs: 2
 update_ytdlp_on_start: true
 allow_external_port: false
-external_port: 8099
+external_port: 999
 debug: false
 preferred_format: best
 ```
 
 Supervisor zapisuje opcje w `/data/options.json`. Aplikacja odczytuje ten plik przy uruchomieniu i stosuje bezpieczne wartości domyślne dla błędnych danych. Po zmianie opcji uruchom dodatek ponownie.
+
+## Dostęp bez Ingress
+
+Domyślnie panel działa przez Home Assistant Ingress i wymaga zalogowania do Home Assistant. Jeżeli chcesz wejść na stronę bez logowania, ustaw:
+
+```yaml
+allow_external_port: true
+external_port: 999
+```
+
+Dodatek uruchomi dodatkowy listener aplikacji na tym porcie. W konfiguracji dodatku zadeklarowany jest port `999/tcp`, więc przy domyślnym ustawieniu możesz wejść na stronę przez `http://<adres-home-assistant>:999`. Jeśli zmieniasz port, sprawdź też kartę **Sieć** dodatku i ustaw zgodne mapowanie portu.
+
+Ten tryb nie dodaje osobnego logowania. Każdy, kto ma dostęp do tego adresu i portu, może korzystać z downloadera, dlatego używaj go tylko w zaufanej sieci lokalnej.
 
 ## Magazyn NFS z Home Assistant
 
