@@ -3,6 +3,10 @@ set -e
 
 STORAGE_MODE="$(bashio::config 'storage_mode')"
 DOWNLOAD_DIR="$(bashio::config 'download_dir')"
+NFS_SERVER="$(bashio::config 'nfs_server')"
+NFS_EXPORT_PATH="$(bashio::config 'nfs_export_path')"
+NFS_USERNAME="$(bashio::config 'nfs_username')"
+NFS_MOUNT_OPTIONS="$(bashio::config 'nfs_mount_options')"
 
 if [ "${STORAGE_MODE}" = "nfs" ]; then
     DOWNLOAD_DIR="$(bashio::config 'nfs_download_dir')"
@@ -49,4 +53,10 @@ fi
 
 bashio::log.info "Tryb magazynu: ${STORAGE_MODE}"
 bashio::log.info "Katalog pobrań: ${DOWNLOAD_DIR}"
+if [ "${STORAGE_MODE}" = "nfs" ]; then
+    [ -n "${NFS_SERVER}" ] && bashio::log.info "Serwer NFS: ${NFS_SERVER}"
+    [ -n "${NFS_EXPORT_PATH}" ] && bashio::log.info "Export NFS: ${NFS_EXPORT_PATH}"
+    [ -n "${NFS_USERNAME}" ] && bashio::log.info "Login NFS: ${NFS_USERNAME}"
+    [ -n "${NFS_MOUNT_OPTIONS}" ] && bashio::log.info "Opcje NFS: ${NFS_MOUNT_OPTIONS}"
+fi
 bashio::log.info "Katalog historii: /data/jobs"

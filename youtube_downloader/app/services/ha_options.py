@@ -19,6 +19,11 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "storage_mode": "local",
     "download_dir": str(DEFAULT_DOWNLOAD_DIR),
     "nfs_download_dir": "/media/youtube_downloader_nfs",
+    "nfs_server": "",
+    "nfs_export_path": "",
+    "nfs_username": "",
+    "nfs_password": "",
+    "nfs_mount_options": "vers=4",
     "max_concurrent_jobs": 2,
     "update_ytdlp_on_start": True,
     "allow_external_port": False,
@@ -35,6 +40,11 @@ class HomeAssistantOptions:
     storage_mode: str
     download_dir: Path
     nfs_download_dir: Path
+    nfs_server: str
+    nfs_export_path: str
+    nfs_username: str
+    nfs_password: str
+    nfs_mount_options: str
     max_concurrent_jobs: int
     update_ytdlp_on_start: bool
     allow_external_port: bool
@@ -121,6 +131,13 @@ def _validated_bool(value: Any, default: bool) -> bool:
     return value if isinstance(value, bool) else default
 
 
+def _validated_text(value: Any, default: str = "", max_length: int = 300) -> str:
+    if value is None:
+        return default
+    text = str(value).strip()
+    return text[:max_length] if text else default
+
+
 def load_options() -> HomeAssistantOptions:
     """Load options.json and safely fall back for malformed values."""
 
@@ -154,6 +171,11 @@ def load_options() -> HomeAssistantOptions:
         storage_mode=storage_mode,
         download_dir=nfs_download_dir if storage_mode == "nfs" else local_download_dir,
         nfs_download_dir=nfs_download_dir,
+        nfs_server=_validated_text(values["nfs_server"]),
+        nfs_export_path=_validated_text(values["nfs_export_path"]),
+        nfs_username=_validated_text(values["nfs_username"], max_length=120),
+        nfs_password=_validated_text(values["nfs_password"], max_length=300),
+        nfs_mount_options=_validated_text(values["nfs_mount_options"], "vers=4"),
         max_concurrent_jobs=_validated_int(values["max_concurrent_jobs"], 2, 1, 5),
         update_ytdlp_on_start=_validated_bool(values["update_ytdlp_on_start"], True),
         allow_external_port=_validated_bool(values["allow_external_port"], False),

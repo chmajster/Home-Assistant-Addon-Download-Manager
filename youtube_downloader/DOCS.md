@@ -63,8 +63,15 @@ Przykładowa konfiguracja dodatku:
 
 ```yaml
 storage_mode: nfs
+nfs_server: 192.168.1.20
+nfs_export_path: /volume1/media
+nfs_username: ""
+nfs_password: ""
+nfs_mount_options: vers=4
 nfs_download_dir: /media/nas/youtube_downloader
 ```
+
+Po wyborze `nfs` karta **Konfiguracja** pokazuje dodatkowe pola na adres serwera, ścieżkę/export, opcjonalny login, opcjonalne hasło oraz opcje montowania. Hasło jest traktowane jako pole poufne i panel aplikacji pokazuje tylko informację, czy zostało ustawione. Klasyczny NFS zwykle nie używa loginu ani hasła; te pola są dostępne dla instalacji, w których konfiguracja magazynu sieciowego ich wymaga.
 
 Przy trybie `nfs` dodatek sprawdza przed uruchomieniem, czy główny katalog udziału, na przykład `/media/nas`, istnieje oraz czy katalog docelowy jest zapisywalny. Brak udziału zatrzymuje start dodatku z błędem w logach. Zapobiega to niezauważonemu zapisowi na lokalnym dysku, gdy NFS jest niedostępny.
 

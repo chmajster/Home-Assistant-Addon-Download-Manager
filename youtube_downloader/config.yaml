@@ -27,6 +27,11 @@ options:
   storage_mode: "local"
   download_dir: "/share/youtube_downloader"
   nfs_download_dir: "/media/youtube_downloader_nfs"
+  nfs_server: ""
+  nfs_export_path: ""
+  nfs_username: ""
+  nfs_password: ""
+  nfs_mount_options: "vers=4"
   max_concurrent_jobs: 2
   update_ytdlp_on_start: true
   allow_external_port: false
@@ -37,6 +42,11 @@ schema:
   storage_mode: "list(local|nfs)"
   download_dir: str
   nfs_download_dir: str
+  nfs_server: str
+  nfs_export_path: str
+  nfs_username: str
+  nfs_password: password
+  nfs_mount_options: str
   max_concurrent_jobs: "int(1,5)"
   update_ytdlp_on_start: bool
   allow_external_port: bool

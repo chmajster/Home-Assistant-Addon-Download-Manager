@@ -1,13 +1,28 @@
 configuration:
   storage_mode:
     name: "Storage mode"
-    description: "Choose local for a local directory or nfs for a share mounted by Home Assistant."
+    description: "Choose local for a local directory or nfs for network storage. Fill the NFS fields below when nfs is selected."
   download_dir:
     name: "Download directory"
     description: "Persistent target directory inside /share or /media."
   nfs_download_dir:
     name: "NFS download directory"
     description: "Path inside an NFS share added in Home Assistant, for example /media/nas/youtube_downloader."
+  nfs_server:
+    name: "NFS server address"
+    description: "IP address or NAS hostname, for example 192.168.1.20 or nas.local."
+  nfs_export_path:
+    name: "NFS export path"
+    description: "Share path on the server, for example /volume1/media or /exports/downloads."
+  nfs_username:
+    name: "NFS username"
+    description: "Optional username if your network storage setup requires one. Classic NFS usually does not use it."
+  nfs_password:
+    name: "NFS password"
+    description: "Optional password. It is not displayed in the application panel."
+  nfs_mount_options:
+    name: "NFS mount options"
+    description: "Mount options, for example vers=4,soft,timeo=30. Use values compatible with your NAS and Home Assistant."
   max_concurrent_jobs:
     name: "Concurrent job limit"
     description: "Maximum number of simultaneous downloads and live recordings."

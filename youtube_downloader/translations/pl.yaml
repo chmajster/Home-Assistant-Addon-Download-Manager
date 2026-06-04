@@ -1,13 +1,28 @@
 configuration:
   storage_mode:
     name: "Tryb magazynu"
-    description: "Wybierz local dla katalogu lokalnego albo nfs dla udziału zamontowanego przez Home Assistant."
+    description: "Wybierz local dla katalogu lokalnego albo nfs dla udziału sieciowego. Po wyborze nfs uzupełnij pola NFS poniżej."
   download_dir:
     name: "Katalog pobrań"
     description: "Trwały katalog docelowy wewnątrz /share albo /media."
   nfs_download_dir:
     name: "Katalog pobrań NFS"
     description: "Ścieżka wewnątrz udziału NFS dodanego w Home Assistant, np. /media/nas/youtube_downloader."
+  nfs_server:
+    name: "Adres serwera NFS"
+    description: "Adres IP lub nazwa hosta NAS, np. 192.168.1.20 albo nas.local."
+  nfs_export_path:
+    name: "Ścieżka/export NFS"
+    description: "Ścieżka udziału na serwerze, np. /volume1/media albo /exports/downloads."
+  nfs_username:
+    name: "Login NFS"
+    description: "Opcjonalny login, jeśli Twoja konfiguracja magazynu sieciowego go wymaga. Klasyczny NFS zwykle go nie używa."
+  nfs_password:
+    name: "Hasło NFS"
+    description: "Opcjonalne hasło. Nie jest wyświetlane w panelu aplikacji."
+  nfs_mount_options:
+    name: "Opcje montowania NFS"
+    description: "Opcje montowania, np. vers=4,soft,timeo=30. Użyj ustawień zgodnych z NAS i Home Assistant."
   max_concurrent_jobs:
     name: "Limit równoległych zadań"
     description: "Maksymalna liczba jednoczesnych pobrań i zapisów live."

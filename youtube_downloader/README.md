@@ -15,6 +15,11 @@ Opcje ustawia się na karcie **Konfiguracja** dodatku w Home Assistant:
 | `storage_mode` | `local` | `local` zapisuje lokalnie, a `nfs` używa magazynu sieciowego zamontowanego przez Home Assistant |
 | `download_dir` | `/share/youtube_downloader` | Docelowy katalog pobrań wewnątrz `/share` albo `/media` |
 | `nfs_download_dir` | `/media/youtube_downloader_nfs` | Katalog pobrań wewnątrz udziału NFS dodanego w Home Assistant |
+| `nfs_server` | pusty | Adres IP lub nazwa hosta serwera/NAS dla konfiguracji NFS |
+| `nfs_export_path` | pusty | Ścieżka/export udziału na serwerze NFS, np. `/volume1/media` |
+| `nfs_username` | pusty | Opcjonalny login, jeśli dana konfiguracja magazynu sieciowego go wymaga |
+| `nfs_password` | pusty | Opcjonalne hasło, zapisywane jako pole typu password w opcjach dodatku |
+| `nfs_mount_options` | `vers=4` | Opcje montowania NFS używane jako opis konfiguracji udziału |
 | `max_concurrent_jobs` | `2` | Limit równoległych pobrań i zapisów live, od 1 do 5 |
 | `update_ytdlp_on_start` | `true` | Próba aktualizacji `yt-dlp` przed startem aplikacji |
 | `allow_external_port` | `false` | Informacyjna zgoda na planowane użycie zewnętrznego portu |
@@ -28,6 +33,11 @@ Przykład:
 storage_mode: local
 download_dir: /share/youtube_downloader
 nfs_download_dir: /media/youtube_downloader_nfs
+nfs_server: ""
+nfs_export_path: ""
+nfs_username: ""
+nfs_password: ""
+nfs_mount_options: vers=4
 max_concurrent_jobs: 2
 update_ytdlp_on_start: true
 allow_external_port: false
@@ -46,8 +56,15 @@ Następnie ustaw opcje dodatku, na przykład:
 
 ```yaml
 storage_mode: nfs
+nfs_server: 192.168.1.20
+nfs_export_path: /volume1/media
+nfs_username: ""
+nfs_password: ""
+nfs_mount_options: vers=4
 nfs_download_dir: /media/nas/youtube_downloader
 ```
+
+Pola `nfs_server`, `nfs_export_path`, `nfs_username`, `nfs_password` i `nfs_mount_options` pomagają opisać udział w opcjach dodatku. Samo montowanie udziału nadal wykonuje Home Assistant, więc `nfs_download_dir` musi wskazywać gotowy katalog widoczny w dodatku, najczęściej `/media/<nazwa>/youtube_downloader`. Klasyczny NFS zwykle nie używa loginu ani hasła; jeżeli NAS ich wymaga, uzupełnij pola zgodnie z konfiguracją magazynu sieciowego.
 
 Dodatek nie montuje NFS samodzielnie i nie wymaga dodatkowych uprawnień. Przy starcie sprawdza, czy udział istnieje i jest zapisywalny. Jeśli magazyn sieciowy jest odłączony, start zostanie przerwany z czytelnym komunikatem w logach, aby pliki nie trafiły przypadkiem na lokalny dysk.
 
