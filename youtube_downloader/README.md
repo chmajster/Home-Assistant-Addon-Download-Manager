@@ -105,7 +105,8 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 | Metoda | Ścieżka | Opis |
 | --- | --- | --- |
 | `GET` | `/` | Panel główny |
-| `GET` | `/history` | Pełna historia pobrań z wyszukiwarką |
+| `GET` | `/history` | Pełna historia pobrań z wyszukiwarką, sortowaniem i masowymi akcjami |
+| `POST` | `/history/bulk` | Masowe usuwanie wpisów, usuwanie plików i ponowne pobieranie z Historii |
 | `POST` | `/analyze` | Analiza URL bez pobierania |
 | `POST` | `/download` | Uruchomienie pobrania |
 | `POST` | `/live/start` | Uruchomienie zapisu aktywnego live |

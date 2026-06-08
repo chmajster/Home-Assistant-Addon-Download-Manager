@@ -39,7 +39,7 @@ Po zakończeniu operacji wynik jest zapisywany w historii JSON:
 
 Historia przetrwa restart kontenera. Po skasowaniu materiału rekord pozostaje widoczny, ale panel oznacza brak pliku. Przycisk **Pobierz ponownie** uruchamia nowe zadanie z zapisanym URL i wariantem jakości również wtedy, gdy lokalny plik został już usunięty.
 
-Osobna strona `/history` pokazuje pełną historię z wyszukiwarką po tytule, nazwie pliku, serwisie, URL, dacie, rozmiarze i długości. Długość jest zapisywana dla nowych pobrań, jeśli `yt-dlp` zwrócił ją podczas analizy.
+Osobna strona `/history` pokazuje pełną historię z wyszukiwarką po tytule, nazwie pliku, serwisie, URL, dacie, rozmiarze i długości. Wyniki można sortować po dacie, rozmiarze, długości, tytule i serwisie, rosnąco albo malejąco. Zaznaczone wpisy można masowo usunąć z historii, usunąć ich pliki albo uruchomić ponowne pobieranie. Długość jest zapisywana dla nowych pobrań, jeśli `yt-dlp` zwrócił ją podczas analizy.
 
 Po zakończeniu pobierania albo błędzie zadania dodatek wysyła trwałe powiadomienie Home Assistant przez usługę `persistent_notification.create`. Treść zawiera tytuł materiału, typ pobrania i nazwę pliku albo komunikat błędu. Dostęp do API Home Assistant Core jest deklarowany w `config.yaml` przez `homeassistant_api: true`.
 

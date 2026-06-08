@@ -25,6 +25,13 @@ from ..services.ytdlp_updater import YtDlpUpdater
 
 LOGGER = logging.getLogger(__name__)
 web_bp = Blueprint("web", __name__)
+HISTORY_SORT_LABELS = {
+    "date": "data",
+    "size": "rozmiar",
+    "duration": "długość",
+    "title": "tytuł",
+    "platform": "serwis",
+}
 
 
 def _file_service() -> FileService:
@@ -87,12 +94,17 @@ def history():
     """Searchable full download history."""
 
     query = request.args.get("q", "").strip()
+    sort = _history_sort_key(request.args.get("sort"))
+    order = _history_sort_order(request.args.get("order"))
     records = _history_records(_file_service().history())
-    filtered = _filter_history(records, query)
+    filtered = _sort_history(_filter_history(records, query), sort, order)
     return render_template(
         "history.html",
         history=filtered,
         query=query,
+        sort=sort,
+        order=order,
+        sort_labels=HISTORY_SORT_LABELS,
         total_history=len(records),
     )
 
@@ -125,6 +137,64 @@ def _filter_history(records: list[dict[str, Any]], query: str) -> list[dict[str,
     return [item for item in records if needle in _history_search_text(item)]
 
 
+def _history_sort_key(value: object) -> str:
+    candidate = str(value or "date")
+    return candidate if candidate in HISTORY_SORT_LABELS else "date"
+
+
+def _history_sort_order(value: object) -> str:
+    return "asc" if str(value) == "asc" else "desc"
+
+
+def _sort_history(
+    records: list[dict[str, Any]], sort: str, order: str
+) -> list[dict[str, Any]]:
+    reverse = order == "desc"
+    present = [
+        item for item in records if not _history_sort_missing(item, sort)
+    ]
+    missing = [item for item in records if _history_sort_missing(item, sort)]
+    return sorted(
+        present,
+        key=lambda item: _history_sort_value(item, sort),
+        reverse=reverse,
+    ) + missing
+
+
+def _history_sort_missing(item: dict[str, Any], sort: str) -> bool:
+    value = item.get(_history_sort_field(sort))
+    return value is None or value == ""
+
+
+def _history_sort_value(item: dict[str, Any], sort: str) -> object:
+    if sort == "date":
+        return str(item.get("downloaded_at") or "")
+    if sort == "size":
+        return _numeric_sort_value(item.get("size"))
+    if sort == "duration":
+        return _numeric_sort_value(item.get("duration"))
+    if sort == "platform":
+        return str(item.get("platform") or "").casefold()
+    return str(item.get("title") or "").casefold()
+
+
+def _history_sort_field(sort: str) -> str:
+    return {
+        "date": "downloaded_at",
+        "size": "size",
+        "duration": "duration",
+        "platform": "platform",
+        "title": "title",
+    }[sort]
+
+
+def _numeric_sort_value(value: object) -> float:
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _history_search_text(item: dict[str, Any]) -> str:
     values = [
         item.get("title"),
@@ -141,6 +211,55 @@ def _history_search_text(item: dict[str, Any]) -> str:
         item.get("status"),
     ]
     return " ".join(str(value) for value in values if value is not None).casefold()
+
+
+def _selected_history_records(
+    records: list[dict[str, Any]], selected_keys: list[str]
+) -> list[dict[str, Any]]:
+    selected = {key for key in selected_keys if key}
+    return [
+        record
+        for record in records
+        if str(record.get("downloaded_at") or "") in selected
+    ]
+
+
+def _history_redirect():
+    query = str(request.form.get("return_q") or "").strip()
+    sort = _history_sort_key(request.form.get("return_sort"))
+    order = _history_sort_order(request.form.get("return_order"))
+    values = {"sort": sort, "order": order}
+    if query:
+        values["q"] = query
+    return redirect(ingress_url("web.history", **values))
+
+
+def _history_record_can_repeat(record: dict[str, Any]) -> bool:
+    if record.get("type") == "live":
+        return False
+    if record.get("type") == "format" and not record.get("format_id"):
+        return False
+    return bool(record.get("url"))
+
+
+def _flash_bulk_history_result(action: str, done: int, skipped: int) -> None:
+    if action == "delete_entries":
+        if done:
+            flash(f"Usunięto wpisy z historii: {done}.", "success")
+        else:
+            flash("Nie usunięto żadnych wpisów z historii.", "warning")
+    elif action == "delete_files":
+        if done:
+            flash(f"Usunięto pliki: {done}.", "success")
+        else:
+            flash("Nie usunięto żadnych plików.", "warning")
+    elif action == "repeat":
+        if done:
+            flash(f"Uruchomiono ponowne pobrania: {done}.", "success")
+        else:
+            flash("Nie uruchomiono żadnego ponownego pobierania.", "warning")
+    if skipped:
+        flash(f"Pominięto pozycje: {skipped}.", "warning")
 
 
 def _filesize_label(value: object) -> str:
@@ -487,6 +606,81 @@ def delete_history_record():
     else:
         flash("Nie znaleziono wpisu w historii.", "warning")
     return redirect(ingress_url("web.index"))
+
+
+@web_bp.post("/history/bulk")
+def bulk_history():
+    """Run one action for selected full-history records."""
+
+    if not _valid_form():
+        return _history_redirect()
+    action = str(request.form.get("action") or "")
+    records = _selected_history_records(
+        _file_service().history(), request.form.getlist("history_keys")
+    )
+    if not records:
+        flash("Zaznacz wpisy, dla których chcesz wykonać akcję.", "warning")
+        return _history_redirect()
+
+    if action == "delete_entries":
+        done = 0
+        for record in records:
+            if _file_service().delete_history_record(
+                str(record.get("filename") or ""),
+                str(record.get("downloaded_at") or ""),
+            ):
+                done += 1
+        _flash_bulk_history_result(action, done, len(records) - done)
+    elif action == "delete_files":
+        done = 0
+        skipped = 0
+        filenames = {
+            str(record.get("filename") or "")
+            for record in records
+            if record.get("filename")
+        }
+        for filename in filenames:
+            try:
+                _file_service().delete_file(filename)
+                done += 1
+            except FileNotFoundError:
+                skipped += 1
+            except UnsafeFilenameError:
+                LOGGER.warning("Odrzucono próbę masowego usunięcia %s", filename)
+                skipped += 1
+        _flash_bulk_history_result(action, done, skipped)
+    elif action == "repeat":
+        done = 0
+        skipped = 0
+        candidates = [
+            record for record in records if _history_record_can_repeat(record)
+        ]
+        if candidates:
+            try:
+                _ensure_ytdlp_recent()
+            except MediaServiceError as error:
+                flash(str(error), "danger")
+                return _history_redirect()
+        for record in records:
+            if not _history_record_can_repeat(record):
+                skipped += 1
+                continue
+            try:
+                _job_manager().start_download(
+                    url=str(record.get("url") or ""),
+                    title=str(record.get("title") or ""),
+                    download_type=str(record.get("type") or "best"),
+                    format_id=record.get("format_id") or None,
+                    duration=_duration_value(record.get("duration")),
+                )
+                done += 1
+            except MediaServiceError as error:
+                LOGGER.warning("Nie można ponowić pobierania: %s", error)
+                skipped += 1
+        _flash_bulk_history_result(action, done, skipped)
+    else:
+        flash("Wybierz poprawną akcję dla zaznaczonych wpisów.", "warning")
+    return _history_redirect()
 
 
 @web_bp.app_errorhandler(404)

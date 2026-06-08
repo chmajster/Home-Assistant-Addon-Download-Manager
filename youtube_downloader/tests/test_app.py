@@ -350,6 +350,224 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Brak wyników", empty)
         self.assertIn("Wyniki: 0 z 1", empty)
 
+    def test_history_page_sorts_by_supported_fields(self) -> None:
+        files = self.app.extensions["file_service"]
+        samples = [
+            (
+                "Beta clip",
+                "https://www.twitch.tv/videos/123",
+                "beta.mp4",
+                b"b" * 30,
+                180,
+                "2026-03-01T10:00:00+00:00",
+            ),
+            (
+                "Alpha clip",
+                "https://youtu.be/alpha",
+                "alpha.mp4",
+                b"a" * 10,
+                60,
+                "2026-01-01T10:00:00+00:00",
+            ),
+            (
+                "Gamma clip",
+                "https://kick.com/gamma",
+                "gamma.mp4",
+                b"g" * 20,
+                120,
+                "2026-02-01T10:00:00+00:00",
+            ),
+        ]
+        for title, url, filename, content, duration, _ in samples:
+            target = files.download_dir / filename
+            target.write_bytes(content)
+            files.record_download(
+                title,
+                url,
+                "best",
+                filename,
+                "completed",
+                duration=duration,
+            )
+        records = files.history()
+        dates_by_filename = {sample[2]: sample[5] for sample in samples}
+        for record in records:
+            record["downloaded_at"] = dates_by_filename[record["filename"]]
+        files._write_history(records)
+
+        cases = [
+            ({"sort": "title", "order": "asc"}, ["Alpha clip", "Beta clip", "Gamma clip"]),
+            ({"sort": "platform", "order": "asc"}, ["Gamma clip", "Beta clip", "Alpha clip"]),
+            ({"sort": "date", "order": "desc"}, ["Beta clip", "Gamma clip", "Alpha clip"]),
+            ({"sort": "size", "order": "desc"}, ["Beta clip", "Gamma clip", "Alpha clip"]),
+            ({"sort": "duration", "order": "asc"}, ["Alpha clip", "Gamma clip", "Beta clip"]),
+        ]
+        for query, expected in cases:
+            with self.subTest(query=query):
+                body = self.client.get("/history", query_string=query).get_data(
+                    as_text=True
+                )
+                positions = [body.index(title) for title in expected]
+                self.assertEqual(positions, sorted(positions))
+
+    def test_history_page_exposes_bulk_actions(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        files.record_download(
+            "Example",
+            "https://youtu.be/example",
+            "best",
+            target.name,
+            "completed",
+        )
+        record = files.history()[0]
+
+        body = self.client.get("/history").get_data(as_text=True)
+        self.assertIn('id="history-bulk-form"', body)
+        self.assertIn('id="history-bulk-select-all"', body)
+        self.assertIn('id="history-selected-count"', body)
+        self.assertIn('name="action"', body)
+        self.assertIn('value="delete_entries"', body)
+        self.assertIn('value="delete_files"', body)
+        self.assertIn('value="repeat"', body)
+        self.assertIn('name="history_keys"', body)
+        self.assertIn(f'value="{record["downloaded_at"]}"', body)
+
+    def test_history_bulk_delete_records_keeps_files(self) -> None:
+        files = self.app.extensions["file_service"]
+        first = files.download_dir / "first.mp4"
+        second = files.download_dir / "second.mp4"
+        first.write_text("first", encoding="utf-8")
+        second.write_text("second", encoding="utf-8")
+        files.record_download(
+            "First",
+            "https://youtu.be/first",
+            "best",
+            first.name,
+            "completed",
+        )
+        files.record_download(
+            "Second",
+            "https://youtu.be/second",
+            "best",
+            second.name,
+            "completed",
+        )
+        selected = next(
+            record for record in files.history() if record["filename"] == first.name
+        )
+
+        response = self.client.post(
+            "/history/bulk",
+            data={
+                "_csrf_token": self._csrf_token(),
+                "action": "delete_entries",
+                "history_keys": [selected["downloaded_at"]],
+                "return_sort": "date",
+                "return_order": "desc",
+            },
+            follow_redirects=True,
+        )
+
+        filenames = {record["filename"] for record in files.history()}
+        self.assertEqual(filenames, {second.name})
+        self.assertTrue(first.is_file())
+        self.assertIn("Usuni", response.get_data(as_text=True))
+
+    def test_history_bulk_delete_files_keeps_records(self) -> None:
+        files = self.app.extensions["file_service"]
+        first = files.download_dir / "first.mp4"
+        second = files.download_dir / "second.mp4"
+        first.write_text("first", encoding="utf-8")
+        second.write_text("second", encoding="utf-8")
+        files.record_download(
+            "First",
+            "https://youtu.be/first",
+            "best",
+            first.name,
+            "completed",
+        )
+        files.record_download(
+            "Second",
+            "https://youtu.be/second",
+            "best",
+            second.name,
+            "completed",
+        )
+        selected = [record["downloaded_at"] for record in files.history()]
+
+        self.client.post(
+            "/history/bulk",
+            data={
+                "_csrf_token": self._csrf_token(),
+                "action": "delete_files",
+                "history_keys": selected,
+                "return_sort": "date",
+                "return_order": "desc",
+            },
+        )
+
+        self.assertFalse(first.exists())
+        self.assertFalse(second.exists())
+        history = files.history()
+        self.assertEqual(len(history), 2)
+        self.assertTrue(all(not record["file_exists"] for record in history))
+
+    def test_history_bulk_repeat_downloads_selected_records(self) -> None:
+        class FakeUpdater:
+            calls = 0
+
+            def ensure_recent(self) -> bool:
+                self.calls += 1
+                return True
+
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        files.record_download(
+            "Example",
+            "https://youtu.be/example",
+            "format",
+            target.name,
+            "completed",
+            format_id="137",
+            duration=125,
+        )
+        record = files.history()[0]
+        updater = FakeUpdater()
+        self.app.extensions["ytdlp_updater"] = updater
+        manager = self.app.extensions["job_manager"]
+
+        with patch.object(
+            manager,
+            "start_download",
+            return_value=SimpleNamespace(job_id="12345678"),
+        ) as start_download:
+            response = self.client.post(
+                "/history/bulk",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "action": "repeat",
+                    "history_keys": [record["downloaded_at"]],
+                    "return_q": "Example",
+                    "return_sort": "title",
+                    "return_order": "asc",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("q=Example", response.headers["Location"])
+        self.assertEqual(updater.calls, 1)
+        start_download.assert_called_once_with(
+            url="https://youtu.be/example",
+            title="Example",
+            download_type="format",
+            format_id="137",
+            duration=125,
+        )
+
     def test_history_title_and_thumbnail_open_preview(self) -> None:
         files = self.app.extensions["file_service"]
         target = files.download_dir / "example.mp4"

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.29
+
+- Dodano masowe akcje na stronie `Historia`: usuwanie wpisów, usuwanie plików oraz ponowne pobieranie zaznaczonych pozycji.
+
+## 1.3.28
+
+- Dodano sortowanie osobnej strony `Historia` po dacie, rozmiarze, długości, tytule i serwisie.
+
 ## 1.3.27
 
 - Dodano osobną stronę `Historia` z wyszukiwarką po tytule, nazwie pliku, serwisie, URL, dacie, rozmiarze i długości.

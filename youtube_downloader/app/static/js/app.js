@@ -205,6 +205,55 @@
     renderHistory();
   }
 
+  const historyBulkForm = document.getElementById("history-bulk-form");
+  if (historyBulkForm) {
+    const selectedHistoryKeys = new Set();
+    const historySelectionInputs = () => Array.from(historyBulkForm.querySelectorAll(".history-bulk-select"));
+    const historyUniqueKeys = () => [...new Set(historySelectionInputs().map((input) => input.value).filter(Boolean))];
+    const syncHistoryBulkControls = () => {
+      historySelectionInputs().forEach((input) => {
+        input.checked = selectedHistoryKeys.has(input.value);
+      });
+      const selectedCount = selectedHistoryKeys.size;
+      const totalCount = historyUniqueKeys().length;
+      const count = document.getElementById("history-selected-count");
+      if (count) count.textContent = String(selectedCount);
+      const button = document.getElementById("history-bulk-submit");
+      if (button) button.disabled = selectedCount === 0;
+      const selectAll = document.getElementById("history-bulk-select-all");
+      if (selectAll) {
+        selectAll.checked = totalCount > 0 && selectedCount === totalCount;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+      }
+    };
+
+    historySelectionInputs().forEach((input) => {
+      input.addEventListener("change", () => {
+        if (input.checked) selectedHistoryKeys.add(input.value);
+        else selectedHistoryKeys.delete(input.value);
+        syncHistoryBulkControls();
+      });
+    });
+    document.getElementById("history-bulk-select-all")?.addEventListener("change", (event) => {
+      if (event.target.checked) historyUniqueKeys().forEach((key) => selectedHistoryKeys.add(key));
+      else selectedHistoryKeys.clear();
+      syncHistoryBulkControls();
+    });
+    historyBulkForm.addEventListener("submit", (event) => {
+      const selectedCount = selectedHistoryKeys.size;
+      const action = historyBulkForm.querySelector(".history-bulk-action")?.value || "";
+      const labels = {
+        delete_entries: "usunąć zaznaczone wpisy z historii",
+        delete_files: "usunąć pliki dla zaznaczonych wpisów",
+        repeat: "ponownie pobrać zaznaczone pozycje",
+      };
+      if (!selectedCount || !window.confirm(`Czy na pewno ${labels[action] || "wykonać akcję"} (${selectedCount})?`)) {
+        event.preventDefault();
+      }
+    });
+    syncHistoryBulkControls();
+  }
+
   let activeJobStatuses = new Set();
   try {
     activeJobStatuses = new Set(JSON.parse(document.getElementById("active-job-statuses")?.textContent || "[]"));
