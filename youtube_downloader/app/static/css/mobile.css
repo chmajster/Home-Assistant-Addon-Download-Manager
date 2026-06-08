@@ -77,4 +77,12 @@
   .mobile-action {
     min-height: 2.6rem;
   }
+
+  .preview-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-info-grid dt {
+    margin-top: 0.35rem;
+  }
 }

@@ -47,7 +47,6 @@ class ApplicationTestCase(unittest.TestCase):
             jobs_dir=root / "jobs",
             history_file=root / "jobs" / "history.json",
             max_concurrent_jobs=2,
-            update_ytdlp_on_start=False,
             allow_external_port=False,
             external_port=999,
             debug=False,
@@ -182,6 +181,18 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('<video class="preview-player"', body)
         self.assertIn('src="/media/example.mp4"', body)
         self.assertIn('href="/downloaded/example.mp4"', body)
+        self.assertIn("Informacje o pliku", body)
+        self.assertIn("Rozmiar", body)
+        self.assertIn("5.0 B", body)
+        self.assertIn("Data pobrania", body)
+        self.assertIn("Typ pobrania", body)
+        self.assertIn("najlepsza", body)
+        self.assertIn("Format pliku", body)
+        self.assertIn("video/mp4", body)
+        self.assertIn("Status", body)
+        self.assertIn("zakończone", body)
+        self.assertIn("Źródło", body)
+        self.assertIn("https://youtu.be/example", body)
 
     def test_managed_file_can_be_streamed_inline(self) -> None:
         downloads = self.app.extensions["file_service"].download_dir

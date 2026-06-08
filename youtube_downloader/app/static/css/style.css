@@ -448,6 +448,26 @@ a:hover {
   padding: 2rem;
 }
 
+.preview-info-grid {
+  display: grid;
+  gap: 0.65rem 1rem;
+  grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+}
+
+.preview-info-grid dt {
+  color: var(--app-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-info-grid dd {
+  margin-bottom: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .mobile-only {
   display: none;
 }

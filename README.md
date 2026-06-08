@@ -70,7 +70,7 @@ nfs_download_dir: /media/nas/youtube_downloader
 
 ## Aktualizacja yt-dlp
 
-Opcja `update_ytdlp_on_start` jest domyślnie aktywna. Przy starcie kontenera dodatek próbuje zaktualizować `yt-dlp`, czyli backend i zestaw extractorów używanych do obsługi zmian po stronie serwisów. Nie są aktualizowane serwisy źródłowe. Chwilowy brak sieci nie blokuje uruchomienia dodatku.
+Przy każdym starcie kontenera dodatek próbuje zaktualizować `yt-dlp`, czyli backend i zestaw extractorów używanych do obsługi zmian po stronie serwisów. Nie są aktualizowane serwisy źródłowe. Chwilowy brak sieci nie blokuje uruchomienia dodatku.
 
 ## Ograniczenia
 

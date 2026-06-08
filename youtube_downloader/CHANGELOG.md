@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.23
+
+- `yt-dlp` jest teraz zawsze aktualizowany przy starcie dodatku, bez osobnego przełącznika w konfiguracji.
+
 ## 1.3.22
 
 - Dodano obsługę publicznych kanałów, VOD i klipów Twitch obsługiwanych przez `yt-dlp`.

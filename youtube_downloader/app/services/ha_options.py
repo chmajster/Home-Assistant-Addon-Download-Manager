@@ -25,7 +25,6 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "nfs_password": "",
     "nfs_mount_options": "vers=4",
     "max_concurrent_jobs": 2,
-    "update_ytdlp_on_start": True,
     "allow_external_port": False,
     "external_port": 999,
     "debug": False,
@@ -46,7 +45,6 @@ class HomeAssistantOptions:
     nfs_password: str
     nfs_mount_options: str
     max_concurrent_jobs: int
-    update_ytdlp_on_start: bool
     allow_external_port: bool
     external_port: int
     debug: bool
@@ -177,7 +175,6 @@ def load_options() -> HomeAssistantOptions:
         nfs_password=_validated_text(values["nfs_password"], max_length=300),
         nfs_mount_options=_validated_text(values["nfs_mount_options"], "vers=4"),
         max_concurrent_jobs=_validated_int(values["max_concurrent_jobs"], 2, 1, 5),
-        update_ytdlp_on_start=_validated_bool(values["update_ytdlp_on_start"], True),
         allow_external_port=_validated_bool(values["allow_external_port"], False),
         external_port=_validated_int(values["external_port"], 999, 1, 65535),
         debug=_validated_bool(values["debug"], False),

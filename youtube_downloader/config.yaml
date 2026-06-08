@@ -1,7 +1,7 @@
 name: "Media Web Downloader"
 slug: "youtube_downloader"
 description: "Webowy downloader YouTube, Instagram, Kick i Twitch oparty o yt-dlp z obsługą Ingress i panelem UI w Home Assistant"
-version: "1.3.22"
+version: "1.3.23"
 url: "https://github.com/example/home-assistant-media-web-downloader-addon"
 arch:
   - amd64
@@ -35,7 +35,6 @@ options:
   nfs_password: ""
   nfs_mount_options: "vers=4"
   max_concurrent_jobs: 2
-  update_ytdlp_on_start: true
   allow_external_port: false
   external_port: 999
   debug: false
@@ -50,7 +49,6 @@ schema:
   nfs_password: password
   nfs_mount_options: str
   max_concurrent_jobs: "int(1,5)"
-  update_ytdlp_on_start: bool
   allow_external_port: bool
   external_port: port
   debug: bool

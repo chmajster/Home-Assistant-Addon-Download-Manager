@@ -85,10 +85,10 @@ Na karcie **Konfiguracja** dodatku ustaw `max_concurrent_jobs` na wartość od `
 
 ## Aktualizacja extractora
 
-Gdy `update_ytdlp_on_start` ma wartość `true`, skrypt usługi próbuje wykonać:
+Przy każdym starcie skrypt usługi próbuje wykonać:
 
 ```sh
-/venv/bin/python -m pip install --no-cache-dir --upgrade yt-dlp
+/venv/bin/python -m pip install --no-cache-dir --retries 3 --timeout 20 --upgrade yt-dlp
 ```
 
 Niepowodzenie jest logowane, ale nie blokuje startu panelu. Aktualizowany jest extractor `yt-dlp`, nie serwisy źródłowe.

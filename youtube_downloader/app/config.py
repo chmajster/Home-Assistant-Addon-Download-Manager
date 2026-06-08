@@ -24,7 +24,6 @@ class AppConfig:
     jobs_dir: Path
     history_file: Path
     max_concurrent_jobs: int
-    update_ytdlp_on_start: bool
     allow_external_port: bool
     external_port: int
     debug: bool
@@ -51,7 +50,6 @@ class AppConfig:
             jobs_dir=jobs_dir,
             history_file=jobs_dir / "history.json",
             max_concurrent_jobs=options.max_concurrent_jobs,
-            update_ytdlp_on_start=options.update_ytdlp_on_start,
             allow_external_port=options.allow_external_port,
             external_port=options.external_port,
             debug=options.debug,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+from datetime import UTC, datetime
 from typing import Any
 
 from flask import (
@@ -295,12 +296,24 @@ def preview(filename: str):
     media_kind = "video" if mime_type.startswith("video/") else "audio"
     if not mime_type.startswith(("video/", "audio/")):
         media_kind = "file"
+    stat = path.stat()
+    downloaded_at = record.get("downloaded_at") or datetime.fromtimestamp(
+        stat.st_mtime, UTC
+    ).isoformat()
     return render_template(
         "preview.html",
         title=record.get("title") or path.name,
         filename=path.name,
         mime_type=mime_type,
         media_kind=media_kind,
+        file_info={
+            "size": stat.st_size,
+            "downloaded_at": downloaded_at,
+            "source_url": record.get("url"),
+            "download_type": record.get("type"),
+            "status": record.get("status"),
+            "format_id": record.get("format_id"),
+        },
     )
 
 

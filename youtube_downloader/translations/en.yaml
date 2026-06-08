@@ -26,9 +26,6 @@ configuration:
   max_concurrent_jobs:
     name: "Concurrent job limit"
     description: "Maximum number of simultaneous downloads and live recordings."
-  update_ytdlp_on_start:
-    name: "Update yt-dlp on start"
-    description: "Attempts to update the yt-dlp extractor before the panel starts."
   allow_external_port:
     name: "Enable page without Ingress"
     description: "Starts an additional public application port, for example 999, available without Home Assistant login. Use only on a trusted network."

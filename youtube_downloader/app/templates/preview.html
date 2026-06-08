@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} | Media Web Downloader{% endblock %}
 {% block content %}
+  {% set download_type_labels = {"best": "najlepsza", "video": "najlepsza", "video-1080": "1080p", "video-720": "720p", "video-360": "360p", "audio": "audio MP3", "format": "konkretny format", "live": "live"} %}
   <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
       <span class="eyebrow">Podgląd</span>
@@ -30,5 +31,37 @@
         <small>Możesz pobrać plik przyciskiem powyżej.</small>
       </div>
     {% endif %}
+  </section>
+
+  <section class="preview-details app-card mt-4">
+    <div class="card-body">
+      <span class="eyebrow">Informacje o pliku</span>
+      <dl class="preview-info-grid mb-0">
+        <dt>Rozmiar</dt>
+        <dd>{{ file_info.size|filesize }}</dd>
+        <dt>Data pobrania</dt>
+        <dd>{{ file_info.downloaded_at|replace("T", " ")|truncate(19, True, "") }}</dd>
+        <dt>Typ pobrania</dt>
+        <dd>{{ download_type_labels.get(file_info.download_type, file_info.download_type or "brak danych") }}</dd>
+        <dt>Format pliku</dt>
+        <dd>{{ mime_type }}</dd>
+        {% if file_info.format_id %}
+          <dt>ID formatu</dt>
+          <dd>{{ file_info.format_id }}</dd>
+        {% endif %}
+        {% if file_info.status %}
+          <dt>Status</dt>
+          <dd>{{ status_labels.get(file_info.status, file_info.status) }}</dd>
+        {% endif %}
+        <dt>Źródło</dt>
+        <dd>
+          {% if file_info.source_url %}
+            <a class="text-break" href="{{ file_info.source_url }}" target="_blank" rel="noreferrer">{{ file_info.source_url }}</a>
+          {% else %}
+            brak danych
+          {% endif %}
+        </dd>
+      </dl>
+    </div>
   </section>
 {% endblock %}
