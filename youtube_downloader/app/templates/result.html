@@ -54,6 +54,7 @@
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="url" value="{{ media.url }}">
               <input type="hidden" name="title" value="{{ media.title }}">
+              {% if media.duration %}<input type="hidden" name="duration" value="{{ media.duration }}">{% endif %}
               <label class="form-label" for="download-type">Wybierz wariant</label>
               <select class="form-select mb-3" id="download-type" name="download_type">
                 <option value="best"{% if app_settings.preferred_format == "best" %} selected{% endif %}>Najlepsza dostępna jakość</option>

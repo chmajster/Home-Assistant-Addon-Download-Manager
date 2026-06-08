@@ -14,8 +14,10 @@ from flask import Flask, request, session, url_for
 
 from .config import AppConfig
 from .services.file_service import FileService
+from .services.ha_notifications import HomeAssistantNotifier
 from .services.job_manager import JobManager
 from .services.media_service import ALLOWED_DOMAINS, MediaService
+from .services.ytdlp_updater import YtDlpUpdater
 
 LOGGER = logging.getLogger(__name__)
 INGRESS_PATH_RE = re.compile(r"^/[A-Za-z0-9/_-]*$")
@@ -100,17 +102,23 @@ def create_app() -> Flask:
 
     file_service = FileService(settings.download_dir, settings.history_file)
     media_service = MediaService(settings.download_dir)
+    notifier = HomeAssistantNotifier()
+    ytdlp_updater = YtDlpUpdater(settings.jobs_dir / "ytdlp_update.json")
     job_manager = JobManager(
         media_service=media_service,
         file_service=file_service,
         max_concurrent_jobs=settings.max_concurrent_jobs,
         jobs_file=settings.jobs_dir / "queue.json",
+        notifier=notifier,
     )
 
     app.extensions["file_service"] = file_service
     app.extensions["media_service"] = media_service
     app.extensions["job_manager"] = job_manager
+    app.extensions["ha_notifier"] = notifier
+    app.extensions["ytdlp_updater"] = ytdlp_updater
     app.extensions["request_limiter"] = RequestLimiter()
+    ytdlp_updater.start_background()
 
     from .routes.api import api_bp
     from .routes.web import web_bp

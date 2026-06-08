@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.27
+
+- Dodano osobną stronę `Historia` z wyszukiwarką po tytule, nazwie pliku, serwisie, URL, dacie, rozmiarze i długości.
+- Nowe rekordy historii zapisują długość materiału, jeśli była dostępna w analizie.
+
+## 1.3.26
+
+- Dodano powiadomienia Home Assistant po zakończeniu pobierania i po błędzie zadania.
+
+## 1.3.25
+
+- Usunięto sztywny pin `yt-dlp` z `requirements.txt`, aby build instalował najnowszą dostępną wersję.
+
+## 1.3.24
+
+- Dodano stan aktualizacji `yt-dlp` w `/data/jobs/ytdlp_update.json`.
+- Aplikacja ponawia aktualizację `yt-dlp` co 24 godziny oraz przed analizą lub pobieraniem, jeśli ostatnia aktualizacja jest nieaktualna albo nieudana.
+
 ## 1.3.23
 
 - `yt-dlp` jest teraz zawsze aktualizowany przy starcie dodatku, bez osobnego przełącznika w konfiguracji.

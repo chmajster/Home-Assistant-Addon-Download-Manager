@@ -39,6 +39,10 @@ Po zakończeniu operacji wynik jest zapisywany w historii JSON:
 
 Historia przetrwa restart kontenera. Po skasowaniu materiału rekord pozostaje widoczny, ale panel oznacza brak pliku. Przycisk **Pobierz ponownie** uruchamia nowe zadanie z zapisanym URL i wariantem jakości również wtedy, gdy lokalny plik został już usunięty.
 
+Osobna strona `/history` pokazuje pełną historię z wyszukiwarką po tytule, nazwie pliku, serwisie, URL, dacie, rozmiarze i długości. Długość jest zapisywana dla nowych pobrań, jeśli `yt-dlp` zwrócił ją podczas analizy.
+
+Po zakończeniu pobierania albo błędzie zadania dodatek wysyła trwałe powiadomienie Home Assistant przez usługę `persistent_notification.create`. Treść zawiera tytuł materiału, typ pobrania i nazwę pliku albo komunikat błędu. Dostęp do API Home Assistant Core jest deklarowany w `config.yaml` przez `homeassistant_api: true`.
+
 ## Zapis transmisji live
 
 Aktywna transmisja live jest zapisywana przez osobny proces `yt-dlp`. Menedżer zadań przechowuje PID procesu, czyta jego postęp i pozwala wysłać bezpieczny sygnał przerwania z interfejsu. Jednoczesny drugi zapis tego samego URL jest odrzucany. Mechanizm działa dla publicznych transmisji zwracanych przez extractor jako aktywne live, w tym YouTube, Kick i Twitch.
@@ -92,6 +96,8 @@ Przy każdym starcie skrypt usługi próbuje wykonać:
 ```
 
 Niepowodzenie jest logowane, ale nie blokuje startu panelu. Aktualizowany jest extractor `yt-dlp`, nie serwisy źródłowe.
+
+Wynik aktualizacji jest zapisywany w `/data/jobs/ytdlp_update.json`. Działająca aplikacja sprawdza ten stan co godzinę i wykonuje aktualizację, gdy ostatnia udana próba ma co najmniej 24 godziny. To samo sprawdzenie jest wykonywane przed analizą, zwykłym pobraniem, wznowieniem pobrania oraz startem zapisu live. Jeżeli poprzednia próba aktualizacji się nie powiodła, kolejne uruchomienie pobierania spróbuje zaktualizować `yt-dlp` ponownie.
 
 ## Komunikaty błędów
 

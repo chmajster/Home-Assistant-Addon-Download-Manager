@@ -1,9 +1,43 @@
 #!/usr/bin/with-contenv bashio
 set -e
 
+record_ytdlp_update() {
+    /venv/bin/python - "$1" <<'PY'
+from __future__ import annotations
+
+import json
+import os
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+state_file = Path("/data/jobs/ytdlp_update.json")
+state_file.parent.mkdir(parents=True, exist_ok=True)
+try:
+    state = json.loads(state_file.read_text(encoding="utf-8"))
+    if not isinstance(state, dict):
+        state = {}
+except (OSError, json.JSONDecodeError):
+    state = {}
+now = datetime.now(UTC).isoformat()
+state["last_attempt"] = now
+if sys.argv[1] == "success":
+    state["last_success"] = now
+    state.pop("last_error", None)
+else:
+    state["last_error"] = "Aktualizacja yt-dlp przy starcie nie powiodła się."
+temporary = state_file.with_suffix(".tmp")
+temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+os.replace(temporary, state_file)
+PY
+}
+
 bashio::log.info "Aktualizuję yt-dlp do najnowszej wersji przed uruchomieniem aplikacji..."
-if ! /venv/bin/python -m pip install --no-cache-dir --retries 3 --timeout 20 --upgrade yt-dlp; then
+if /venv/bin/python -m pip install --no-cache-dir --retries 3 --timeout 20 --upgrade yt-dlp; then
+    record_ytdlp_update success
+else
     bashio::log.warning "Aktualizacja yt-dlp nie powiodła się. Uruchamiam z obecną wersją."
+    record_ytdlp_update failure
 fi
 
 EXTERNAL_PORT="$(bashio::config 'external_port')"

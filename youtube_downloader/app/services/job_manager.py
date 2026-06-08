@@ -65,6 +65,7 @@ class Job:
     output_files: list[str] = field(default_factory=list)
     thumbnail_filename: str | None = None
     is_live: bool = False
+    duration: int | None = None
 
 
 class JobManager:
@@ -91,11 +92,13 @@ class JobManager:
         file_service: FileService,
         max_concurrent_jobs: int,
         jobs_file: Path | None = None,
+        notifier: Any | None = None,
     ) -> None:
         self.media_service = media_service
         self.file_service = file_service
         self.max_concurrent_jobs = max_concurrent_jobs
         self.jobs_file = jobs_file or file_service.history_file.parent / "queue.json"
+        self.notifier = notifier
         self._jobs: dict[str, Job] = {}
         self._live_processes: dict[str, subprocess.Popen[str]] = {}
         self._stop_events: dict[str, threading.Event] = {}
@@ -107,14 +110,24 @@ class JobManager:
         self._load_jobs()
 
     def start_download(
-        self, url: str, title: str, download_type: str, format_id: str | None = None
+        self,
+        url: str,
+        title: str,
+        download_type: str,
+        format_id: str | None = None,
+        duration: int | None = None,
     ) -> Job:
         """Queue one regular yt-dlp download."""
 
         validated_url = self.media_service.validate_url(url)
         self.media_service.format_selection(download_type, format_id)
         job = self._new_job(
-            validated_url, title, download_type, is_live=False, format_id=format_id
+            validated_url,
+            title,
+            download_type,
+            is_live=False,
+            format_id=format_id,
+            duration=duration,
         )
         stop_event = threading.Event()
         with self._lock:
@@ -330,6 +343,7 @@ class JobManager:
         download_type: str,
         is_live: bool,
         format_id: str | None = None,
+        duration: int | None = None,
     ) -> Job:
         job = Job(
             job_id=uuid.uuid4().hex,
@@ -339,6 +353,7 @@ class JobManager:
             download_type=download_type,
             format_id=format_id,
             is_live=is_live,
+            duration=duration,
         )
         with self._lock:
             self._jobs[job.job_id] = job
@@ -589,6 +604,7 @@ class JobManager:
                         thumbnail.filename,
                         job.format_id,
                         thumbnail.warning_message,
+                        job.duration,
                     )
                 except (FileNotFoundError, ValueError):
                     LOGGER.warning("Pominięto wynik poza katalogiem pobrań: %s", path)
@@ -664,6 +680,8 @@ class JobManager:
         job.speed = None
         job.eta = None
         self._persist_jobs()
+        if status in {"completed", "error"} and self.notifier:
+            self.notifier.notify_job(Job(**asdict(job)))
 
     def _fail(self, job_id: str, message: str) -> None:
         with self._lock:

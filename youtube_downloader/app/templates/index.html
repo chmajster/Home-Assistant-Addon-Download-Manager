@@ -45,6 +45,7 @@
               <h2 class="h4 mb-1">Historia pobrań</h2>
               <p class="section-copy mb-0">Ostatnie pliki zapisane przez dodatek.</p>
             </div>
+            <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.history') }}">Historia</a>
           </div>
           {% if history %}
             <div class="row g-2 mb-3 history-controls">
@@ -114,6 +115,7 @@
                               <input type="hidden" name="url" value="{{ item.url }}">
                               <input type="hidden" name="title" value="{{ item.title }}">
                               <input type="hidden" name="download_type" value="{{ item.type }}">
+                              {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
                               {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
                               <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
                             </form>
@@ -167,6 +169,7 @@
                         <input type="hidden" name="url" value="{{ item.url }}">
                         <input type="hidden" name="title" value="{{ item.title }}">
                         <input type="hidden" name="download_type" value="{{ item.type }}">
+                        {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
                         {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
                         <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
                       </form>

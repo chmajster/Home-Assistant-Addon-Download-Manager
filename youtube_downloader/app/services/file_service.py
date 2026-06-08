@@ -239,6 +239,7 @@ class FileService:
         thumbnail_filename: str | None = None,
         format_id: str | None = None,
         warning_message: str | None = None,
+        duration: int | None = None,
     ) -> None:
         """Append a completed or partial output to persistent history."""
 
@@ -255,6 +256,7 @@ class FileService:
             "thumbnail_filename": thumbnail_filename,
             "format_id": format_id,
             "warning_message": warning_message,
+            "duration": duration,
         }
         with self._history_lock:
             records = self._read_history()

@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
+import importlib
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlsplit, urlunsplit
-
-from yt_dlp import YoutubeDL
-from yt_dlp.utils import DownloadError
 
 from .error_messages import operational_error_message
 
@@ -36,6 +34,12 @@ VIDEO_QUALITY_LIMITS = {
     "video-720": 720,
     "video-1080": 1080,
 }
+
+
+def _yt_dlp_api() -> tuple[Any, type[Exception]]:
+    yt_dlp = importlib.import_module("yt_dlp")
+    utils = importlib.import_module("yt_dlp.utils")
+    return yt_dlp.YoutubeDL, utils.DownloadError
 
 
 class MediaServiceError(RuntimeError):
@@ -102,6 +106,7 @@ class MediaService:
             "noplaylist": False,
             "ignoreerrors": False,
         }
+        YoutubeDL, DownloadError = _yt_dlp_api()
         try:
             with YoutubeDL(options) as ydl:
                 raw_info = ydl.extract_info(validated_url, download=False)
@@ -131,6 +136,7 @@ class MediaService:
         options = self.download_options(download_type, format_id)
         options["progress_hooks"] = [progress_hook]
         options["postprocessor_hooks"] = [postprocessor_hook]
+        YoutubeDL, DownloadError = _yt_dlp_api()
         try:
             with YoutubeDL(options) as ydl:
                 info = ydl.extract_info(validated_url, download=True)
@@ -342,7 +348,7 @@ class MediaService:
         return f"{width}x{height}" if width and height else None
 
     def _paths_from_info(
-        self, ydl: YoutubeDL, info: dict[str, Any] | None
+        self, ydl: Any, info: dict[str, Any] | None
     ) -> list[Path]:
         paths: list[Path] = []
         if not info:

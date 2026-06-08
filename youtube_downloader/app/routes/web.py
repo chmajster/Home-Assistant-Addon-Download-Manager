@@ -21,6 +21,7 @@ from .. import ingress_url, valid_csrf_token
 from ..services.file_service import FileService, UnsafeFilenameError
 from ..services.job_manager import JobManager
 from ..services.media_service import MediaService, MediaServiceError
+from ..services.ytdlp_updater import YtDlpUpdater
 
 LOGGER = logging.getLogger(__name__)
 web_bp = Blueprint("web", __name__)
@@ -36,6 +37,22 @@ def _media_service() -> MediaService:
 
 def _job_manager() -> JobManager:
     return current_app.extensions["job_manager"]
+
+
+def _ytdlp_updater() -> YtDlpUpdater:
+    return current_app.extensions["ytdlp_updater"]
+
+
+def _ensure_ytdlp_recent() -> None:
+    _ytdlp_updater().ensure_recent()
+
+
+def _duration_value(value: object) -> int | None:
+    try:
+        seconds = int(float(str(value)))
+    except (TypeError, ValueError):
+        return None
+    return seconds if seconds >= 0 else None
 
 
 def _limited(bucket: str, limit: int, window: int = 60) -> bool:
@@ -65,6 +82,92 @@ def index():
     )
 
 
+@web_bp.get("/history")
+def history():
+    """Searchable full download history."""
+
+    query = request.args.get("q", "").strip()
+    records = _history_records(_file_service().history())
+    filtered = _filter_history(records, query)
+    return render_template(
+        "history.html",
+        history=filtered,
+        query=query,
+        total_history=len(records),
+    )
+
+
+def _history_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
+    for record in records:
+        item = dict(record)
+        item["platform"] = _history_platform(str(item.get("url") or ""))
+        item["size_label"] = _filesize_label(item.get("size"))
+        item["duration_label"] = _duration_label(item.get("duration"))
+        item["downloaded_at_label"] = str(item.get("downloaded_at") or "").replace(
+            "T", " "
+        )[:19]
+        enriched.append(item)
+    return enriched
+
+
+def _history_platform(url: str) -> str:
+    try:
+        return MediaService.detect_platform(MediaService.validate_url(url))
+    except MediaServiceError:
+        return "unknown"
+
+
+def _filter_history(records: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    if not query:
+        return records
+    needle = query.casefold()
+    return [item for item in records if needle in _history_search_text(item)]
+
+
+def _history_search_text(item: dict[str, Any]) -> str:
+    values = [
+        item.get("title"),
+        item.get("filename"),
+        item.get("platform"),
+        item.get("url"),
+        item.get("downloaded_at"),
+        item.get("downloaded_at_label"),
+        item.get("size"),
+        item.get("size_label"),
+        item.get("duration"),
+        item.get("duration_label"),
+        item.get("type"),
+        item.get("status"),
+    ]
+    return " ".join(str(value) for value in values if value is not None).casefold()
+
+
+def _filesize_label(value: object) -> str:
+    try:
+        size = float(str(value))
+    except (TypeError, ValueError):
+        return "brak danych"
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if size < 1024 or unit == "TB":
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return "brak danych"
+
+
+def _duration_label(value: object) -> str:
+    seconds = _duration_value(value)
+    if seconds is None:
+        return "brak danych"
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return (
+        f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        if hours
+        else f"{minutes:02d}:{seconds:02d}"
+    )
+
+
 @web_bp.post("/analyze")
 def analyze():
     """Extract metadata for one supported public media URL."""
@@ -75,6 +178,7 @@ def analyze():
         flash("Zbyt wiele prób analizy. Odczekaj chwilę i spróbuj ponownie.", "warning")
         return redirect(ingress_url("web.index"))
     try:
+        _ensure_ytdlp_recent()
         media = _media_service().analyze(request.form.get("url", ""))
         return render_template("result.html", media=media)
     except MediaServiceError as error:
@@ -91,11 +195,13 @@ def start_download():
         flash("Zbyt wiele prób uruchomienia pobierania. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
+        _ensure_ytdlp_recent()
         job = _job_manager().start_download(
             url=request.form.get("url", ""),
             title=request.form.get("title", ""),
             download_type=request.form.get("download_type", "best"),
             format_id=request.form.get("format_id") or None,
+            duration=_duration_value(request.form.get("duration")),
         )
         flash(f"Uruchomiono zadanie {job.job_id[:8]}.", "success")
     except MediaServiceError as error:
@@ -113,6 +219,7 @@ def start_live():
         flash("Zbyt wiele prób uruchomienia zapisu live. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
+        _ensure_ytdlp_recent()
         media = _media_service().analyze(request.form.get("url", ""))
         if media["content_type"] != "live":
             raise MediaServiceError("Podany adres nie prowadzi do transmisji live.")
@@ -135,6 +242,7 @@ def watch_live():
         flash("Zbyt wiele prób uruchomienia oczekiwania live. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
+        _ensure_ytdlp_recent()
         media = _media_service().analyze(request.form.get("url", ""))
         if media["content_type"] != "live":
             raise MediaServiceError("Podany adres nie prowadzi do transmisji live.")
@@ -176,6 +284,7 @@ def resume_download(job_id: str):
         flash("Zbyt wiele prób wznowienia pobierania. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
+        _ensure_ytdlp_recent()
         job = _job_manager().resume_download(job_id)
         flash(f"Wznowiono zadanie {job.job_id[:8]}.", "success")
     except KeyError:

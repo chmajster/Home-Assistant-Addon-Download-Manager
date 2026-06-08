@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import errno
+import json
 import tempfile
 import threading
 import time
 import unittest
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -25,8 +27,10 @@ from app.services.ha_options import (
     _validated_storage_mode,
     load_options,
 )
+from app.services.ha_notifications import HomeAssistantNotifier
 from app.services.job_manager import JobManager
 from app.services.media_service import MediaService, MediaServiceError
+from app.services.ytdlp_updater import YtDlpUpdater
 
 
 class ApplicationTestCase(unittest.TestCase):
@@ -217,6 +221,35 @@ class ApplicationTestCase(unittest.TestCase):
         finally:
             response.close()
 
+    def test_start_download_checks_ytdlp_update_state(self) -> None:
+        class FakeUpdater:
+            calls = 0
+
+            def ensure_recent(self) -> bool:
+                self.calls += 1
+                return True
+
+        updater = FakeUpdater()
+        self.app.extensions["ytdlp_updater"] = updater
+        manager = self.app.extensions["job_manager"]
+        with patch.object(
+            manager,
+            "start_download",
+            return_value=SimpleNamespace(job_id="12345678"),
+        ):
+            response = self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/example",
+                    "title": "Example",
+                    "download_type": "best",
+                },
+                follow_redirects=False,
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(updater.calls, 1)
+
     def test_index_displays_storage_usage(self) -> None:
         response = self.client.get("/")
         body = response.get_data(as_text=True)
@@ -234,6 +267,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("platform-chip platform-kick", body)
         self.assertIn("platform-chip platform-twitch", body)
         self.assertIn("hero-input-group", body)
+        self.assertIn('href="/history"', body)
         self.assertIn('class="col-12 history-panel"', body)
         self.assertNotIn('class="col-lg-7"', body)
 
@@ -271,6 +305,50 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn(">Usuń plik</button>", body)
         self.assertIn('name="url" value="https://youtu.be/example"', body)
         self.assertIn('name="download_type" value="best"', body)
+
+    def test_history_page_searches_metadata_fields(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example video.mp4"
+        target.write_bytes(b"x" * 1536)
+        files.record_download(
+            "Example video",
+            "https://youtu.be/example",
+            "best",
+            target.name,
+            "completed",
+            duration=125,
+        )
+        record = files.history()[0]
+
+        body = self.client.get("/history").get_data(as_text=True)
+        self.assertIn("Wyszukiwarka historii", body)
+        self.assertIn("Example video", body)
+        self.assertIn("example video.mp4", body)
+        self.assertIn("youtube", body)
+        self.assertIn("1.5 KB", body)
+        self.assertIn("02:05", body)
+
+        for query in (
+            "Example video",
+            "example video.mp4",
+            "youtube",
+            "youtu.be/example",
+            record["downloaded_at"][:10],
+            "1.5 KB",
+            "02:05",
+        ):
+            with self.subTest(query=query):
+                result = self.client.get(
+                    "/history", query_string={"q": query}
+                ).get_data(as_text=True)
+                self.assertIn("Example video", result)
+                self.assertIn("Wyniki: 1 z 1", result)
+
+        empty = self.client.get("/history", query_string={"q": "missing"}).get_data(
+            as_text=True
+        )
+        self.assertIn("Brak wyników", empty)
+        self.assertIn("Wyniki: 0 z 1", empty)
 
     def test_history_title_and_thumbnail_open_preview(self) -> None:
         files = self.app.extensions["file_service"]
@@ -421,6 +499,7 @@ class ApplicationTestCase(unittest.TestCase):
             )
         self.assertIn('class="btn btn-sm btn-soft format-download"', body)
         self.assertIn('data-format-id="137"', body)
+        self.assertIn('name="duration" value="10"', body)
         self.assertIn('<option value="video-1080">1080p</option>', body)
         self.assertIn('<option value="video-720">720p</option>', body)
         self.assertIn('<option value="video-360">360p</option>', body)
@@ -625,6 +704,117 @@ class HomeAssistantOptionsTestCase(unittest.TestCase):
             self.assertEqual(load_options().preferred_format, "best")
 
 
+class HomeAssistantNotifierTestCase(unittest.TestCase):
+    """Format Home Assistant persistent notifications."""
+
+    def test_completed_job_notification_is_sent_to_home_assistant(self) -> None:
+        notifier = HomeAssistantNotifier(token="token", base_url="http://ha", timeout=1)
+        job = SimpleNamespace(
+            job_id="abcdef1234567890",
+            status="completed",
+            title="Example",
+            download_type="best",
+            output_file="example.mp4",
+            output_files=["example.mp4"],
+        )
+        requests = []
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def fake_urlopen(request, timeout):
+            requests.append((request, timeout))
+            return FakeResponse()
+
+        with patch("app.services.ha_notifications.threading.Thread") as thread:
+            thread.side_effect = lambda target, args, **_: SimpleNamespace(
+                start=lambda: target(*args)
+            )
+            with patch("app.services.ha_notifications.urllib.request.urlopen", fake_urlopen):
+                notifier.notify_job(job)
+
+        self.assertEqual(len(requests), 1)
+        request, timeout = requests[0]
+        self.assertEqual(timeout, 1)
+        self.assertEqual(
+            request.full_url,
+            "http://ha/services/persistent_notification/create",
+        )
+        self.assertEqual(request.headers["Authorization"], "Bearer token")
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(
+            payload["title"], "Media Web Downloader: pobieranie zakończone"
+        )
+        self.assertEqual(
+            payload["notification_id"], "media_web_downloader_abcdef123456_completed"
+        )
+        self.assertIn("Example", payload["message"])
+        self.assertIn("example.mp4", payload["message"])
+
+
+class YtDlpUpdaterTestCase(unittest.TestCase):
+    """Track periodic yt-dlp updates without running pip in tests."""
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.state_file = Path(self.temp_dir.name) / "ytdlp_update.json"
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def _updater(self) -> YtDlpUpdater:
+        return YtDlpUpdater(
+            self.state_file,
+            update_interval=timedelta(hours=24),
+            command=["python", "-m", "pip", "install", "--upgrade", "yt-dlp"],
+        )
+
+    def test_missing_state_runs_update_and_records_success(self) -> None:
+        updater = self._updater()
+        completed = SimpleNamespace(returncode=0, stdout="", stderr="")
+        with patch(
+            "app.services.ytdlp_updater.subprocess.run", return_value=completed
+        ) as run:
+            self.assertTrue(updater.ensure_recent())
+        run.assert_called_once()
+        state = json.loads(self.state_file.read_text(encoding="utf-8"))
+        self.assertIn("last_attempt", state)
+        self.assertEqual(state["last_attempt"], state["last_success"])
+
+    def test_recent_success_skips_update(self) -> None:
+        now = datetime.now(UTC).isoformat()
+        self.state_file.write_text(
+            json.dumps({"last_attempt": now, "last_success": now}),
+            encoding="utf-8",
+        )
+        updater = self._updater()
+        with patch("app.services.ytdlp_updater.subprocess.run") as run:
+            self.assertTrue(updater.ensure_recent())
+        run.assert_not_called()
+
+    def test_failed_attempt_after_success_retries_on_next_check(self) -> None:
+        state = {
+            "last_success": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
+            "last_attempt": datetime.now(UTC).isoformat(),
+            "last_error": "network",
+        }
+        self.state_file.write_text(json.dumps(state), encoding="utf-8")
+        updater = self._updater()
+        completed = SimpleNamespace(returncode=0, stdout="", stderr="")
+        with patch(
+            "app.services.ytdlp_updater.subprocess.run", return_value=completed
+        ) as run:
+            self.assertTrue(updater.ensure_recent())
+        run.assert_called_once()
+
+
 class FileServiceThumbnailTestCase(unittest.TestCase):
     """Generate and clean up derived video thumbnails."""
 
@@ -766,6 +956,16 @@ class BlockingMediaService(FakeMediaService):
         return [target]
 
 
+class FakeNotifier:
+    """Collect notification payloads synchronously for assertions."""
+
+    def __init__(self) -> None:
+        self.jobs = []
+
+    def notify_job(self, job) -> None:
+        self.jobs.append(job)
+
+
 class JobManagerTestCase(unittest.TestCase):
     """Exercise queue completion and duplicate-live protection."""
 
@@ -779,8 +979,12 @@ class JobManagerTestCase(unittest.TestCase):
             self.files, "generate_thumbnail", return_value=ThumbnailResult()
         )
         self.thumbnail_generator = self.thumbnail_patcher.start()
+        self.notifier = FakeNotifier()
         self.manager = JobManager(
-            FakeMediaService(self.download_dir), self.files, max_concurrent_jobs=1
+            FakeMediaService(self.download_dir),
+            self.files,
+            max_concurrent_jobs=1,
+            notifier=self.notifier,
         )
 
     def tearDown(self) -> None:
@@ -789,7 +993,9 @@ class JobManagerTestCase(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_regular_download_completes_and_is_recorded(self) -> None:
-        job = self.manager.start_download("https://youtu.be/abc", "Example", "best")
+        job = self.manager.start_download(
+            "https://youtu.be/abc", "Example", "best", duration=125
+        )
         completed = self._wait_for_status(job.job_id, "completed")
         self.assertEqual(completed.progress, 100.0)
         self.assertEqual(completed.output_file, "example.mp4")
@@ -797,7 +1003,11 @@ class JobManagerTestCase(unittest.TestCase):
         self.assertEqual(completed.total_bytes, 5)
         self.assertEqual(self.files.history()[0]["title"], "Example")
         self.assertEqual(self.files.history()[0]["size"], 5)
+        self.assertEqual(self.files.history()[0]["duration"], 125)
         self.thumbnail_generator.assert_called_once_with("example.mp4")
+        self.assertEqual(len(self.notifier.jobs), 1)
+        self.assertEqual(self.notifier.jobs[0].status, "completed")
+        self.assertEqual(self.notifier.jobs[0].output_file, "example.mp4")
         restored = JobManager(
             FakeMediaService(self.download_dir), self.files, max_concurrent_jobs=1
         )
@@ -858,6 +1068,9 @@ class JobManagerTestCase(unittest.TestCase):
             job = self.manager.start_download("https://youtu.be/abc", "Example", "best")
             failed = self._wait_for_status(job.job_id, "error")
         self.assertEqual(failed.error_message, STORAGE_ERROR_MESSAGE)
+        self.assertEqual(len(self.notifier.jobs), 1)
+        self.assertEqual(self.notifier.jobs[0].status, "error")
+        self.assertEqual(self.notifier.jobs[0].error_message, STORAGE_ERROR_MESSAGE)
 
     def test_thumbnail_warning_is_visible_on_completed_job(self) -> None:
         self.thumbnail_generator.return_value = ThumbnailResult(

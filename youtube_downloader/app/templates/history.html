@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Historia | Media Web Downloader{% endblock %}
+{% block content %}
+  {% set download_type_labels = {"best": "najlepsza", "video": "najlepsza", "video-1080": "1080p", "video-720": "720p", "video-360": "360p", "audio": "audio MP3", "format": "konkretny format", "live": "live"} %}
+  <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <span class="eyebrow">Biblioteka</span>
+      <h1 class="h3 mb-1">Historia pobrań</h1>
+      <p class="section-copy mb-0">Pełna historia z wyszukiwaniem po tytule, pliku, serwisie, URL, dacie, rozmiarze i długości.</p>
+    </div>
+    <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">Start</a>
+  </section>
+
+  <section class="card app-card mb-4">
+    <div class="card-body">
+      <form action="{{ ingress_url('web.history') }}" method="get" class="row g-2 align-items-end">
+        <div class="col-lg-10">
+          <label class="form-label" for="history-search">Wyszukiwarka historii</label>
+          <input class="form-control" id="history-search" name="q" value="{{ query }}" placeholder="Tytuł, nazwa pliku, serwis, URL, data, rozmiar albo długość">
+        </div>
+        <div class="col-lg-2 d-flex gap-2">
+          <button class="btn btn-accent flex-fill" type="submit">Szukaj</button>
+          {% if query %}<a class="btn btn-soft" href="{{ ingress_url('web.history') }}">Wyczyść</a>{% endif %}
+        </div>
+      </form>
+      <small class="d-block text-body-secondary mt-2">Wyniki: {{ history|length }} z {{ total_history }}</small>
+    </div>
+  </section>
+
+  {% if history %}
+    <section class="card app-card">
+      <div class="card-body">
+        <div class="desktop-only table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Miniatura</th>
+                <th>Tytuł</th>
+                <th>Serwis</th>
+                <th>Data</th>
+                <th>Rozmiar</th>
+                <th>Długość</th>
+                <th>Plik</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in history %}
+                {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
+                <tr>
+                  <td>
+                    {% if item.thumbnail_exists %}
+                      {% if preview_url %}
+                        <a class="history-thumbnail-link" href="{{ preview_url }}" aria-label="Otwórz film: {{ item.title }}">
+                          <img class="history-thumbnail" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                        </a>
+                      {% else %}
+                        <img class="history-thumbnail" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                      {% endif %}
+                    {% else %}
+                      <span class="text-body-secondary">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if preview_url %}
+                      <a class="history-title-link d-block" href="{{ preview_url }}"><strong>{{ item.title }}</strong></a>
+                    {% else %}
+                      <strong class="d-block">{{ item.title }}</strong>
+                    {% endif %}
+                    <small class="d-block text-body-secondary">{{ download_type_labels.get(item.type, item.type) }} | {{ status_labels.get(item.status, item.status) }}</small>
+                    {% if item.url %}<a class="small text-break" href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.url }}</a>{% endif %}
+                  </td>
+                  <td>{{ item.platform }}</td>
+                  <td>{{ item.downloaded_at_label }}</td>
+                  <td>{{ item.size_label }}</td>
+                  <td>{{ item.duration_label }}</td>
+                  <td>
+                    {% if item.file_exists %}
+                      <a class="text-break" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">{{ item.filename }}</a>
+                    {% else %}
+                      <span class="badge text-bg-secondary">plik usunięty</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="d-flex flex-wrap gap-2">
+                      {% if item.file_exists %}
+                        <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                      {% endif %}
+                      {% if item.type != "live" and (item.type != "format" or (item.format_id is defined and item.format_id)) %}
+                        <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
+                          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                          <input type="hidden" name="url" value="{{ item.url }}">
+                          <input type="hidden" name="title" value="{{ item.title }}">
+                          <input type="hidden" name="download_type" value="{{ item.type }}">
+                          {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
+                          {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
+                          <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mobile-only">
+          {% for item in history %}
+            {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
+            <article class="mobile-list-card p-3 mb-2">
+              {% if item.thumbnail_exists %}
+                {% if preview_url %}
+                  <a class="history-thumbnail-link d-block mb-3" href="{{ preview_url }}" aria-label="Otwórz film: {{ item.title }}">
+                    <img class="history-thumbnail history-thumbnail-mobile" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                  </a>
+                {% else %}
+                  <img class="history-thumbnail history-thumbnail-mobile mb-3" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                {% endif %}
+              {% endif %}
+              {% if preview_url %}
+                <a class="history-title-link d-block" href="{{ preview_url }}"><strong>{{ item.title }}</strong></a>
+              {% else %}
+                <strong class="d-block">{{ item.title }}</strong>
+              {% endif %}
+              <small class="d-block text-body-secondary">{{ item.platform }} | {{ item.downloaded_at_label }} | {{ item.size_label }} | {{ item.duration_label }}</small>
+              {% if item.url %}<a class="small text-break" href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.url }}</a>{% endif %}
+              <div class="d-flex flex-wrap gap-2 mt-2">
+                {% if item.file_exists %}
+                  <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                {% endif %}
+                {% if item.type != "live" and (item.type != "format" or (item.format_id is defined and item.format_id)) %}
+                  <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="url" value="{{ item.url }}">
+                    <input type="hidden" name="title" value="{{ item.title }}">
+                    <input type="hidden" name="download_type" value="{{ item.type }}">
+                    {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
+                    {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
+                    <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
+                  </form>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% else %}
+    <div class="empty-state app-card">
+      <strong>Brak wyników</strong>
+      <small>Zmień wyszukiwaną frazę albo wyczyść pole wyszukiwarki.</small>
+    </div>
+  {% endif %}
+{% endblock %}

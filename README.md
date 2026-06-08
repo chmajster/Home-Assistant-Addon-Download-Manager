@@ -70,7 +70,11 @@ nfs_download_dir: /media/nas/youtube_downloader
 
 ## Aktualizacja yt-dlp
 
-Przy każdym starcie kontenera dodatek próbuje zaktualizować `yt-dlp`, czyli backend i zestaw extractorów używanych do obsługi zmian po stronie serwisów. Nie są aktualizowane serwisy źródłowe. Chwilowy brak sieci nie blokuje uruchomienia dodatku.
+Przy każdym starcie kontenera dodatek próbuje zaktualizować `yt-dlp`, czyli backend i zestaw extractorów używanych do obsługi zmian po stronie serwisów. Aplikacja zapisuje stan aktualizacji w `/data/jobs/ytdlp_update.json`, ponawia sprawdzenie co 24 godziny oraz przed analizą lub pobieraniem, jeśli ostatnia udana aktualizacja jest za stara albo wcześniejsza próba się nie powiodła. Nie są aktualizowane serwisy źródłowe. Chwilowy brak sieci nie blokuje uruchomienia dodatku.
+
+## Powiadomienia Home Assistant
+
+Dodatek wysyła trwałe powiadomienie Home Assistant po zakończeniu pobierania oraz po błędzie zadania. Powiadomienia używają usługi `persistent_notification.create` przez API Home Assistant Core udostępnione dodatkom.
 
 ## Ograniczenia
 
