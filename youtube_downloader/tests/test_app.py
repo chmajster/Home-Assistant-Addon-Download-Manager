@@ -464,6 +464,69 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('name="history_keys"', body)
         self.assertIn(f'value="{record["downloaded_at"]}"', body)
 
+    def test_history_page_exposes_mini_player_for_local_media(self) -> None:
+        files = self.app.extensions["file_service"]
+        video = files.download_dir / "example.mp4"
+        notes = files.download_dir / "notes.txt"
+        video.write_bytes(b"media")
+        notes.write_text("notes", encoding="utf-8")
+        files.record_download(
+            "Example video",
+            "https://youtu.be/example",
+            "best",
+            video.name,
+            "completed",
+        )
+        files.record_download(
+            "Notes",
+            "https://example.com/notes",
+            "format",
+            notes.name,
+            "completed",
+        )
+
+        body = self.client.get("/history").get_data(as_text=True)
+
+        self.assertIn("history-mini-player-toggle", body)
+        self.assertIn('data-target="history-player-desktop-', body)
+        self.assertIn('aria-controls="history-player-desktop-', body)
+        self.assertIn("Odtwórz tutaj", body)
+        self.assertIn(
+            '<video class="history-mini-player-media" controls preload="metadata" src="/media/example.mp4"></video>',
+            body,
+        )
+        self.assertNotIn("/media/notes.txt", body)
+
+    def test_history_gallery_view_exposes_mini_player(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_bytes(b"media")
+        files.record_download(
+            "Example gallery",
+            "https://youtu.be/example",
+            "video-1080",
+            target.name,
+            "completed",
+        )
+
+        body = self.client.get("/history", query_string={"view": "gallery"}).get_data(
+            as_text=True
+        )
+
+        self.assertIn('id="history-player-gallery-0"', body)
+        self.assertIn(
+            '<video class="history-mini-player-media" controls preload="metadata" src="/media/example.mp4"></video>',
+            body,
+        )
+
+    def test_history_frontend_toggles_mini_players(self) -> None:
+        script = self.client.get("/static/js/app.js").get_data(as_text=True)
+
+        self.assertIn(".history-mini-player-toggle", script)
+        self.assertIn("setMiniPlayerOpen", script)
+        self.assertIn("pausePanelMedia", script)
+        self.assertIn("Odtwórz tutaj", script)
+
     def test_history_bulk_delete_records_keeps_files(self) -> None:
         files = self.app.extensions["file_service"]
         first = files.download_dir / "first.mp4"

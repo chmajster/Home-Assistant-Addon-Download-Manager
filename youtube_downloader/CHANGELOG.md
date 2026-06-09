@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.35
+
+- Dodano mini odtwarzacz audio/wideo bezpośrednio w Historii, bez przechodzenia do osobnego podglądu.
+
 ## 1.3.34
 
 - Dodano przycisk `Ponów nieudane` w widoku `Zadania`, który ponawia wszystkie zadania ze statusem błędu.

@@ -2,6 +2,24 @@
 {% block title %}Historia | Media Web Downloader{% endblock %}
 {% block content %}
   {% set download_type_labels = {"best": "najlepsza", "video": "najlepsza", "video-1080": "1080p", "video-720": "720p", "video-360": "360p", "audio": "audio MP3", "format": "konkretny format", "live": "live"} %}
+  {% macro history_mini_player(item, player_id) -%}
+    {% if item.can_inline_play %}
+      <button
+        class="btn btn-sm btn-soft history-mini-player-toggle"
+        type="button"
+        data-target="{{ player_id }}"
+        aria-controls="{{ player_id }}"
+        aria-expanded="false"
+      >Odtwórz tutaj</button>
+      <div class="history-mini-player d-none" id="{{ player_id }}">
+        {% if item.inline_media_kind == "video" %}
+          <video class="history-mini-player-media" controls preload="metadata" src="{{ ingress_url('web.media', filename=item.filename) }}"></video>
+        {% elif item.inline_media_kind == "audio" %}
+          <audio class="history-mini-player-media" controls preload="metadata" src="{{ ingress_url('web.media', filename=item.filename) }}"></audio>
+        {% endif %}
+      </div>
+    {% endif %}
+  {%- endmacro %}
   <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
       <span class="eyebrow">Biblioteka</span>
@@ -114,6 +132,7 @@
                   </div>
                   <div class="d-flex flex-wrap gap-2 mt-2">
                     {% if item.file_exists %}
+                      {{ history_mini_player(item, 'history-player-gallery-' ~ loop.index0) }}
                       <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
                     {% else %}
                       <span class="badge text-bg-secondary">plik usunięty</span>
@@ -202,9 +221,12 @@
                     {% endif %}
                   </td>
                   <td>
-                    <div class="d-flex flex-wrap gap-2">
+                    <div class="d-flex flex-column gap-2 history-mini-player-cell">
                       {% if item.file_exists %}
-                        <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                        <div class="d-flex flex-wrap gap-2">
+                          {{ history_mini_player(item, 'history-player-desktop-' ~ loop.index0) }}
+                          <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                        </div>
                       {% endif %}
                     </div>
                   </td>
@@ -259,6 +281,7 @@
               </div>
               <div class="d-flex flex-wrap gap-2 mt-2">
                 {% if item.file_exists %}
+                  {{ history_mini_player(item, 'history-player-mobile-' ~ loop.index0) }}
                   <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
                 {% endif %}
               </div>

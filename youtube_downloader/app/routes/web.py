@@ -124,6 +124,12 @@ def _history_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     enriched: list[dict[str, Any]] = []
     for record in records:
         item = dict(record)
+        mime_type = mimetypes.guess_type(str(item.get("filename") or ""))[0] or ""
+        media_kind = ""
+        if mime_type.startswith("video/"):
+            media_kind = "video"
+        elif mime_type.startswith("audio/"):
+            media_kind = "audio"
         item["platform"] = _history_platform(str(item.get("url") or ""))
         item["tags"] = normalize_history_tags(item.get("tags"))
         item["auto_tags"] = _automatic_history_tags(item)
@@ -136,6 +142,9 @@ def _history_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         item["downloaded_at_label"] = str(item.get("downloaded_at") or "").replace(
             "T", " "
         )[:19]
+        item["inline_media_type"] = mime_type
+        item["inline_media_kind"] = media_kind
+        item["can_inline_play"] = bool(item.get("file_exists") and media_kind)
         enriched.append(item)
     return enriched
 

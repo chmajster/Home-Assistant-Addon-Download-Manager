@@ -254,6 +254,35 @@
     syncHistoryBulkControls();
   }
 
+  const miniPlayerButtons = Array.from(document.querySelectorAll(".history-mini-player-toggle"));
+  if (miniPlayerButtons.length) {
+    const pausePanelMedia = (panel) => {
+      panel.querySelectorAll("audio, video").forEach((media) => media.pause());
+    };
+    const setMiniPlayerOpen = (panel, open) => {
+      panel.classList.toggle("d-none", !open);
+      if (!open) pausePanelMedia(panel);
+      miniPlayerButtons
+        .filter((button) => button.dataset.target === panel.id)
+        .forEach((button) => {
+          button.setAttribute("aria-expanded", String(open));
+          button.textContent = open ? "Zamknij" : "Odtwórz tutaj";
+        });
+    };
+
+    miniPlayerButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const panel = document.getElementById(button.dataset.target || "");
+        if (!panel) return;
+        const shouldOpen = panel.classList.contains("d-none");
+        document.querySelectorAll(".history-mini-player").forEach((otherPanel) => {
+          if (otherPanel !== panel) setMiniPlayerOpen(otherPanel, false);
+        });
+        setMiniPlayerOpen(panel, shouldOpen);
+      });
+    });
+  }
+
   let activeJobStatuses = new Set();
   try {
     activeJobStatuses = new Set(JSON.parse(document.getElementById("active-job-statuses")?.textContent || "[]"));

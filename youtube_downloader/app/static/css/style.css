@@ -338,6 +338,29 @@ a:hover {
   text-decoration: underline;
 }
 
+.history-mini-player {
+  flex-basis: 100%;
+  margin-top: 0.35rem;
+  min-width: 12rem;
+  width: 100%;
+}
+
+.history-mini-player-cell {
+  min-width: 13rem;
+}
+
+.history-mini-player-media {
+  background: #000;
+  border-radius: 0.45rem;
+  display: block;
+  max-height: 14rem;
+  width: 100%;
+}
+
+audio.history-mini-player-media {
+  background: transparent;
+}
+
 .history-gallery-grid {
   display: grid;
   gap: 1rem;
