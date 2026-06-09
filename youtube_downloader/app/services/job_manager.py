@@ -182,6 +182,60 @@ class JobManager:
         LOGGER.info("Wznowiono pobieranie %s", job_id)
         return snapshot
 
+    def retry_failed_jobs(self) -> tuple[int, int]:
+        """Retry every failed job and report skipped records."""
+
+        downloads: list[tuple[str, threading.Event]] = []
+        live_jobs: list[str] = []
+        retried = 0
+        skipped = 0
+        with self._lock:
+            for job in self._jobs.values():
+                if job.status != "error":
+                    continue
+                if job.is_live:
+                    duplicate = any(
+                        other.job_id != job.job_id
+                        and other.url == job.url
+                        and other.is_live
+                        and other.status in self.ACTIVE_STATUSES
+                        for other in self._jobs.values()
+                    )
+                    if duplicate:
+                        skipped += 1
+                        continue
+                    self._reset_for_retry(job)
+                    stop_event = threading.Event()
+                    self._stop_events[job.job_id] = stop_event
+                    live_jobs.append(job.job_id)
+                    retried += 1
+                    continue
+                try:
+                    self.media_service.format_selection(job.download_type, job.format_id)
+                except MediaServiceError:
+                    skipped += 1
+                    continue
+                self._reset_for_retry(job)
+                stop_event = threading.Event()
+                self._stop_events[job.job_id] = stop_event
+                downloads.append((job.job_id, stop_event))
+                retried += 1
+            if retried:
+                self._persist_jobs()
+
+        for job_id, stop_event in downloads:
+            self._executor.submit(self._run_download, job_id, stop_event)
+        for job_id in live_jobs:
+            thread = threading.Thread(
+                target=self._run_live,
+                args=(job_id,),
+                daemon=True,
+                name=f"live-retry-{job_id[:8]}",
+            )
+            thread.start()
+        LOGGER.info("Ponowiono %s błędnych zadań, pominięto: %s", retried, skipped)
+        return retried, skipped
+
     def start_live(self, url: str, title: str) -> Job:
         """Queue a uniquely identified live stream recording process."""
 
@@ -259,6 +313,7 @@ class JobManager:
                 event.set()
             if job.status in {"pending", "waiting"}:
                 self._finish(job, "stopped")
+                self._stop_events.pop(job_id, None)
         if process and process.poll() is None:
             self._interrupt_process(process)
         LOGGER.info("Zatrzymano zapis transmisji live %s", job_id)
@@ -360,6 +415,22 @@ class JobManager:
             self._persist_jobs()
         return Job(**asdict(job))
 
+    @staticmethod
+    def _reset_for_retry(job: Job) -> None:
+        job.status = "pending"
+        job.progress = 0.0
+        job.downloaded_bytes = None
+        job.total_bytes = None
+        job.speed = None
+        job.eta = None
+        job.started_at = None
+        job.finished_at = None
+        job.error_message = None
+        job.warning_message = None
+        job.output_file = None
+        job.output_files = []
+        job.thumbnail_filename = None
+
     def _run_download(self, job_id: str, stop_event: threading.Event) -> None:
         try:
             with self._slots:
@@ -455,12 +526,16 @@ class JobManager:
                     self._stop_events.pop(job_id, None)
 
     def _run_live(self, job_id: str) -> None:
-        stop_event = self._stop_events[job_id]
+        stop_event = self._stop_events.get(job_id)
+        if stop_event is None:
+            return
         with self._slots:
             with self._lock:
                 job = self._jobs.get(job_id)
                 if not job:
                     self._stop_events.pop(job_id, None)
+                    return
+                if self._stop_events.get(job_id) is not stop_event:
                     return
                 if stop_event.is_set():
                     self._finish(job, "stopped")

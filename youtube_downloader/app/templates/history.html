@@ -14,11 +14,11 @@
   <section class="card app-card mb-4">
     <div class="card-body">
       <form action="{{ ingress_url('web.history') }}" method="get" class="row g-2 align-items-end">
-        <div class="col-lg-5">
+        <div class="col-lg-4">
           <label class="form-label" for="history-search">Wyszukiwarka historii</label>
           <input class="form-control" id="history-search" name="q" value="{{ query }}" placeholder="Tytuł, nazwa pliku, tag, serwis, URL, data, rozmiar albo długość">
         </div>
-        <div class="col-sm-6 col-lg-3">
+        <div class="col-sm-6 col-lg-2">
           <label class="form-label" for="history-sort">Sortowanie</label>
           <select class="form-select" id="history-sort" name="sort">
             {% for value, label in sort_labels.items() %}
@@ -33,9 +33,17 @@
             <option value="asc"{% if order == "asc" %} selected{% endif %}>Rosnąco</option>
           </select>
         </div>
+        <div class="col-sm-6 col-lg-2">
+          <label class="form-label" for="history-view">Widok</label>
+          <select class="form-select" id="history-view" name="view">
+            {% for value, label in view_labels.items() %}
+              <option value="{{ value }}"{% if view == value %} selected{% endif %}>{{ label|capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="col-lg-2 d-flex gap-2">
           <button class="btn btn-accent flex-fill" type="submit">Szukaj</button>
-          {% if query %}<a class="btn btn-soft" href="{{ ingress_url('web.history') }}">Wyczyść</a>{% endif %}
+          {% if query %}<a class="btn btn-soft" href="{{ ingress_url('web.history', sort=sort, order=order, view=view) }}">Wyczyść</a>{% endif %}
         </div>
       </form>
       <small class="d-block text-body-secondary mt-2">Wyniki: {{ history|length }} z {{ total_history }}</small>
@@ -48,6 +56,7 @@
       <input type="hidden" name="return_q" value="{{ query }}">
       <input type="hidden" name="return_sort" value="{{ sort }}">
       <input type="hidden" name="return_order" value="{{ order }}">
+      <input type="hidden" name="return_view" value="{{ view }}">
       <div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
           <label class="form-check d-flex align-items-center gap-2 mb-0">
@@ -64,6 +73,57 @@
             <button class="btn btn-sm btn-accent" id="history-bulk-submit" type="submit" disabled>Wykonaj</button>
           </div>
         </div>
+        {% if view == "gallery" %}
+          <div class="history-gallery-grid">
+            {% for item in history %}
+              {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
+              {% set tag_form_id = 'history-tags-gallery-' ~ loop.index0 %}
+              <article class="history-gallery-card">
+                <label class="history-gallery-select form-check">
+                  <input class="form-check-input history-bulk-select" type="checkbox" name="history_keys" value="{{ item.downloaded_at }}" aria-label="Zaznacz {{ item.title }}">
+                </label>
+                {% if item.thumbnail_exists %}
+                  {% if preview_url %}
+                    <a class="history-gallery-thumb-link" href="{{ preview_url }}" aria-label="Otwórz film: {{ item.title }}">
+                      <img class="history-gallery-thumb" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                    </a>
+                  {% else %}
+                    <img class="history-gallery-thumb" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                  {% endif %}
+                {% else %}
+                  <div class="history-gallery-thumb history-gallery-thumb-placeholder">Brak miniatury</div>
+                {% endif %}
+                <div class="history-gallery-body">
+                  {% if preview_url %}
+                    <a class="history-title-link d-block" href="{{ preview_url }}"><strong>{{ item.title }}</strong></a>
+                  {% else %}
+                    <strong class="d-block">{{ item.title }}</strong>
+                  {% endif %}
+                  <small class="d-block text-body-secondary">{{ item.platform }} | {{ item.downloaded_at_label }} | {{ item.size_label }} | {{ item.duration_label }}</small>
+                  <div class="d-flex flex-wrap gap-1 mt-2">
+                    {% for tag in item.tags %}
+                      <a class="badge text-bg-light history-tag-link" href="{{ ingress_url('web.history', q=tag, sort=sort, order=order, view=view) }}">{{ tag }}</a>
+                    {% endfor %}
+                    {% for tag in item.visible_auto_tags %}
+                      <a class="badge text-bg-secondary history-tag-link" href="{{ ingress_url('web.history', q=tag, sort=sort, order=order, view=view) }}">{{ tag }}</a>
+                    {% endfor %}
+                  </div>
+                  <div class="input-group input-group-sm history-tags-editor mt-2">
+                    <input class="form-control" name="tags" value="{{ item.tags_label }}" placeholder="muzyka, tutoriale, live" form="{{ tag_form_id }}">
+                    <button class="btn btn-soft" type="submit" form="{{ tag_form_id }}">Zapisz</button>
+                  </div>
+                  <div class="d-flex flex-wrap gap-2 mt-2">
+                    {% if item.file_exists %}
+                      <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                    {% else %}
+                      <span class="badge text-bg-secondary">plik usunięty</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
         <div class="desktop-only table-responsive">
           <table class="table align-middle mb-0">
             <thead>
@@ -114,14 +174,14 @@
                     {% if item.tags %}
                       <div class="d-flex flex-wrap gap-1 mb-2">
                         {% for tag in item.tags %}
-                          <span class="badge text-bg-light">{{ tag }}</span>
+                          <a class="badge text-bg-light history-tag-link" href="{{ ingress_url('web.history', q=tag, sort=sort, order=order, view=view) }}">{{ tag }}</a>
                         {% endfor %}
                       </div>
                     {% endif %}
                     {% if item.visible_auto_tags %}
                       <div class="d-flex flex-wrap gap-1 mb-2">
                         {% for tag in item.visible_auto_tags %}
-                          <span class="badge text-bg-secondary">{{ tag }}</span>
+                          <a class="badge text-bg-secondary history-tag-link" href="{{ ingress_url('web.history', q=tag, sort=sort, order=order, view=view) }}">{{ tag }}</a>
                         {% endfor %}
                       </div>
                     {% endif %}
@@ -182,14 +242,14 @@
               {% if item.tags %}
                 <div class="d-flex flex-wrap gap-1 mt-2">
                   {% for tag in item.tags %}
-                    <span class="badge text-bg-light">{{ tag }}</span>
+                    <a class="badge text-bg-light history-tag-link" href="{{ ingress_url('web.history', q=tag, sort=sort, order=order, view=view) }}">{{ tag }}</a>
                   {% endfor %}
                 </div>
               {% endif %}
               {% if item.visible_auto_tags %}
                 <div class="d-flex flex-wrap gap-1 mt-2">
                   {% for tag in item.visible_auto_tags %}
-                    <span class="badge text-bg-secondary">{{ tag }}</span>
+                    <a class="badge text-bg-secondary history-tag-link" href="{{ ingress_url('web.history', q=tag, sort=sort, order=order, view=view) }}">{{ tag }}</a>
                   {% endfor %}
                 </div>
               {% endif %}
@@ -205,6 +265,7 @@
             </article>
           {% endfor %}
         </div>
+        {% endif %}
       </div>
     </form>
     {% for item in history %}
@@ -215,6 +276,7 @@
         <input type="hidden" name="return_q" value="{{ query }}">
         <input type="hidden" name="return_sort" value="{{ sort }}">
         <input type="hidden" name="return_order" value="{{ order }}">
+        <input type="hidden" name="return_view" value="{{ view }}">
       </form>
       <form id="history-tags-mobile-{{ loop.index0 }}" action="{{ ingress_url('web.update_history_tags') }}" method="post">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -223,6 +285,16 @@
         <input type="hidden" name="return_q" value="{{ query }}">
         <input type="hidden" name="return_sort" value="{{ sort }}">
         <input type="hidden" name="return_order" value="{{ order }}">
+        <input type="hidden" name="return_view" value="{{ view }}">
+      </form>
+      <form id="history-tags-gallery-{{ loop.index0 }}" action="{{ ingress_url('web.update_history_tags') }}" method="post">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="filename" value="{{ item.filename }}">
+        <input type="hidden" name="downloaded_at" value="{{ item.downloaded_at }}">
+        <input type="hidden" name="return_q" value="{{ query }}">
+        <input type="hidden" name="return_sort" value="{{ sort }}">
+        <input type="hidden" name="return_order" value="{{ order }}">
+        <input type="hidden" name="return_view" value="{{ view }}">
       </form>
     {% endfor %}
   {% else %}

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.33
+
+- Dodano przełącznik widoku Historii: tabela albo galeria miniaturek.
+- Widok galerii obsługuje zaznaczanie wpisów, masowe akcje, tagi i pobieranie plików.
+- Domknięto wyścig przy zatrzymaniu transmisji live oczekującej na wolny slot.
+
+## 1.3.32
+
+- Tagi w Historii są teraz klikalne i od razu filtrują widok po wybranym tagu.
+
 ## 1.3.31
 
 - Dodano automatyczne tagi historii, m.in. `youtube`, `twitch`, `kick`, `audio`, `video`, `live` i `1080p`.

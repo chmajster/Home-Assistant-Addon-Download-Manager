@@ -330,6 +330,62 @@ a:hover {
   min-width: 14rem;
 }
 
+.history-tag-link {
+  text-decoration: none;
+}
+
+.history-tag-link:hover {
+  text-decoration: underline;
+}
+
+.history-gallery-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.history-gallery-card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-line);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.history-gallery-select {
+  background: rgba(255, 255, 255, 0.86);
+  border-radius: 0.35rem;
+  left: 0.65rem;
+  margin: 0;
+  padding: 0.35rem;
+  position: absolute;
+  top: 0.65rem;
+  z-index: 1;
+}
+
+.history-gallery-thumb,
+.history-gallery-thumb-link {
+  aspect-ratio: 16 / 9;
+  display: block;
+  width: 100%;
+}
+
+.history-gallery-thumb {
+  object-fit: cover;
+}
+
+.history-gallery-thumb-placeholder {
+  align-items: center;
+  background: rgba(78, 98, 139, 0.08);
+  color: var(--app-muted);
+  display: flex;
+  justify-content: center;
+}
+
+.history-gallery-body {
+  padding: 0.85rem;
+}
+
 .history-thumbnail-mobile {
   display: block;
   width: 100%;

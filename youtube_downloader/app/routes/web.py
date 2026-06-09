@@ -29,6 +29,10 @@ from ..services.ytdlp_updater import YtDlpUpdater
 
 LOGGER = logging.getLogger(__name__)
 web_bp = Blueprint("web", __name__)
+HISTORY_VIEW_LABELS = {
+    "table": "tabela",
+    "gallery": "galeria",
+}
 HISTORY_SORT_LABELS = {
     "date": "data",
     "size": "rozmiar",
@@ -100,6 +104,7 @@ def history():
     query = request.args.get("q", "").strip()
     sort = _history_sort_key(request.args.get("sort"))
     order = _history_sort_order(request.args.get("order"))
+    view = _history_view(request.args.get("view"))
     records = _history_records(_file_service().history())
     filtered = _sort_history(_filter_history(records, query), sort, order)
     return render_template(
@@ -108,7 +113,9 @@ def history():
         query=query,
         sort=sort,
         order=order,
+        view=view,
         sort_labels=HISTORY_SORT_LABELS,
+        view_labels=HISTORY_VIEW_LABELS,
         total_history=len(records),
     )
 
@@ -192,6 +199,11 @@ def _history_sort_key(value: object) -> str:
 
 def _history_sort_order(value: object) -> str:
     return "asc" if str(value) == "asc" else "desc"
+
+
+def _history_view(value: object) -> str:
+    candidate = str(value or "table")
+    return candidate if candidate in HISTORY_VIEW_LABELS else "table"
 
 
 def _sort_history(
@@ -281,7 +293,8 @@ def _history_redirect():
     query = str(request.form.get("return_q") or "").strip()
     sort = _history_sort_key(request.form.get("return_sort"))
     order = _history_sort_order(request.form.get("return_order"))
-    values = {"sort": sort, "order": order}
+    view = _history_view(request.form.get("return_view"))
+    values = {"sort": sort, "order": order, "view": view}
     if query:
         values["q"] = query
     return redirect(ingress_url("web.history", **values))
@@ -519,6 +532,30 @@ def clear_jobs():
         return redirect(ingress_url("web.jobs"))
     removed, skipped = _job_manager().clear_jobs()
     _flash_deleted_jobs(removed, skipped)
+    return redirect(ingress_url("web.jobs"))
+
+
+@web_bp.post("/jobs/retry-failed")
+def retry_failed_jobs():
+    """Retry every failed job in the queue."""
+
+    if not _valid_form():
+        return redirect(ingress_url("web.jobs"))
+    if _limited("jobs-retry-failed", 6):
+        flash("Zbyt wiele prób ponawiania zadań. Odczekaj chwilę.", "warning")
+        return redirect(ingress_url("web.jobs"))
+    try:
+        _ensure_ytdlp_recent()
+        retried, skipped = _job_manager().retry_failed_jobs()
+    except MediaServiceError as error:
+        flash(str(error), "danger")
+        return redirect(ingress_url("web.jobs"))
+    if retried:
+        flash(f"Ponowiono nieudane zadania: {retried}.", "success")
+    else:
+        flash("Brak nieudanych zadań do ponowienia.", "warning")
+    if skipped:
+        flash(f"Pominięto zadania: {skipped}.", "warning")
     return redirect(ingress_url("web.jobs"))
 
 

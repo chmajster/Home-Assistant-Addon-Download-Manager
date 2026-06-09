@@ -431,6 +431,8 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('value="delete_entries"', body)
         self.assertIn('value="delete_files"', body)
         self.assertIn('value="repeat"', body)
+        self.assertIn('id="history-view"', body)
+        self.assertIn('value="gallery"', body)
         self.assertIn('name="history_keys"', body)
         self.assertIn(f'value="{record["downloaded_at"]}"', body)
 
@@ -604,7 +606,10 @@ class ApplicationTestCase(unittest.TestCase):
         )
         self.assertIn("Example", body)
         self.assertIn('value="muzyka, tutoriale, live"', body)
-        self.assertIn(">tutoriale</span>", body)
+        self.assertIn(
+            'class="badge text-bg-light history-tag-link" href="/history?q=tutoriale',
+            body,
+        )
 
         empty = self.client.get("/history", query_string={"q": "archiwum"}).get_data(
             as_text=True
@@ -634,8 +639,8 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('name="tags"', body)
         self.assertIn('placeholder="muzyka, tutoriale, live"', body)
         self.assertIn('value="archiwum, live"', body)
-        self.assertIn(">archiwum</span>", body)
-        self.assertIn(">live</span>", body)
+        self.assertIn('href="/history?q=archiwum', body)
+        self.assertIn('href="/history?q=live', body)
 
     def test_history_adds_automatic_tags(self) -> None:
         files = self.app.extensions["file_service"]
@@ -670,7 +675,7 @@ class ApplicationTestCase(unittest.TestCase):
         body = self.client.get("/history").get_data(as_text=True)
         for expected_tag in ("youtube", "audio", "twitch", "video", "1080p", "kick", "live"):
             with self.subTest(expected_tag=expected_tag):
-                self.assertIn(f">{expected_tag}</span>", body)
+                self.assertIn(f'href="/history?q={expected_tag}', body)
 
         for query, expected_title in (
             ("1080p", "Twitch HD"),
@@ -682,6 +687,70 @@ class ApplicationTestCase(unittest.TestCase):
                     "/history", query_string={"q": query}
                 ).get_data(as_text=True)
                 self.assertIn(expected_title, result)
+
+    def test_history_tag_links_filter_by_tag(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        files.record_download(
+            "Example",
+            "https://www.twitch.tv/videos/123",
+            "video-1080",
+            target.name,
+            "completed",
+        )
+        record = files.history()[0]
+        files.update_history_tags(record["filename"], record["downloaded_at"], "archiwum")
+
+        body = self.client.get(
+            "/history", query_string={"sort": "title", "order": "asc"}
+        ).get_data(as_text=True)
+
+        self.assertIn(
+            'class="badge text-bg-light history-tag-link" href="/history?q=archiwum&amp;sort=title&amp;order=asc&amp;view=table"',
+            body,
+        )
+        self.assertIn(
+            'class="badge text-bg-secondary history-tag-link" href="/history?q=twitch&amp;sort=title&amp;order=asc&amp;view=table"',
+            body,
+        )
+
+    def test_history_gallery_view_displays_thumbnail_grid(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        thumbnail = files.thumbnail_dir / "example.mp4.jpg"
+        thumbnail.write_bytes(b"thumbnail")
+        files.record_download(
+            "Example gallery",
+            "https://youtu.be/example",
+            "video-1080",
+            target.name,
+            "completed",
+            thumbnail_filename=thumbnail.name,
+        )
+        record = files.history()[0]
+        files.update_history_tags(record["filename"], record["downloaded_at"], "archiwum")
+
+        body = self.client.get(
+            "/history", query_string={"view": "gallery", "sort": "title", "order": "asc"}
+        ).get_data(as_text=True)
+
+        self.assertIn('id="history-view"', body)
+        self.assertIn('<option value="gallery" selected>Galeria</option>', body)
+        self.assertIn('class="history-gallery-grid"', body)
+        self.assertIn('class="history-gallery-card"', body)
+        self.assertIn('class="history-gallery-thumb"', body)
+        self.assertIn('form="history-tags-gallery-0"', body)
+        self.assertIn('name="return_view" value="gallery"', body)
+        self.assertIn(
+            'href="/history?q=archiwum&amp;sort=title&amp;order=asc&amp;view=gallery"',
+            body,
+        )
+        self.assertIn(
+            'href="/history?q=1080p&amp;sort=title&amp;order=asc&amp;view=gallery"',
+            body,
+        )
 
     def test_history_title_and_thumbnail_open_preview(self) -> None:
         files = self.app.extensions["file_service"]
