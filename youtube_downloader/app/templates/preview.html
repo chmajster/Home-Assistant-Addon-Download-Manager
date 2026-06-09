@@ -11,6 +11,10 @@
     <div class="d-flex flex-wrap gap-2">
       <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">Historia</a>
       <a class="btn btn-accent" href="{{ ingress_url('web.downloaded', filename=filename) }}">Pobierz plik</a>
+      <form action="{{ ingress_url('web.delete', filename=filename) }}" method="post" class="delete-form d-inline" data-filename="{{ filename }}" data-filesize-label="{{ file_info.size|filesize }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-danger" type="submit">Usuń nagranie</button>
+      </form>
     </div>
   </section>
 

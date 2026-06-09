@@ -798,6 +798,8 @@ def delete(filename: str):
     except UnsafeFilenameError:
         LOGGER.warning("Odrzucono próbę usunięcia niepoprawnej ścieżki")
         flash("Niepoprawna nazwa pliku.", "danger")
+    if request.form.get("return_to") == "history":
+        return _history_redirect()
     return redirect(ingress_url("web.index"))
 
 

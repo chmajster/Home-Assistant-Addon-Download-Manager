@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.43
+
+- Usunięto kolumnę `Plik` z krótkiej tabeli `Historia pobrań` na stronie głównej.
+- Dodano pojedynczy przycisk `Usuń plik` w pełnej historii, także w widoku galerii i na telefonie.
+
+## 1.3.42
+
+- Dodano w widoku `Podgląd` przycisk `Usuń nagranie`, który usuwa aktualnie oglądany plik i aktualizuje historię.
+
 ## 1.3.41
 
 - Dodano domyślnie zaznaczoną opcję `Pobieraj od początku` dla zapisu live i oczekiwania na live.

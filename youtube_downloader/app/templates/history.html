@@ -134,6 +134,7 @@
                     {% if item.file_exists %}
                       {{ history_mini_player(item, 'history-player-gallery-' ~ loop.index0) }}
                       <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                      <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-file-{{ loop.index0 }}">Usuń plik</button>
                     {% else %}
                       <span class="badge text-bg-secondary">plik usunięty</span>
                     {% endif %}
@@ -226,6 +227,7 @@
                         <div class="d-flex flex-wrap gap-2">
                           {{ history_mini_player(item, 'history-player-desktop-' ~ loop.index0) }}
                           <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                          <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-file-{{ loop.index0 }}">Usuń plik</button>
                         </div>
                       {% endif %}
                     </div>
@@ -283,6 +285,7 @@
                 {% if item.file_exists %}
                   {{ history_mini_player(item, 'history-player-mobile-' ~ loop.index0) }}
                   <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                  <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-file-{{ loop.index0 }}">Usuń plik</button>
                 {% endif %}
               </div>
             </article>
@@ -319,6 +322,16 @@
         <input type="hidden" name="return_order" value="{{ order }}">
         <input type="hidden" name="return_view" value="{{ view }}">
       </form>
+      {% if item.file_exists %}
+        <form id="history-delete-file-{{ loop.index0 }}" action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size_label }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="return_to" value="history">
+          <input type="hidden" name="return_q" value="{{ query }}">
+          <input type="hidden" name="return_sort" value="{{ sort }}">
+          <input type="hidden" name="return_order" value="{{ order }}">
+          <input type="hidden" name="return_view" value="{{ view }}">
+        </form>
+      {% endif %}
     {% endfor %}
   {% else %}
     <div class="empty-state app-card">

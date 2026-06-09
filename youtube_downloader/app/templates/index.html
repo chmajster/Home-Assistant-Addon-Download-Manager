@@ -71,7 +71,7 @@
             </div>
             <div class="desktop-only table-responsive history-list">
               <table class="table align-middle mb-0">
-                <thead><tr><th>Miniatura</th><th>Tytuł</th><th>Typ</th><th>Data</th><th>Rozmiar</th><th>Plik</th><th></th></tr></thead>
+                <thead><tr><th>Miniatura</th><th>Tytuł</th><th>Typ</th><th>Data</th><th>Rozmiar</th><th></th></tr></thead>
                 <tbody class="history-items">
                   {% for item in history %}
                     {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
@@ -100,13 +100,6 @@
                       <td>{{ download_type_labels.get(item.type, item.type) }}</td>
                       <td>{{ item.downloaded_at|replace("T", " ")|truncate(19, True, "") }}</td>
                       <td>{{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</td>
-                      <td>
-                        {% if item.file_exists %}
-                          <a href="{{ ingress_url('web.downloaded', filename=item.filename) }}">{{ item.filename }}</a>
-                        {% else %}
-                          <span class="badge text-bg-secondary">plik usunięty</span>
-                        {% endif %}
-                      </td>
                       <td>
                         <div class="d-flex gap-2 align-items-center">
                           {% if item.type != "live" and (item.type != "format" or (item.format_id is defined and item.format_id)) %}

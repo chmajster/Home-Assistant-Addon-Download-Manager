@@ -260,6 +260,11 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('<video class="preview-player"', body)
         self.assertIn('src="/media/example.mp4"', body)
         self.assertIn('href="/downloaded/example.mp4"', body)
+        self.assertIn('action="/delete/example.mp4"', body)
+        self.assertIn('class="delete-form d-inline"', body)
+        self.assertIn('data-filename="example.mp4"', body)
+        self.assertIn('data-filesize-label="5.0 B"', body)
+        self.assertIn("Usuń nagranie", body)
         self.assertIn("Informacje o pliku", body)
         self.assertIn("Rozmiar", body)
         self.assertIn("5.0 B", body)
@@ -272,6 +277,26 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("zakończone", body)
         self.assertIn("Źródło", body)
         self.assertIn("https://youtu.be/example", body)
+
+    def test_preview_delete_action_removes_recording(self) -> None:
+        files = self.app.extensions["file_service"]
+        expected = files.download_dir / "example.mp4"
+        expected.write_bytes(b"media")
+        files.record_download(
+            "Example video",
+            "https://youtu.be/example",
+            "best",
+            expected.name,
+            "completed",
+        )
+        response = self.client.post(
+            "/delete/example.mp4",
+            data={"_csrf_token": self._csrf_token()},
+            follow_redirects=True,
+        )
+        self.assertFalse(expected.exists())
+        self.assertFalse(files.history()[0]["file_exists"])
+        self.assertIn("Plik został usunięty.", response.get_data(as_text=True))
 
     def test_managed_file_can_be_streamed_inline(self) -> None:
         downloads = self.app.extensions["file_service"].download_dir
@@ -566,6 +591,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('data-history-status="completed"', body)
         self.assertIn('class="repeat-download-form"', body)
         self.assertIn('class="history-delete-form"', body)
+        self.assertNotIn("<th>Plik</th>", body)
         self.assertIn(">Pobierz ponownie</button>", body)
         self.assertIn(">Usuń wpis</button>", body)
         self.assertIn(">Usuń plik</button>", body)
@@ -588,6 +614,11 @@ class ApplicationTestCase(unittest.TestCase):
 
         body = self.client.get("/history").get_data(as_text=True)
         self.assertIn("Wyszukiwarka historii", body)
+        self.assertIn('form="history-delete-file-0"', body)
+        self.assertIn('id="history-delete-file-0"', body)
+        self.assertIn('class="delete-form"', body)
+        self.assertIn('name="return_to" value="history"', body)
+        self.assertIn(">Usuń plik</button>", body)
         self.assertIn("Example video", body)
         self.assertIn("example video.mp4", body)
         self.assertIn("youtube", body)
@@ -615,6 +646,40 @@ class ApplicationTestCase(unittest.TestCase):
         )
         self.assertIn("Brak wyników", empty)
         self.assertIn("Wyniki: 0 z 1", empty)
+
+    def test_history_single_delete_file_returns_to_history_view(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        files.record_download(
+            "Example video",
+            "https://youtu.be/example",
+            "best",
+            target.name,
+            "completed",
+        )
+
+        response = self.client.post(
+            "/delete/example.mp4",
+            data={
+                "_csrf_token": self._csrf_token(),
+                "return_to": "history",
+                "return_q": "Example",
+                "return_sort": "title",
+                "return_order": "asc",
+                "return_view": "gallery",
+            },
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(target.exists())
+        self.assertFalse(files.history()[0]["file_exists"])
+        self.assertIn("/history?", response.headers["Location"])
+        self.assertIn("sort=title", response.headers["Location"])
+        self.assertIn("order=asc", response.headers["Location"])
+        self.assertIn("view=gallery", response.headers["Location"])
+        self.assertIn("q=Example", response.headers["Location"])
 
     def test_history_page_sorts_by_supported_fields(self) -> None:
         files = self.app.extensions["file_service"]
