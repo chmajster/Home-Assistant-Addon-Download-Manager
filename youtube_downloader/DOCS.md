@@ -49,6 +49,8 @@ Aktywna transmisja live jest zapisywana przez osobny proces `yt-dlp`. Menedżer 
 
 Zaplanowana transmisja może zostać przeanalizowana, a przycisk **Oczekuj na live** uruchamia zadanie, które monitoruje start i rozpoczyna zapis automatycznie.
 
+Formularze live mają domyślnie zaznaczoną opcję **Pobieraj od początku**, która przekazuje do `yt-dlp` argument `--live-from-start`. Opcję można odznaczyć, jeśli zapis ma ruszyć od bieżącego momentu.
+
 Bieżący `yt-dlp` nie ma osobnego extractora Instagram live. Dodatek obsługuje publiczne posty, reels, stories, tagi i profile Instagram zwracane przez extractor, ale nie deklaruje zapisu Instagram live.
 
 ## Lokalizacja plików

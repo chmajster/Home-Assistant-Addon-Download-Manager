@@ -445,6 +445,77 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Uwaga: ten URL", body)
         self.assertIn("Uruchomiono zadanie", body)
 
+    def test_start_live_passes_live_from_start_option(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        media = {
+            "url": "https://youtu.be/live",
+            "title": "Live",
+            "content_type": "live",
+            "is_live": True,
+        }
+        manager = self.app.extensions["job_manager"]
+        with (
+            patch.object(self.app.extensions["media_service"], "analyze", return_value=media),
+            patch.object(
+                manager,
+                "start_live",
+                return_value=SimpleNamespace(job_id="12345678"),
+            ) as start_live,
+        ):
+            response = self.client.post(
+                "/live/start",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/live",
+                    "live_from_start": "0",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        start_live.assert_called_once_with(
+            "https://youtu.be/live", "Live", live_from_start=False
+        )
+
+    def test_watch_live_defaults_to_live_from_start(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        media = {
+            "url": "https://youtu.be/live",
+            "title": "Live",
+            "content_type": "live",
+            "is_live": False,
+        }
+        manager = self.app.extensions["job_manager"]
+        with (
+            patch.object(self.app.extensions["media_service"], "analyze", return_value=media),
+            patch.object(
+                manager,
+                "start_live_wait",
+                return_value=SimpleNamespace(job_id="12345678"),
+            ) as start_live_wait,
+        ):
+            response = self.client.post(
+                "/live/watch",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/live",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        start_live_wait.assert_called_once_with(
+            "https://youtu.be/live", "Live", live_from_start=True
+        )
+
     def test_index_displays_storage_usage(self) -> None:
         response = self.client.get("/")
         body = response.get_data(as_text=True)
@@ -1198,6 +1269,11 @@ class ApplicationTestCase(unittest.TestCase):
             )
         self.assertIn("/live/watch", body)
         self.assertIn("Oczekuj na live", body)
+        self.assertIn('name="live_from_start" value="0"', body)
+        self.assertIn(
+            'type="checkbox" name="live_from_start" value="1" checked', body
+        )
+        self.assertIn("Pobieraj od początku", body)
 
 
 class MediaUrlTestCase(unittest.TestCase):
@@ -1253,6 +1329,21 @@ class MediaUrlTestCase(unittest.TestCase):
         clip_url = MediaService.validate_url("https://clips.twitch.tv/ExampleClip")
         self.assertEqual(clip_url, "https://clips.twitch.tv/ExampleClip")
         self.assertEqual(MediaService.detect_platform(clip_url), "twitch")
+
+    def test_live_command_can_start_from_beginning(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = MediaService(Path(temp_dir))
+            command = service.live_command(
+                "https://youtu.be/live", live_from_start=True
+            )
+            command_without_start = service.live_command(
+                "https://youtu.be/live", live_from_start=False
+            )
+
+        self.assertIn("--live-from-start", command)
+        self.assertNotIn("--live-from-start", command_without_start)
+        self.assertEqual(command[-1], "https://youtu.be/live")
+        self.assertEqual(command_without_start[-1], "https://youtu.be/live")
 
 
 class MediaFormatSelectionTestCase(unittest.TestCase):
@@ -1586,8 +1677,12 @@ class FakeMediaService:
         kwargs["progress_hook"]({"status": "finished", "filename": str(target)})
         return [target]
 
-    def live_command(self, url: str) -> list[str]:
-        return ["/venv/bin/python", "-m", "yt_dlp", url]
+    def live_command(self, url: str, live_from_start: bool = True) -> list[str]:
+        command = ["/venv/bin/python", "-m", "yt_dlp"]
+        if live_from_start:
+            command.append("--live-from-start")
+        command.append(url)
+        return command
 
 
 class BlockingMediaService(FakeMediaService):
@@ -1878,6 +1973,19 @@ class JobManagerTestCase(unittest.TestCase):
             job = self.manager.start_live("https://youtu.be/live", "Live")
             with self.assertRaises(MediaServiceError):
                 self.manager.start_live("https://youtu.be/live", "Live")
+            stopped = self.manager.stop_live(job.job_id)
+            self.assertEqual(stopped.status, "stopped")
+        finally:
+            self.manager._slots.release()
+
+    def test_live_from_start_option_is_stored_on_live_job(self) -> None:
+        self.manager._slots.acquire()
+        try:
+            job = self.manager.start_live(
+                "https://youtu.be/live", "Live", live_from_start=False
+            )
+            stored = self.manager.get_job(job.job_id)
+            self.assertFalse(stored.live_from_start)
             stopped = self.manager.stop_live(job.job_id)
             self.assertEqual(stopped.status, "stopped")
         finally:

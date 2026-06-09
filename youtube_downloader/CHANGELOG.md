@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.41
+
+- Dodano domyślnie zaznaczoną opcję `Pobieraj od początku` dla zapisu live i oczekiwania na live.
+- Włączona opcja przekazuje do `yt-dlp` argument `--live-from-start`; ustawienie jest zapisywane w zadaniu live.
+
 ## 1.3.40
 
 - Dodano automatyczne ponawianie błędnych zadań: do 3 prób z opóźnieniem 5 minut.

@@ -57,6 +57,11 @@
             <form action="{{ ingress_url('web.start_live') }}" method="post">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="url" value="{{ media.url }}">
+              <input type="hidden" name="live_from_start" value="0">
+              <label class="form-check d-flex gap-2 align-items-start mb-3">
+                <input class="form-check-input" type="checkbox" name="live_from_start" value="1" checked>
+                <span class="form-check-label">Pobieraj od początku</span>
+              </label>
               <button class="btn btn-accent w-100" type="submit">Rozpocznij zapis live</button>
             </form>
           {% elif media.content_type == "live" %}
@@ -64,6 +69,11 @@
             <form action="{{ ingress_url('web.watch_live') }}" method="post">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="url" value="{{ media.url }}">
+              <input type="hidden" name="live_from_start" value="0">
+              <label class="form-check d-flex gap-2 align-items-start mb-3">
+                <input class="form-check-input" type="checkbox" name="live_from_start" value="1" checked>
+                <span class="form-check-label">Pobieraj od początku</span>
+              </label>
               <button class="btn btn-accent w-100" type="submit">Oczekuj na live</button>
             </form>
           {% else %}

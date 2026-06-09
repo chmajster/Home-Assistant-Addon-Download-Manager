@@ -67,6 +67,7 @@ class Job:
     output_files: list[str] = field(default_factory=list)
     thumbnail_filename: str | None = None
     is_live: bool = False
+    live_from_start: bool = True
     duration: int | None = None
     log_lines: list[str] = field(default_factory=list)
     auto_retry_attempts: int = 0
@@ -299,7 +300,7 @@ class JobManager:
         LOGGER.info("Ponowiono błędne zadanie %s", job_id)
         return snapshot
 
-    def start_live(self, url: str, title: str) -> Job:
+    def start_live(self, url: str, title: str, live_from_start: bool = True) -> Job:
         """Queue a uniquely identified live stream recording process."""
 
         validated_url = self.media_service.validate_url(url)
@@ -314,7 +315,13 @@ class JobManager:
                 raise MediaServiceError(
                     "Nagrywanie tej transmisji jest już uruchomione."
                 )
-        job = self._new_job(validated_url, title, "live", is_live=True)
+        job = self._new_job(
+            validated_url,
+            title,
+            "live",
+            is_live=True,
+            live_from_start=live_from_start,
+        )
         stop_event = threading.Event()
         with self._lock:
             self._stop_events[job.job_id] = stop_event
@@ -328,7 +335,9 @@ class JobManager:
         LOGGER.info("Dodano zapis transmisji live %s", job.job_id)
         return job
 
-    def start_live_wait(self, url: str, title: str) -> Job:
+    def start_live_wait(
+        self, url: str, title: str, live_from_start: bool = True
+    ) -> Job:
         """Queue a live stream monitor that starts recording when live begins."""
 
         validated_url = self.media_service.validate_url(url)
@@ -343,7 +352,13 @@ class JobManager:
                 raise MediaServiceError(
                     "Nagrywanie tej transmisji jest już uruchomione."
                 )
-        job = self._new_job(validated_url, title, "live", is_live=True)
+        job = self._new_job(
+            validated_url,
+            title,
+            "live",
+            is_live=True,
+            live_from_start=live_from_start,
+        )
         stop_event = threading.Event()
         with self._lock:
             active = self._jobs[job.job_id]
@@ -464,6 +479,7 @@ class JobManager:
         is_live: bool,
         format_id: str | None = None,
         duration: int | None = None,
+        live_from_start: bool = True,
     ) -> Job:
         job = Job(
             job_id=uuid.uuid4().hex,
@@ -473,6 +489,7 @@ class JobManager:
             download_type=download_type,
             format_id=format_id,
             is_live=is_live,
+            live_from_start=live_from_start,
             duration=duration,
             auto_retry_max_attempts=AUTO_RETRY_MAX_ATTEMPTS,
         )
@@ -790,7 +807,9 @@ class JobManager:
             paths: set[Path] = set()
             output_lines: deque[str] = deque(maxlen=40)
             try:
-                command = self.media_service.live_command(job.url)
+                command = self.media_service.live_command(
+                    job.url, live_from_start=job.live_from_start
+                )
                 process = subprocess.Popen(
                     command,
                     stdout=subprocess.PIPE,

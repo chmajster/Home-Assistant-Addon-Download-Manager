@@ -211,12 +211,12 @@ class MediaService:
             return format_id, []
         raise MediaServiceError("Niepoprawny typ pobierania.")
 
-    def live_command(self, url: str) -> list[str]:
+    def live_command(self, url: str, live_from_start: bool = True) -> list[str]:
         """Build a separate yt-dlp process command for live recording."""
 
         validated_url = self.validate_url(url)
         options = self.download_options("best")
-        return [
+        command = [
             "/venv/bin/python",
             "-m",
             "yt_dlp",
@@ -233,8 +233,11 @@ class MediaService:
             str(options["format"]),
             "--output",
             str(options["outtmpl"]),
-            validated_url,
         ]
+        if live_from_start:
+            command.append("--live-from-start")
+        command.append(validated_url)
+        return command
 
     @staticmethod
     def polish_error(message: str) -> str:

@@ -70,6 +70,11 @@ def _duration_value(value: object) -> int | None:
     return seconds if seconds >= 0 else None
 
 
+def _live_from_start_value() -> bool:
+    values = request.form.getlist("live_from_start")
+    return values[-1] == "1" if values else True
+
+
 def _duplicate_key(value: object) -> str:
     return " ".join(str(value or "").casefold().split())
 
@@ -496,7 +501,9 @@ def start_live():
             raise MediaServiceError("Podany adres nie prowadzi do transmisji live.")
         if not media["is_live"]:
             raise MediaServiceError("Ta transmisja jeszcze się nie rozpoczęła.")
-        job = _job_manager().start_live(media["url"], media["title"])
+        job = _job_manager().start_live(
+            media["url"], media["title"], live_from_start=_live_from_start_value()
+        )
         flash(f"Uruchomiono zapis transmisji {job.job_id[:8]}.", "success")
     except MediaServiceError as error:
         flash(str(error), "danger")
@@ -518,10 +525,14 @@ def watch_live():
         if media["content_type"] != "live":
             raise MediaServiceError("Podany adres nie prowadzi do transmisji live.")
         if media["is_live"]:
-            job = _job_manager().start_live(media["url"], media["title"])
+            job = _job_manager().start_live(
+                media["url"], media["title"], live_from_start=_live_from_start_value()
+            )
             flash(f"Uruchomiono zapis transmisji {job.job_id[:8]}.", "success")
         else:
-            job = _job_manager().start_live_wait(media["url"], media["title"])
+            job = _job_manager().start_live_wait(
+                media["url"], media["title"], live_from_start=_live_from_start_value()
+            )
             flash(
                 f"Rozpoczęto oczekiwanie na transmisję {job.job_id[:8]}.",
                 "success",
