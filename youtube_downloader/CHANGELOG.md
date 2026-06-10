@@ -5,6 +5,7 @@
 - Dodano tagi w widoku `Podgląd`, z linkami do filtrowanej historii.
 - Zmieniono `Panel diagnostyczny` na poziomy panel sekcji.
 - Dodano linkowanie tytułu i miniatury zadań do podglądu.
+- Naprawiono widok `Pełny log`, aby pokazywał log od początku zadania.
 
 ## 1.3.55
 

@@ -154,6 +154,7 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertIn("navigator.clipboard", body)
             self.assertIn("jobLogBlock", body)
             self.assertIn("log_lines", body)
+            self.assertIn("recent_log_lines", body)
             self.assertIn("openJobLogIds", body)
             self.assertIn("details.open = openJobLogIds.has(job.job_id)", body)
             self.assertIn('details.addEventListener("toggle"', body)
@@ -199,16 +200,25 @@ class ApplicationTestCase(unittest.TestCase):
         manager = self.app.extensions["job_manager"]
         job = manager._new_job("https://youtu.be/abc", "Example", "best", is_live=False)
         with manager._lock:
-            manager._jobs[job.job_id].log_lines = ["line one", "line two"]
+            active = manager._jobs[job.job_id]
+            for index in range(45):
+                manager._append_log_line(active, f"line {index:02d}")
             manager._persist_jobs()
 
         body = self.client.get(f"/jobs/log/{job.job_id}").get_data(as_text=True)
+        api_job = self.client.get(f"/api/jobs/{job.job_id}").get_json()
 
         self.assertIn("Pełny log", body)
         self.assertIn("Example", body)
-        self.assertIn("line one", body)
-        self.assertIn("line two", body)
+        self.assertIn("line 00", body)
+        self.assertIn("line 44", body)
         self.assertIn('class="job-full-log mb-0"', body)
+        self.assertEqual(len(manager.get_job(job.job_id).log_lines), 45)
+        self.assertEqual(len(api_job["log_lines"]), 40)
+        self.assertEqual(len(api_job["recent_log_lines"]), 40)
+        self.assertEqual(api_job["log_lines"][0], "line 05")
+        self.assertEqual(api_job["recent_log_lines"][0], "line 05")
+        self.assertEqual(api_job["recent_log_lines"][-1], "line 44")
 
     def test_inactive_job_can_be_deleted_from_jobs_page(self) -> None:
         manager = self.app.extensions["job_manager"]

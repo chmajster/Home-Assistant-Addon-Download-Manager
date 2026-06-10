@@ -568,7 +568,8 @@
   };
 
   const jobLogBlock = (job) => {
-    const lines = Array.isArray(job.log_lines) ? job.log_lines.filter(Boolean) : [];
+    const sourceLines = Array.isArray(job.recent_log_lines) ? job.recent_log_lines : job.log_lines;
+    const lines = Array.isArray(sourceLines) ? sourceLines.filter(Boolean) : [];
     if (!lines.length) return document.createDocumentFragment();
     const details = document.createElement("details");
     details.className = "job-log mt-2";

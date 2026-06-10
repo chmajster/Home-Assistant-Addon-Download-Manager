@@ -1011,7 +1011,10 @@ def job_log(job_id: str):
         job = _job_manager().get_job(job_id)
     except KeyError:
         return render_template("error.html", message="Nie znaleziono zadania."), 404
-    return render_template("job_log.html", job=_job_manager().job_dict(job))
+    return render_template(
+        "job_log.html",
+        job=_job_manager().job_dict(job, include_full_log=True),
+    )
 
 
 @web_bp.get("/downloaded/<filename>")

@@ -31,6 +31,7 @@ DESTINATION_RE = re.compile(
 LIVE_WAIT_INTERVAL_SECONDS = 30
 AUTO_RETRY_DELAY_SECONDS = 300
 AUTO_RETRY_MAX_ATTEMPTS = 3
+JOB_LOG_PREVIEW_LINE_LIMIT = 40
 
 
 class DownloadStoppedError(RuntimeError):
@@ -456,11 +457,15 @@ class JobManager:
             job_ids = list(self._jobs)
         return self.delete_jobs(job_ids)
 
-    def job_dict(self, job: Job) -> dict[str, Any]:
+    def job_dict(self, job: Job, include_full_log: bool = False) -> dict[str, Any]:
         """Serialize a job with labels consumed by JSON clients."""
 
         payload = asdict(job)
         payload["status_label"] = self.STATUS_LABELS.get(job.status, job.status)
+        log_lines = payload["log_lines"]
+        payload["recent_log_lines"] = log_lines[-JOB_LOG_PREVIEW_LINE_LIMIT:]
+        if not include_full_log:
+            payload["log_lines"] = payload["recent_log_lines"]
         payload["thumbnail_exists"] = False
         if job.thumbnail_filename:
             try:
@@ -644,12 +649,12 @@ class JobManager:
             self._executor.submit(self._run_download, snapshot.job_id, stop_event)
 
     @staticmethod
-    def _append_log_line(job: Job, line: str, limit: int = 40) -> None:
+    def _append_log_line(job: Job, line: str, limit: int | None = None) -> None:
         cleaned = line.strip()
         if not cleaned:
             return
         job.log_lines.append(cleaned)
-        if len(job.log_lines) > limit:
+        if limit is not None and len(job.log_lines) > limit:
             job.log_lines = job.log_lines[-limit:]
 
     @classmethod
