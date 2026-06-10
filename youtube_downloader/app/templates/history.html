@@ -20,6 +20,19 @@
       </div>
     {% endif %}
   {%- endmacro %}
+  {% macro history_actions(item, index, player_id) -%}
+    {% if item.can_repeat %}
+      <button class="btn btn-sm btn-soft" type="submit" form="history-repeat-{{ index }}">Pobierz ponownie</button>
+    {% endif %}
+    {% if item.file_exists %}
+      {{ history_mini_player(item, player_id) }}
+      <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+      <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-file-{{ index }}">Usuń plik</button>
+    {% else %}
+      <span class="badge text-bg-secondary">plik usunięty</span>
+    {% endif %}
+    <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-record-{{ index }}">Usuń wpis</button>
+  {%- endmacro %}
   <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
       <span class="eyebrow">Biblioteka</span>
@@ -131,17 +144,7 @@
                     <button class="btn btn-soft" type="submit" form="{{ tag_form_id }}">Zapisz</button>
                   </div>
                   <div class="d-flex flex-wrap gap-2 mt-2">
-                    {% if item.can_repeat %}
-                      <button class="btn btn-sm btn-soft" type="submit" form="history-repeat-{{ loop.index0 }}">Pobierz ponownie</button>
-                    {% endif %}
-                    {% if item.file_exists %}
-                      {{ history_mini_player(item, 'history-player-gallery-' ~ loop.index0) }}
-                      <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
-                      <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-file-{{ loop.index0 }}">Usuń plik</button>
-                    {% else %}
-                      <span class="badge text-bg-secondary">plik usunięty</span>
-                    {% endif %}
-                    <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-record-{{ loop.index0 }}">Usuń wpis</button>
+                    {{ history_actions(item, loop.index0, 'history-player-gallery-' ~ loop.index0) }}
                   </div>
                 </div>
               </article>
@@ -217,23 +220,7 @@
                   <td>{{ item.duration_label }}</td>
                   <td>
                     <div class="d-flex flex-column gap-2 history-mini-player-cell">
-                      {% if item.can_repeat %}
-                        <div>
-                          <button class="btn btn-sm btn-soft" type="submit" form="history-repeat-{{ loop.index0 }}">Pobierz ponownie</button>
-                        </div>
-                      {% endif %}
-                      {% if item.file_exists %}
-                        <div class="d-flex flex-wrap gap-2">
-                          {{ history_mini_player(item, 'history-player-desktop-' ~ loop.index0) }}
-                          <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
-                          <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-file-{{ loop.index0 }}">Usuń plik</button>
-                        </div>
-                      {% else %}
-                        <span class="badge text-bg-secondary">plik usunięty</span>
-                      {% endif %}
-                      <div>
-                        <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-record-{{ loop.index0 }}">Usuń wpis</button>
-                      </div>
+                      {{ history_actions(item, loop.index0, 'history-player-desktop-' ~ loop.index0) }}
                     </div>
                   </td>
                 </tr>
@@ -286,17 +273,7 @@
                 <button class="btn btn-soft" type="submit" form="{{ tag_form_id }}">Zapisz</button>
               </div>
               <div class="d-flex flex-wrap gap-2 mt-2">
-                {% if item.can_repeat %}
-                  <button class="btn btn-sm btn-soft" type="submit" form="history-repeat-{{ loop.index0 }}">Pobierz ponownie</button>
-                {% endif %}
-                {% if item.file_exists %}
-                  {{ history_mini_player(item, 'history-player-mobile-' ~ loop.index0) }}
-                  <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
-                  <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-file-{{ loop.index0 }}">Usuń plik</button>
-                {% else %}
-                  <span class="badge text-bg-secondary">plik usunięty</span>
-                {% endif %}
-                <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-record-{{ loop.index0 }}">Usuń wpis</button>
+                {{ history_actions(item, loop.index0, 'history-player-mobile-' ~ loop.index0) }}
               </div>
             </article>
           {% endfor %}

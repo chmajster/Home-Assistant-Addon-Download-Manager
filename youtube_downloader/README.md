@@ -114,6 +114,7 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 | `POST` | `/live/watch` | Oczekiwanie na start transmisji i automatyczny zapis |
 | `POST` | `/live/stop/<job_id>` | Zatrzymanie zapisu live |
 | `GET` | `/jobs` | Lista zadań |
+| `GET` | `/diagnostics` | Panel diagnostyczny z wersjami narzędzi, stanem aktualizacji, miejscem na dysku i statusem Home Assistant API |
 | `POST` | `/jobs/retry/<job_id>` | Ponowienie jednego nieudanego zadania |
 | `POST` | `/jobs/retry-failed` | Ponowienie wszystkich nieudanych zadań |
 | `GET` | `/api/jobs` | Lista zadań JSON |
@@ -122,6 +123,22 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 | `GET` | `/thumbnails/<filename>` | Podgląd wygenerowanej miniatury filmu |
 | `POST` | `/delete/<filename>` | Usunięcie pliku |
 | `GET` | `/health` | Healthcheck watchdoga |
+
+## Podbijanie wersji
+
+Wersję dodatku podbijaj skryptem, aby jednocześnie zaktualizować `config.yaml`, `Dockerfile` i `CHANGELOG.md`:
+
+```sh
+python scripts/bump_version.py 1.3.55 --change "Dodano opis zmiany."
+```
+
+Jeśli lokalny system nie udostępnia komendy `python`, użyj:
+
+```sh
+uv run python scripts/bump_version.py 1.3.55 --change "Dodano opis zmiany."
+```
+
+Parametr `--change` można podać kilka razy, aby dopisać wiele punktów changeloga.
 
 ## Diagnostyka
 

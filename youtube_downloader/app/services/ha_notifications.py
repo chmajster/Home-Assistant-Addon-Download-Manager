@@ -51,6 +51,39 @@ class HomeAssistantNotifier:
                 self._notification_id(payload, "error"),
             )
 
+    def health_status(self) -> dict[str, Any]:
+        """Return a compact Home Assistant API diagnostic status."""
+
+        status: dict[str, Any] = {
+            "base_url": self.base_url,
+            "token_configured": bool(self.token),
+            "available": False,
+            "status_code": None,
+            "message": "",
+        }
+        if not self.token:
+            status["message"] = "Brak SUPERVISOR_TOKEN."
+            return status
+
+        request = urllib.request.Request(
+            f"{self.base_url}/",
+            method="GET",
+            headers={"Authorization": f"Bearer {self.token}"},
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                response.read()
+                status["status_code"] = response.status
+                status["available"] = 200 <= response.status < 300
+                status["message"] = (
+                    "API Home Assistant odpowiada."
+                    if status["available"]
+                    else "API odpowiedziało kodem błędu."
+                )
+        except (OSError, urllib.error.URLError) as error:
+            status["message"] = str(error)
+        return status
+
     def _send_async(self, title: str, message: str, notification_id: str) -> None:
         if not self.token:
             LOGGER.debug("Brak SUPERVISOR_TOKEN, pomijam powiadomienie Home Assistant.")

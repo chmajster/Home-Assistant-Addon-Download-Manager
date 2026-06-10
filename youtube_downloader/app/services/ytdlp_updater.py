@@ -103,6 +103,20 @@ class YtDlpUpdater:
             self._write_state(updated)
             return False
 
+    def diagnostics(self) -> dict[str, Any]:
+        """Return a read-only snapshot of the updater state."""
+
+        with self._lock:
+            state = self._read_state()
+            return {
+                "state_file": str(self.state_file),
+                "last_attempt": state.get("last_attempt"),
+                "last_success": state.get("last_success"),
+                "last_error": state.get("last_error"),
+                "needs_update": self._needs_update(state),
+                "update_interval_hours": self.update_interval.total_seconds() / 3600,
+            }
+
     def _background_loop(self) -> None:
         while not self._stop.wait(self.background_poll_seconds):
             try:

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.3.55
+
+- Dodano skrypt do automatycznego podbijania wersji w config.yaml, Dockerfile i CHANGELOG.md.
+
+## 1.3.54
+
+- Dodano panel diagnostyczny z wersją `yt-dlp`, stanem aktualizacji, wersją `ffmpeg`, miejscem na dysku, ścieżkami i statusem Home Assistant API.
+
+## 1.3.53
+
+- Dodano profile pobierania: `Audio MP3`, `1080p`, `Archiwum live` i `Tylko Twitch`.
+- Po analizie playlisty można zaznaczyć konkretne elementy i uruchomić je jako osobne zadania.
+- Ujednolicono przyciski akcji w historii dla tabeli, widoku mobilnego i galerii.
+
 ## 1.3.52
 
 - Poprawiono przewijanie podglądu logu zadań, aby ukryty widok mobilny/desktopowy nie resetował pozycji do góry.

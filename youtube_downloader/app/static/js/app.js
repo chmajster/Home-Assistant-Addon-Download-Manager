@@ -202,6 +202,7 @@
   });
 
   document.querySelectorAll(".download-form").forEach((form) => {
+    const downloadProfile = form.querySelector('[name="download_profile"]');
     const downloadType = form.querySelector('[name="download_type"]');
     const formatId = form.querySelector('[name="format_id"]');
     if (!downloadType || !formatId) return;
@@ -216,11 +217,29 @@
       }
     };
 
-    downloadType.addEventListener("change", syncFormatId);
+    const syncDownloadProfile = () => {
+      const selected = downloadProfile?.selectedOptions?.[0];
+      const profileDownloadType = selected?.dataset.downloadType || "";
+      if (profileDownloadType) downloadType.value = profileDownloadType;
+      syncFormatId();
+    };
+
+    downloadProfile?.addEventListener("change", syncDownloadProfile);
+    downloadType.addEventListener("change", () => {
+      if (downloadProfile && downloadProfile.value !== "manual") downloadProfile.value = "manual";
+      syncFormatId();
+    });
     formatId.addEventListener("input", () => {
       if (formatId.value.trim()) formatId.classList.remove("is-invalid");
     });
     form.addEventListener("submit", (event) => {
+      const playlistInputs = Array.from(form.querySelectorAll(".playlist-entry-select"));
+      if (playlistInputs.length && !playlistInputs.some((input) => input.checked)) {
+        event.preventDefault();
+        event.stopPropagation();
+        playlistInputs[0].focus();
+        return;
+      }
       if (downloadType.value === "format" && !formatId.value.trim()) {
         event.preventDefault();
         event.stopPropagation();
@@ -232,6 +251,7 @@
 
     document.querySelectorAll(".format-download").forEach((button) => {
       button.addEventListener("click", () => {
+        if (downloadProfile) downloadProfile.value = "manual";
         downloadType.value = "format";
         syncFormatId();
         formatId.value = button.dataset.formatId || "";
@@ -239,6 +259,29 @@
         form.requestSubmit();
       });
     });
+
+    const playlistSelectAll = form.querySelector(".playlist-select-all");
+    const syncPlaylistSelectAllLabel = () => {
+      const inputs = Array.from(form.querySelectorAll(".playlist-entry-select"));
+      if (playlistSelectAll && inputs.length) {
+        playlistSelectAll.textContent = inputs.every((input) => input.checked)
+          ? "Odznacz wszystkie"
+          : "Zaznacz wszystkie";
+      }
+    };
+
+    form.querySelectorAll(".playlist-entry-select").forEach((input) => {
+      input.addEventListener("change", syncPlaylistSelectAllLabel);
+    });
+    playlistSelectAll?.addEventListener("click", () => {
+      const inputs = Array.from(form.querySelectorAll(".playlist-entry-select"));
+      const shouldCheck = inputs.some((input) => !input.checked);
+      inputs.forEach((input) => {
+        input.checked = shouldCheck;
+      });
+      syncPlaylistSelectAllLabel();
+    });
+    syncPlaylistSelectAllLabel();
   });
 
   const historyItems = Array.from(document.querySelectorAll(".history-item"));

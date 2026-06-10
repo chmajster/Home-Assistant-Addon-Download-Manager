@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import errno
+import importlib.util
 import json
 import tempfile
 import threading
@@ -31,6 +32,48 @@ from app.services.ha_notifications import HomeAssistantNotifier
 from app.services.job_manager import JobManager, now_iso
 from app.services.media_service import MediaService, MediaServiceError
 from app.services.ytdlp_updater import YtDlpUpdater
+
+
+def load_bump_version_module():
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "bump_version.py"
+    spec = importlib.util.spec_from_file_location("bump_version", script_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Nie można załadować scripts/bump_version.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class ReleaseToolTestCase(unittest.TestCase):
+    """Keep release helper scripts reliable."""
+
+    def test_bump_version_updates_manifest_dockerfile_and_changelog(self) -> None:
+        module = load_bump_version_module()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "config.yaml").write_text(
+                'name: "Media Web Downloader"\nversion: "1.3.54"\n',
+                encoding="utf-8",
+            )
+            (root / "Dockerfile").write_text(
+                'FROM scratch\nARG BUILD_VERSION="1.3.54"\n',
+                encoding="utf-8",
+            )
+            (root / "CHANGELOG.md").write_text(
+                "# Changelog\n\n## 1.3.54\n\n- Previous.\n",
+                encoding="utf-8",
+            )
+
+            module.bump_version(root, "1.3.55", ["Dodano automatyzację wersji."])
+
+            self.assertIn('version: "1.3.55"', (root / "config.yaml").read_text(encoding="utf-8"))
+            self.assertIn(
+                'ARG BUILD_VERSION="1.3.55"',
+                (root / "Dockerfile").read_text(encoding="utf-8"),
+            )
+            changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+            self.assertLess(changelog.index("## 1.3.55"), changelog.index("## 1.3.54"))
+            self.assertIn("- Dodano automatyzację wersji.", changelog)
 
 
 class ApplicationTestCase(unittest.TestCase):
@@ -377,6 +420,108 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(updater.calls, 1)
 
+    def test_start_download_applies_download_profile(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        manager = self.app.extensions["job_manager"]
+        with patch.object(
+            manager,
+            "start_download",
+            return_value=SimpleNamespace(job_id="12345678"),
+        ) as start_download:
+            self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/example",
+                    "title": "Example",
+                    "download_profile": "audio-mp3",
+                    "download_type": "best",
+                    "allow_duplicate": "1",
+                },
+                follow_redirects=False,
+            )
+
+        start_download.assert_called_once_with(
+            url="https://youtu.be/example",
+            title="Example",
+            download_type="audio",
+            format_id=None,
+            duration=None,
+        )
+
+    def test_start_download_rejects_twitch_profile_for_other_platforms(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        manager = self.app.extensions["job_manager"]
+        with patch.object(manager, "start_download") as start_download:
+            body = self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/example",
+                    "title": "Example",
+                    "download_profile": "twitch-only",
+                    "download_type": "best",
+                    "allow_duplicate": "1",
+                },
+                follow_redirects=True,
+            ).get_data(as_text=True)
+
+        start_download.assert_not_called()
+        self.assertIn("Profil Tylko Twitch", body)
+
+    def test_start_download_queues_selected_playlist_entries(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        manager = self.app.extensions["job_manager"]
+        with patch.object(
+            manager,
+            "start_download",
+            side_effect=[
+                SimpleNamespace(job_id="11111111"),
+                SimpleNamespace(job_id="22222222"),
+            ],
+        ) as start_download:
+            response = self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://www.youtube.com/playlist?list=abc",
+                    "title": "Playlist",
+                    "download_type": "video-1080",
+                    "playlist_picker": "1",
+                    "playlist_entries": ["0", "2"],
+                    "playlist_entry_url_0": "https://youtu.be/one",
+                    "playlist_entry_title_0": "One",
+                    "playlist_entry_duration_0": "10",
+                    "playlist_entry_url_2": "https://youtu.be/two",
+                    "playlist_entry_title_2": "Two",
+                    "playlist_entry_duration_2": "20",
+                    "allow_duplicate": "1",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(start_download.call_count, 2)
+        self.assertEqual(start_download.call_args_list[0].kwargs["url"], "https://youtu.be/one")
+        self.assertEqual(start_download.call_args_list[0].kwargs["title"], "One")
+        self.assertEqual(start_download.call_args_list[0].kwargs["download_type"], "video-1080")
+        self.assertEqual(start_download.call_args_list[0].kwargs["duration"], 10)
+        self.assertEqual(start_download.call_args_list[1].kwargs["url"], "https://youtu.be/two")
+        self.assertEqual(start_download.call_args_list[1].kwargs["title"], "Two")
+        self.assertEqual(start_download.call_args_list[1].kwargs["duration"], 20)
+
     def test_analyze_warns_when_url_was_already_downloaded(self) -> None:
         class FakeUpdater:
             def ensure_recent(self) -> bool:
@@ -686,6 +831,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('id="allowed-hosts"', body)
         self.assertIn("www.youtube.com", body)
         self.assertIn("www.twitch.tv", body)
+        self.assertIn('href="/diagnostics"', body)
         self.assertIn('id="active-job-statuses"', body)
         self.assertIn("downloading", body)
         self.assertIn('id="theme-toggle"', body)
@@ -693,6 +839,33 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("media-web-downloader-theme", body)
         self.assertIn("☀", body)
         self.assertIn("☾", body)
+
+    def test_diagnostics_page_displays_tool_and_storage_status(self) -> None:
+        updater = self.app.extensions["ytdlp_updater"]
+        updater._write_state(
+            {
+                "last_attempt": "2026-06-10T10:00:00+00:00",
+                "last_success": "2026-06-10T10:00:00+00:00",
+            }
+        )
+        with patch(
+            "app.routes.web.subprocess.run",
+            return_value=SimpleNamespace(
+                returncode=0,
+                stdout="ffmpeg version 8.1.1 Copyright\nmore",
+                stderr="",
+            ),
+        ):
+            body = self.client.get("/diagnostics").get_data(as_text=True)
+
+        self.assertIn("Panel diagnostyczny", body)
+        self.assertIn("yt-dlp", body)
+        self.assertIn("ffmpeg version 8.1.1", body)
+        self.assertIn("Ostatnia pr", body)
+        self.assertIn("Katalog pobra", body)
+        self.assertIn(str(self.app.extensions["file_service"].download_dir), body)
+        self.assertIn("Home Assistant API", body)
+        self.assertIn("Brak SUPERVISOR_TOKEN", body)
 
     def test_frontend_toggles_theme(self) -> None:
         script = self.client.get("/static/js/app.js").get_data(as_text=True)
@@ -702,6 +875,9 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("[data-theme-toggle]", script)
         self.assertIn("pastedUrls", script)
         self.assertIn('split(/[\\n\\r,;]+/)', script)
+        self.assertIn('[name="download_profile"]', script)
+        self.assertIn("playlist-entry-select", script)
+        self.assertIn("playlist-select-all", script)
 
     def test_history_delete_form_contains_filename_and_size(self) -> None:
         files = self.app.extensions["file_service"]
@@ -1489,9 +1665,60 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('name="duration" value="10"', body)
         self.assertIn('href="https://youtu.be/example"', body)
         self.assertIn('target="_blank" rel="noreferrer"', body)
+        self.assertIn('id="download-profile"', body)
+        self.assertIn('value="audio-mp3"', body)
+        self.assertIn("Audio MP3", body)
+        self.assertIn('value="live-archive"', body)
+        self.assertIn("Archiwum live", body)
+        self.assertIn('value="twitch-only"', body)
+        self.assertIn("Tylko Twitch", body)
         self.assertIn('<option value="video-1080">1080p</option>', body)
         self.assertIn('<option value="video-720">720p</option>', body)
         self.assertIn('<option value="video-360">360p</option>', body)
+
+    def test_result_displays_playlist_entry_selection(self) -> None:
+        media = {
+            "is_live": False,
+            "content_type": "playlist",
+            "thumbnail": None,
+            "title": "Example playlist",
+            "channel": "Channel",
+            "channel_id": "channel-id",
+            "platform": "youtube",
+            "duration": None,
+            "live_status": None,
+            "playlist_count": 2,
+            "formats": [],
+            "entries": [
+                {
+                    "title": "First",
+                    "url": "https://youtu.be/first",
+                    "duration": 10,
+                },
+                {
+                    "title": "Second",
+                    "url": "https://youtu.be/second",
+                    "duration": 20,
+                },
+            ],
+            "url": "https://www.youtube.com/playlist?list=abc",
+        }
+        with self.app.test_request_context("/"):
+            body = self.app.jinja_env.get_template("result.html").render(
+                media=media,
+                app_settings=self.app.config["APP_SETTINGS"],
+                ingress_url=lambda endpoint, **values: "/",
+                csrf_token=lambda: "token",
+                ingress_path="",
+                allowed_hosts=[],
+                active_job_statuses=[],
+            )
+
+        self.assertIn('name="playlist_picker" value="1"', body)
+        self.assertIn('class="form-check-input playlist-entry-select"', body)
+        self.assertIn('name="playlist_entries" value="0" checked', body)
+        self.assertIn('name="playlist_entry_url_0" value="https://youtu.be/first"', body)
+        self.assertIn("Odznacz wszystkie", body)
 
     def test_result_displays_live_wait_action(self) -> None:
         media = {

@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Analiza | Media Web Downloader{% endblock %}
 {% block content %}
+  {% set download_profiles = download_profiles|default({
+    "manual": {"label": "Ręczny wybór", "download_type": "", "description": "Własny wariant jakości lub konkretny format."},
+    "audio-mp3": {"label": "Audio MP3", "download_type": "audio", "description": "Tylko ścieżka audio i konwersja do MP3."},
+    "video-1080": {"label": "1080p", "download_type": "video-1080", "description": "Najlepszy wariant do Full HD."},
+    "live-archive": {"label": "Archiwum live", "download_type": "best", "description": "Najlepsza jakość dla zapisanych transmisji."},
+    "twitch-only": {"label": "Tylko Twitch", "download_type": "best", "description": "Preset dla VOD-ów, klipów i transmisji Twitch."}
+  }) %}
   <div class="page-heading d-flex justify-content-between align-items-center mb-4 gap-2">
     <div>
       <span class="eyebrow">Gotowe do pobrania</span>
@@ -86,6 +93,12 @@
               <input type="hidden" name="title" value="{{ media.title }}">
               {% if media.duplicate_warnings %}<input type="hidden" name="allow_duplicate" value="1">{% endif %}
               {% if media.duration %}<input type="hidden" name="duration" value="{{ media.duration }}">{% endif %}
+              <label class="form-label" for="download-profile">Profil pobierania</label>
+              <select class="form-select mb-3" id="download-profile" name="download_profile">
+                {% for key, profile in download_profiles.items() %}
+                  <option value="{{ key }}" data-download-type="{{ profile.download_type or '' }}">{{ profile.label }}{% if profile.description %} - {{ profile.description }}{% endif %}</option>
+                {% endfor %}
+              </select>
               <label class="form-label" for="download-type">Wybierz wariant</label>
               <select class="form-select mb-3" id="download-type" name="download_type">
                 <option value="best"{% if app_settings.preferred_format == "best" %} selected{% endif %}>Najlepsza dostępna jakość</option>
@@ -100,6 +113,29 @@
                 <input class="form-control" id="format-id" name="format_id" maxlength="80" placeholder="np. 137" disabled>
                 <div class="invalid-feedback">Podaj ID konkretnego formatu.</div>
               </div>
+              {% if media.entries %}
+                <input type="hidden" name="playlist_picker" value="1">
+                <div class="playlist-picker mb-3">
+                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <span class="form-label mb-0">Elementy playlisty</span>
+                    <button class="btn btn-sm btn-soft playlist-select-all" type="button">Odznacz wszystkie</button>
+                  </div>
+                  <div class="playlist-list">
+                    {% for entry in media.entries %}
+                      <label class="playlist-entry form-check">
+                        <input class="form-check-input playlist-entry-select" type="checkbox" name="playlist_entries" value="{{ loop.index0 }}" checked>
+                        <span class="form-check-label">
+                          <strong>{{ entry.title }}</strong>
+                          {% if entry.duration %}<small class="text-body-secondary">({{ entry.duration|duration }})</small>{% endif %}
+                        </span>
+                      </label>
+                      <input type="hidden" name="playlist_entry_url_{{ loop.index0 }}" value="{{ entry.url }}">
+                      <input type="hidden" name="playlist_entry_title_{{ loop.index0 }}" value="{{ entry.title }}">
+                      {% if entry.duration %}<input type="hidden" name="playlist_entry_duration_{{ loop.index0 }}" value="{{ entry.duration }}">{% endif %}
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
               <button class="btn btn-accent w-100" type="submit">Rozpocznij pobieranie</button>
             </form>
           {% endif %}
@@ -131,19 +167,6 @@
             </article>
           {% endfor %}
         </div>
-      </div>
-    </section>
-  {% endif %}
-
-  {% if media.entries %}
-    <section class="card app-card mt-4">
-      <div class="card-body">
-        <h2 class="h5">Elementy playlisty</h2>
-        <ol class="playlist-list mb-0">
-          {% for entry in media.entries %}
-            <li class="mb-1">{{ entry.title }}{% if entry.duration %} <small class="text-body-secondary">({{ entry.duration|duration }})</small>{% endif %}</li>
-          {% endfor %}
-        </ol>
       </div>
     </section>
   {% endif %}

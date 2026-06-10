@@ -577,6 +577,34 @@ audio.history-mini-player-media {
   overflow-y: auto;
 }
 
+.playlist-picker {
+  border: 1px solid var(--app-line);
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+}
+
+.playlist-entry {
+  border-bottom: 1px solid var(--app-line);
+  display: flex;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.55rem 0;
+}
+
+.playlist-entry:last-child {
+  border-bottom: 0;
+}
+
+.playlist-entry .form-check-input {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+.playlist-entry .form-check-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .progress {
   background: rgba(103, 88, 232, 0.1);
   border-radius: 999px;
@@ -596,6 +624,36 @@ audio.history-mini-player-media {
   font-size: 0.75rem;
   font-weight: 700;
   min-width: 2.6rem;
+}
+
+.diagnostics-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.diagnostics-wide {
+  grid-column: 1 / -1;
+}
+
+.diagnostics-list {
+  display: grid;
+  gap: 0.65rem 1rem;
+  grid-template-columns: minmax(7.5rem, max-content) minmax(0, 1fr);
+}
+
+.diagnostics-list dt {
+  color: var(--app-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diagnostics-list dd {
+  margin-bottom: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .mobile-list-card {

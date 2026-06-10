@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 import mimetypes
 import re
+import subprocess
 from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -32,6 +34,34 @@ from ..services.ytdlp_updater import YtDlpUpdater
 LOGGER = logging.getLogger(__name__)
 web_bp = Blueprint("web", __name__)
 BULK_URL_IMPORT_LIMIT = 50
+DOWNLOAD_PROFILES = {
+    "manual": {
+        "label": "Ręczny wybór",
+        "download_type": None,
+        "description": "Własny wariant jakości lub konkretny format.",
+    },
+    "audio-mp3": {
+        "label": "Audio MP3",
+        "download_type": "audio",
+        "description": "Tylko ścieżka audio i konwersja do MP3.",
+    },
+    "video-1080": {
+        "label": "1080p",
+        "download_type": "video-1080",
+        "description": "Najlepszy wariant do Full HD.",
+    },
+    "live-archive": {
+        "label": "Archiwum live",
+        "download_type": "best",
+        "description": "Najlepsza jakość dla zapisanych transmisji.",
+    },
+    "twitch-only": {
+        "label": "Tylko Twitch",
+        "download_type": "best",
+        "platform": "twitch",
+        "description": "Preset dla VOD-ów, klipów i transmisji Twitch.",
+    },
+}
 HISTORY_VIEW_LABELS = {
     "table": "tabela",
     "gallery": "galeria",
@@ -61,8 +91,65 @@ def _ytdlp_updater() -> YtDlpUpdater:
     return current_app.extensions["ytdlp_updater"]
 
 
+def _ha_notifier():
+    return current_app.extensions["ha_notifier"]
+
+
 def _ensure_ytdlp_recent() -> None:
     _ytdlp_updater().ensure_recent()
+
+
+def _installed_package_version(package_name: str) -> str:
+    try:
+        return version(package_name)
+    except PackageNotFoundError:
+        return "brak danych"
+
+
+def _command_first_line(command: list[str], timeout: float = 3.0) -> dict[str, Any]:
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return {"available": False, "version": "brak danych", "error": str(error)}
+    output = (result.stdout or result.stderr or "").strip().splitlines()
+    return {
+        "available": result.returncode == 0,
+        "version": output[0] if output else "brak danych",
+        "error": "" if result.returncode == 0 else (result.stderr or result.stdout or "").strip(),
+    }
+
+
+def _diagnostics_snapshot() -> dict[str, Any]:
+    file_service = _file_service()
+    settings = current_app.config["APP_SETTINGS"]
+    jobs = _job_manager().list_jobs()
+    ytdlp_update = _ytdlp_updater().diagnostics()
+    return {
+        "yt_dlp": {
+            "version": _installed_package_version("yt-dlp"),
+            **ytdlp_update,
+        },
+        "ffmpeg": _command_first_line(["ffmpeg", "-version"]),
+        "storage": file_service.storage_usage(),
+        "paths": {
+            "download_dir": str(file_service.download_dir),
+            "thumbnail_dir": str(file_service.thumbnail_dir),
+            "history_file": str(file_service.history_file),
+            "jobs_dir": str(settings.jobs_dir),
+        },
+        "home_assistant": _ha_notifier().health_status(),
+        "jobs": {
+            "total": len(jobs),
+            "active": sum(1 for job in jobs if job.status in JobManager.ACTIVE_STATUSES),
+            "failed": sum(1 for job in jobs if job.status == "error"),
+        },
+    }
 
 
 def _duration_value(value: object) -> int | None:
@@ -71,6 +158,55 @@ def _duration_value(value: object) -> int | None:
     except (TypeError, ValueError):
         return None
     return seconds if seconds >= 0 else None
+
+
+def _selected_download_profile(value: object) -> dict[str, Any]:
+    key = str(value or "manual")
+    return DOWNLOAD_PROFILES.get(key, DOWNLOAD_PROFILES["manual"])
+
+
+def _profile_download_type(
+    profile: dict[str, Any],
+    download_type: object,
+    url: object,
+) -> str:
+    expected_platform = profile.get("platform")
+    if expected_platform:
+        validated_url = MediaService.validate_url(str(url or ""))
+        if MediaService.detect_platform(validated_url) != expected_platform:
+            raise MediaServiceError(
+                f"Profil {profile['label']} działa tylko dla serwisu {expected_platform}."
+            )
+    return str(profile.get("download_type") or download_type or "best")
+
+
+def _selected_playlist_entries() -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for raw_index in request.form.getlist("playlist_entries"):
+        if not raw_index.isdigit():
+            continue
+        entry_url = str(request.form.get(f"playlist_entry_url_{raw_index}") or "").strip()
+        if not entry_url:
+            continue
+        validated_url = MediaService.validate_url(entry_url)
+        if validated_url in seen:
+            continue
+        seen.add(validated_url)
+        entries.append(
+            {
+                "url": validated_url,
+                "title": str(
+                    request.form.get(f"playlist_entry_title_{raw_index}")
+                    or request.form.get("title")
+                    or _bulk_download_title(validated_url)
+                ),
+                "duration": _duration_value(
+                    request.form.get(f"playlist_entry_duration_{raw_index}")
+                ),
+            }
+        )
+    return entries
 
 
 def _bulk_url_candidates(value: object) -> list[str]:
@@ -250,6 +386,13 @@ def history():
         view_labels=HISTORY_VIEW_LABELS,
         total_history=len(records),
     )
+
+
+@web_bp.get("/diagnostics")
+def diagnostics():
+    """Render operational diagnostics for the add-on."""
+
+    return render_template("diagnostics.html", diagnostics=_diagnostics_snapshot())
 
 
 def _history_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -534,7 +677,9 @@ def analyze():
             str(media.get("url") or ""),
             str(media.get("title") or ""),
         )
-        return render_template("result.html", media=media)
+        return render_template(
+            "result.html", media=media, download_profiles=DOWNLOAD_PROFILES
+        )
     except MediaServiceError as error:
         return render_template("error.html", message=str(error)), 400
 
@@ -550,6 +695,22 @@ def start_download():
         return redirect(ingress_url("web.jobs"))
     try:
         _ensure_ytdlp_recent()
+        profile = _selected_download_profile(request.form.get("download_profile"))
+        download_type = _profile_download_type(
+            profile,
+            request.form.get("download_type", "best"),
+            request.form.get("url", ""),
+        )
+        format_id = request.form.get("format_id") or None
+        if download_type != "format":
+            format_id = None
+        playlist_entries = _selected_playlist_entries()
+        if request.form.get("playlist_picker") and not playlist_entries:
+            raise MediaServiceError("Zaznacz co najmniej jeden element playlisty.")
+        if playlist_entries and download_type == "format":
+            raise MediaServiceError(
+                "Konkretny format nie jest obsługiwany dla wielu elementów playlisty. Wybierz profil albo jakość."
+            )
         if not request.form.get("allow_duplicate"):
             _flash_duplicate_warnings(
                 _duplicate_download_warnings(
@@ -557,11 +718,21 @@ def start_download():
                     request.form.get("title", ""),
                 )
             )
+        if playlist_entries:
+            for entry in playlist_entries:
+                _job_manager().start_download(
+                    url=entry["url"],
+                    title=entry["title"],
+                    download_type=download_type,
+                    duration=entry["duration"],
+                )
+            flash(f"Uruchomiono zadania z playlisty: {len(playlist_entries)}.", "success")
+            return redirect(ingress_url("web.jobs"))
         job = _job_manager().start_download(
             url=request.form.get("url", ""),
             title=request.form.get("title", ""),
-            download_type=request.form.get("download_type", "best"),
-            format_id=request.form.get("format_id") or None,
+            download_type=download_type,
+            format_id=format_id,
             duration=_duration_value(request.form.get("duration")),
         )
         flash(f"Uruchomiono zadanie {job.job_id[:8]}.", "success")

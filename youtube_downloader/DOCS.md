@@ -114,3 +114,5 @@ Panel rozpoznaje najczęstsze problemy operacyjne i pokazuje prostą wskazówkę
 - błąd przetwarzania pliku przez `ffmpeg`.
 
 Jeżeli `ffmpeg` nie wygeneruje samej miniatury, gotowy film pozostaje dostępny. Historia i widok zadań pokazują wtedy ostrzeżenie, a szczegóły techniczne pozostają w logach dodatku.
+
+Strona **Diagnostyka** (`/diagnostics`) pokazuje wersję `yt-dlp`, stan ostatniej aktualizacji extractora, wersję `ffmpeg`, użycie magazynu, najważniejsze ścieżki plików oraz status połączenia z Home Assistant API.
