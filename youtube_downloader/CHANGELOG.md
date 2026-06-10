@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.50
+
+- Naprawiono przewijanie podglądu logu zadań: automatyczne odświeżanie kolejki nie resetuje już pozycji logu do góry.
+
 ## 1.3.49
 
 - Usunięto kolumny `Serwis` i `Plik` z tabeli pełnej historii pobrań.

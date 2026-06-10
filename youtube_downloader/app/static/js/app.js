@@ -367,6 +367,7 @@
   const isRemovableJob = (job) => removableJobStatuses.has(job.status);
   const selectedJobIds = new Set();
   const openJobLogIds = new Set();
+  const jobLogScrollTops = new Map();
   let jobsFilter = document.getElementById("jobs-filter-state")?.dataset.initialFilter === "errors" ? "errors" : "all";
 
   const statusBadge = (job) => {
@@ -470,6 +471,13 @@
     return label ? text("small", label, "job-auto-retry d-block text-body-secondary mt-1") : document.createDocumentFragment();
   };
 
+  const captureJobLogScrollPositions = () => {
+    document.querySelectorAll(".job-log[data-job-id] pre").forEach((pre) => {
+      const jobId = pre.closest(".job-log")?.dataset.jobId;
+      if (jobId) jobLogScrollTops.set(jobId, pre.scrollTop);
+    });
+  };
+
   const jobLogBlock = (job) => {
     const lines = Array.isArray(job.log_lines) ? job.log_lines.filter(Boolean) : [];
     if (!lines.length) return document.createDocumentFragment();
@@ -483,6 +491,14 @@
     });
     const summary = text("summary", `Log (${lines.length})`);
     const pre = text("pre", lines.join("\n"));
+    pre.addEventListener("scroll", () => {
+      jobLogScrollTops.set(job.job_id, pre.scrollTop);
+    });
+    if (jobLogScrollTops.has(job.job_id)) {
+      requestAnimationFrame(() => {
+        pre.scrollTop = jobLogScrollTops.get(job.job_id) || 0;
+      });
+    }
     details.append(summary, pre);
     return details;
   };
@@ -727,6 +743,7 @@
   const updateJobsView = (jobs) => {
     updateActiveJobsBadge(jobs);
     if (!document.getElementById("jobs-table-body")) return;
+    captureJobLogScrollPositions();
     const visibleJobs = filteredJobs(jobs);
     document.getElementById("jobs-empty")?.classList.toggle("d-none", jobs.length > 0);
     document.getElementById("jobs-filter-empty")?.classList.toggle("d-none", jobs.length === 0 || visibleJobs.length > 0);
