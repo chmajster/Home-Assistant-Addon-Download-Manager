@@ -1,8 +1,7 @@
-"""Safe access to persistent downloaded files and JSON history."""
+"""Safe access to persistent downloaded files and download history."""
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import shutil
@@ -14,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from .error_messages import thumbnail_warning_message
+from .state_store import SQLiteStateStore
 
 LOGGER = logging.getLogger(__name__)
 THUMBNAIL_DIRNAME = ".thumbnails"
@@ -78,12 +78,12 @@ class FileService:
         self.download_dir = download_dir.resolve()
         self.thumbnail_dir = self.download_dir / THUMBNAIL_DIRNAME
         self.history_file = history_file
+        self.state_store = SQLiteStateStore(history_file.parent / "state.sqlite3")
         self._history_lock = threading.RLock()
         self.download_dir.mkdir(parents=True, exist_ok=True)
         self.thumbnail_dir.mkdir(parents=True, exist_ok=True)
         self.history_file.parent.mkdir(parents=True, exist_ok=True)
-        if not self.history_file.exists():
-            self._write_history([])
+        self.state_store.migrate_history_json(self.history_file)
 
     def resolve_download(self, filename: str, require_exists: bool = True) -> Path:
         """Resolve a basename inside download_dir and reject traversal."""
@@ -338,16 +338,7 @@ class FileService:
         return False
 
     def _read_history(self) -> list[dict[str, Any]]:
-        try:
-            with self.history_file.open("r", encoding="utf-8") as file_handle:
-                payload = json.load(file_handle)
-            return payload if isinstance(payload, list) else []
-        except (OSError, json.JSONDecodeError) as error:
-            LOGGER.error("Nie można odczytać historii: %s", error)
-            return []
+        return self.state_store.history_all()
 
     def _write_history(self, records: list[dict[str, Any]]) -> None:
-        temp_file = self.history_file.with_suffix(".tmp")
-        with temp_file.open("w", encoding="utf-8") as file_handle:
-            json.dump(records, file_handle, ensure_ascii=False, indent=2)
-        os.replace(temp_file, self.history_file)
+        self.state_store.history_replace(records)

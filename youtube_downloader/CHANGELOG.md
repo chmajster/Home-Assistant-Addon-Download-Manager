@@ -1,11 +1,26 @@
 # Changelog
 
+## 1.3.59
+
+- Dodano jawne migracje schematu SQLite do wersji 2.
+- Znormalizowano kluczowe pola historii i kolejki w osobnych kolumnach z indeksami.
+- Przeniesiono pełne logi zadań do osobnej tabeli, zostawiając w zadaniu krótki podgląd.
+
+## 1.3.58
+
+- Przeniesiono historię i kolejkę z plików JSON do bazy SQLite z migracją istniejących danych.
+
+## 1.3.57
+
+- Poprawiono panel diagnostyczny: pokazuje kluczowe informacje techniczne w kartach i tabeli statusów OK, ostrzeżenie lub błąd.
+
 ## 1.3.56
 
 - Dodano tagi w widoku `Podgląd`, z linkami do filtrowanej historii.
 - Zmieniono `Panel diagnostyczny` na poziomy panel sekcji.
 - Dodano linkowanie tytułu i miniatury zadań do podglądu.
 - Naprawiono widok `Pełny log`, aby pokazywał log od początku zadania.
+- Ustawiono `Najlepsza jakość` jako domyślny profil pobierania.
 
 ## 1.3.55
 

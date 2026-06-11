@@ -2,6 +2,7 @@
 {% block title %}Analiza | Media Web Downloader{% endblock %}
 {% block content %}
   {% set download_profiles = download_profiles|default({
+    "best-quality": {"label": "Najlepsza jakość", "download_type": "best", "description": "Najlepszy dostępny wariant audio i wideo."},
     "manual": {"label": "Ręczny wybór", "download_type": "", "description": "Własny wariant jakości lub konkretny format."},
     "audio-mp3": {"label": "Audio MP3", "download_type": "audio", "description": "Tylko ścieżka audio i konwersja do MP3."},
     "video-1080": {"label": "1080p", "download_type": "video-1080", "description": "Najlepszy wariant do Full HD."},
@@ -96,7 +97,7 @@
               <label class="form-label" for="download-profile">Profil pobierania</label>
               <select class="form-select mb-3" id="download-profile" name="download_profile">
                 {% for key, profile in download_profiles.items() %}
-                  <option value="{{ key }}" data-download-type="{{ profile.download_type or '' }}">{{ profile.label }}{% if profile.description %} - {{ profile.description }}{% endif %}</option>
+                  <option value="{{ key }}" data-download-type="{{ profile.download_type or '' }}"{% if key == "best-quality" %} selected{% endif %}>{{ profile.label }}{% if profile.description %} - {{ profile.description }}{% endif %}</option>
                 {% endfor %}
               </select>
               <label class="form-label" for="download-type">Wybierz wariant</label>

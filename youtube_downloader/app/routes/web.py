@@ -35,6 +35,11 @@ LOGGER = logging.getLogger(__name__)
 web_bp = Blueprint("web", __name__)
 BULK_URL_IMPORT_LIMIT = 50
 DOWNLOAD_PROFILES = {
+    "best-quality": {
+        "label": "Najlepsza jakość",
+        "download_type": "best",
+        "description": "Najlepszy dostępny wariant audio i wideo.",
+    },
     "manual": {
         "label": "Ręczny wybór",
         "download_type": None,
@@ -121,8 +126,106 @@ def _command_first_line(command: list[str], timeout: float = 3.0) -> dict[str, A
     return {
         "available": result.returncode == 0,
         "version": output[0] if output else "brak danych",
-        "error": "" if result.returncode == 0 else (result.stderr or result.stdout or "").strip(),
+        "error": ""
+        if result.returncode == 0
+        else (result.stderr or result.stdout or "").strip(),
     }
+
+
+def _diagnostic_status_label(status: str) -> str:
+    return {
+        "ok": "OK",
+        "warning": "ostrzeżenie",
+        "error": "błąd",
+    }.get(status, status)
+
+
+def _diagnostic_row(
+    label: str,
+    value: object,
+    status: str = "ok",
+    details: object = "",
+) -> dict[str, str]:
+    return {
+        "label": label,
+        "value": str(value or "brak danych"),
+        "status": status,
+        "status_label": _diagnostic_status_label(status),
+        "details": str(details or ""),
+    }
+
+
+def _diagnostic_rows(
+    ytdlp: dict[str, Any],
+    ffmpeg: dict[str, Any],
+    storage: dict[str, Any],
+    paths: dict[str, str],
+    home_assistant: dict[str, Any],
+) -> list[dict[str, str]]:
+    ytdlp_version_status = "error" if ytdlp.get("version") == "brak danych" else "ok"
+    ytdlp_update_status = "ok"
+    ytdlp_update_details = ""
+    if ytdlp.get("last_error"):
+        ytdlp_update_status = "error"
+        ytdlp_update_details = ytdlp["last_error"]
+    elif ytdlp.get("needs_update"):
+        ytdlp_update_status = "warning"
+        ytdlp_update_details = (
+            "Ostatnia udana aktualizacja jest nieaktualna albo nieznana."
+        )
+
+    ffmpeg_status = "ok" if ffmpeg.get("available") else "error"
+    storage_status = "ok"
+    if float(storage.get("free_percent") or 0) < 5:
+        storage_status = "error"
+    elif float(storage.get("free_percent") or 0) < 15:
+        storage_status = "warning"
+
+    ha_status = "ok" if home_assistant.get("available") else "error"
+    return [
+        _diagnostic_row("Wersja yt-dlp", ytdlp.get("version"), ytdlp_version_status),
+        _diagnostic_row(
+            "Ostatnia aktualizacja yt-dlp",
+            _date_time_label(ytdlp.get("last_success")),
+            ytdlp_update_status,
+            ytdlp_update_details,
+        ),
+        _diagnostic_row(
+            "Wersja ffmpeg",
+            ffmpeg.get("version"),
+            ffmpeg_status,
+            ffmpeg.get("error"),
+        ),
+        _diagnostic_row(
+            "Wolne miejsce na dysku",
+            f"{_filesize_label(storage.get('free'))} ({storage.get('free_percent')}%)",
+            storage_status,
+            f"Zajęte: {_filesize_label(storage.get('used'))} z {_filesize_label(storage.get('total'))}.",
+        ),
+        _diagnostic_row("Katalog pobrań", paths.get("download_dir")),
+        _diagnostic_row(
+            "Home Assistant API",
+            "połączono" if home_assistant.get("available") else "problem",
+            ha_status,
+            home_assistant.get("message"),
+        ),
+    ]
+
+
+def _last_diagnostic_error(rows: list[dict[str, str]]) -> str:
+    for row in rows:
+        if row["status"] == "error" and row["details"]:
+            return row["details"]
+    for row in rows:
+        if row["status"] == "error":
+            return f"{row['label']}: {row['value']}"
+    return ""
+
+
+def _date_time_label(value: object) -> str:
+    if not value:
+        return "brak danych"
+    return str(value).replace("T", " ")[:19]
 
 
 def _diagnostics_snapshot() -> dict[str, Any]:
@@ -130,20 +233,29 @@ def _diagnostics_snapshot() -> dict[str, Any]:
     settings = current_app.config["APP_SETTINGS"]
     jobs = _job_manager().list_jobs()
     ytdlp_update = _ytdlp_updater().diagnostics()
+    ytdlp = {
+        "version": _installed_package_version("yt-dlp"),
+        **ytdlp_update,
+    }
+    ffmpeg = _command_first_line(["ffmpeg", "-version"])
+    storage = file_service.storage_usage()
+    paths = {
+        "download_dir": str(file_service.download_dir),
+        "thumbnail_dir": str(file_service.thumbnail_dir),
+        "history_file": str(file_service.history_file),
+        "state_db": str(file_service.state_store.db_path),
+        "jobs_dir": str(settings.jobs_dir),
+    }
+    home_assistant = _ha_notifier().health_status()
+    rows = _diagnostic_rows(ytdlp, ffmpeg, storage, paths, home_assistant)
     return {
-        "yt_dlp": {
-            "version": _installed_package_version("yt-dlp"),
-            **ytdlp_update,
-        },
-        "ffmpeg": _command_first_line(["ffmpeg", "-version"]),
-        "storage": file_service.storage_usage(),
-        "paths": {
-            "download_dir": str(file_service.download_dir),
-            "thumbnail_dir": str(file_service.thumbnail_dir),
-            "history_file": str(file_service.history_file),
-            "jobs_dir": str(settings.jobs_dir),
-        },
-        "home_assistant": _ha_notifier().health_status(),
+        "rows": rows,
+        "last_error": _last_diagnostic_error(rows),
+        "yt_dlp": ytdlp,
+        "ffmpeg": ffmpeg,
+        "storage": storage,
+        "paths": paths,
+        "home_assistant": home_assistant,
         "jobs": {
             "total": len(jobs),
             "active": sum(1 for job in jobs if job.status in JobManager.ACTIVE_STATUSES),

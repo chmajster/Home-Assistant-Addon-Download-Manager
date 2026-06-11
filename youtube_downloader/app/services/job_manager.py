@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
 import signal
+import sqlite3
 import subprocess
 import threading
 import uuid
@@ -106,6 +106,7 @@ class JobManager:
         self.file_service = file_service
         self.max_concurrent_jobs = max_concurrent_jobs
         self.jobs_file = jobs_file or file_service.history_file.parent / "queue.json"
+        self.state_store = file_service.state_store
         self.notifier = notifier
         self._jobs: dict[str, Job] = {}
         self._live_processes: dict[str, subprocess.Popen[str]] = {}
@@ -116,6 +117,7 @@ class JobManager:
         self._executor = ThreadPoolExecutor(
             max_workers=max_concurrent_jobs, thread_name_prefix="download"
         )
+        self.state_store.migrate_jobs_json(self.jobs_file)
         self._load_jobs()
         self._restore_auto_retries()
 
@@ -462,10 +464,13 @@ class JobManager:
 
         payload = asdict(job)
         payload["status_label"] = self.STATUS_LABELS.get(job.status, job.status)
-        log_lines = payload["log_lines"]
-        payload["recent_log_lines"] = log_lines[-JOB_LOG_PREVIEW_LINE_LIMIT:]
-        if not include_full_log:
-            payload["log_lines"] = payload["recent_log_lines"]
+        recent_log_lines = payload["log_lines"][-JOB_LOG_PREVIEW_LINE_LIMIT:]
+        payload["recent_log_lines"] = recent_log_lines
+        if include_full_log:
+            full_log_lines = self.state_store.job_logs(job.job_id)
+            payload["log_lines"] = full_log_lines or recent_log_lines
+        else:
+            payload["log_lines"] = recent_log_lines
         payload["thumbnail_exists"] = False
         if job.thumbnail_filename:
             try:
@@ -503,8 +508,7 @@ class JobManager:
             self._persist_jobs()
         return Job(**asdict(job))
 
-    @staticmethod
-    def _reset_for_retry(job: Job, reset_auto_retry: bool = True) -> None:
+    def _reset_for_retry(self, job: Job, reset_auto_retry: bool = True) -> None:
         job.status = "pending"
         job.progress = 0.0
         job.downloaded_bytes = None
@@ -522,6 +526,7 @@ class JobManager:
         if reset_auto_retry:
             job.auto_retry_attempts = 0
             job.log_lines = []
+            self.state_store.replace_job_logs(job.job_id, [])
 
     def _cancel_retry_timer(self, job_id: str) -> None:
         timer = self._retry_timers.pop(job_id, None)
@@ -648,11 +653,16 @@ class JobManager:
         else:
             self._executor.submit(self._run_download, snapshot.job_id, stop_event)
 
-    @staticmethod
-    def _append_log_line(job: Job, line: str, limit: int | None = None) -> None:
+    def _append_log_line(
+        self,
+        job: Job,
+        line: str,
+        limit: int | None = JOB_LOG_PREVIEW_LINE_LIMIT,
+    ) -> None:
         cleaned = line.strip()
         if not cleaned:
             return
+        self.state_store.append_job_log(job.job_id, cleaned)
         job.log_lines.append(cleaned)
         if limit is not None and len(job.log_lines) > limit:
             job.log_lines = job.log_lines[-limit:]
@@ -1042,22 +1052,15 @@ class JobManager:
     def _load_jobs(self) -> None:
         """Restore persisted jobs and mark unfinished work as interrupted."""
 
-        try:
-            if not self.jobs_file.exists():
-                return
-            with self.jobs_file.open("r", encoding="utf-8") as file_handle:
-                payload = json.load(file_handle)
-            if not isinstance(payload, list):
-                raise ValueError("oczekiwano listy zadań")
-        except (OSError, json.JSONDecodeError, ValueError) as error:
-            LOGGER.error("Nie można odczytać trwałej kolejki zadań: %s", error)
+        payload = self.state_store.jobs_all()
+        if not payload:
             return
 
         field_names = {item.name for item in fields(Job)}
         interrupted = False
         for record in payload:
             if not isinstance(record, dict):
-                LOGGER.warning("Pominięto niepoprawny rekord trwałej kolejki zadań")
+                LOGGER.warning("Pominieto niepoprawny rekord trwalej kolejki zadan")
                 continue
             try:
                 job = Job(
@@ -1068,30 +1071,26 @@ class JobManager:
                     }
                 )
             except TypeError as error:
-                LOGGER.warning("Pominięto niepoprawny rekord zadania: %s", error)
+                LOGGER.warning("Pominieto niepoprawny rekord zadania: %s", error)
                 continue
             if job.status in self.ACTIVE_STATUSES:
                 job.status = "interrupted"
                 job.finished_at = now_iso()
                 job.speed = None
                 job.eta = None
-                job.error_message = "Zadanie zostało przerwane przez restart aplikacji."
+                job.error_message = "Zadanie zostalo przerwane przez restart aplikacji."
                 interrupted = True
             self._jobs[job.job_id] = job
         if interrupted:
             self._persist_jobs()
-        LOGGER.info("Odtworzono %s zadań z trwałej kolejki", len(self._jobs))
+        LOGGER.info("Odtworzono %s zadan z trwalej kolejki", len(self._jobs))
 
     def _persist_jobs(self) -> None:
         """Write a consistent queue snapshot without interrupting active work."""
 
-        temp_file = self.jobs_file.with_suffix(".tmp")
         try:
-            self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
             with self._lock:
                 records = [asdict(job) for job in self._jobs.values()]
-            with temp_file.open("w", encoding="utf-8") as file_handle:
-                json.dump(records, file_handle, ensure_ascii=False, indent=2)
-            os.replace(temp_file, self.jobs_file)
-        except (OSError, TypeError) as error:
-            LOGGER.error("Nie można zapisać trwałej kolejki zadań: %s", error)
+            self.state_store.jobs_replace(records)
+        except (OSError, TypeError, ValueError, sqlite3.Error) as error:
+            LOGGER.error("Nie mozna zapisac trwalej kolejki zadan: %s", error)

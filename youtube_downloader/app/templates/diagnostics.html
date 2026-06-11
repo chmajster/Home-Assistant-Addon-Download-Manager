@@ -1,96 +1,76 @@
 {% extends "base.html" %}
 {% block title %}Diagnostyka | Media Web Downloader{% endblock %}
 {% block content %}
-  {% set yt = diagnostics.yt_dlp %}
-  {% set ffmpeg = diagnostics.ffmpeg %}
-  {% set storage = diagnostics.storage %}
-  {% set ha = diagnostics.home_assistant %}
+  {% set rows = diagnostics.rows %}
   <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
       <span class="eyebrow">Stan systemu</span>
       <h1 class="h3 mb-1">Panel diagnostyczny</h1>
-      <p class="section-copy mb-0">Wersje narzędzi, aktualizacja extractora, magazyn i połączenie z Home Assistant.</p>
+      <p class="section-copy mb-0">Najważniejsze dane techniczne do szybkiej diagnozy pobierania i integracji Home Assistant.</p>
     </div>
     <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
   </section>
 
-  <section class="card app-card diagnostics-panel">
+  <section class="diagnostics-summary mb-4" aria-label="Podsumowanie diagnostyki">
+    {% for row in rows %}
+      <article class="diagnostics-status-card diagnostics-status-{{ row.status }}">
+        <span class="badge diagnostics-badge">{{ row.status_label }}</span>
+        <strong>{{ row.label }}</strong>
+        <span class="diagnostics-card-value">{{ row.value }}</span>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="card app-card diagnostics-panel mb-4">
     <div class="card-body">
-      <div class="diagnostics-strip">
-        <section class="diagnostics-section">
-          <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-            <h2 class="h5 mb-0">yt-dlp</h2>
-            <span class="badge {{ 'text-bg-success' if not yt.needs_update and not yt.last_error else 'text-bg-warning' }}">
-              {{ "aktualny" if not yt.needs_update else "wymaga sprawdzenia" }}
-            </span>
-          </div>
-          <dl class="diagnostics-list mb-0">
-            <dt>Wersja</dt><dd>{{ yt.version }}</dd>
-            <dt>Ostatnia próba</dt><dd>{{ yt.last_attempt|replace("T", " ") if yt.last_attempt else "brak danych" }}</dd>
-            <dt>Ostatni sukces</dt><dd>{{ yt.last_success|replace("T", " ") if yt.last_success else "brak danych" }}</dd>
-            <dt>Interwał aktualizacji</dt><dd>{{ yt.update_interval_hours|round|int }} h</dd>
-            <dt>Plik stanu</dt><dd class="text-break">{{ yt.state_file }}</dd>
-            {% if yt.last_error %}<dt>Błąd</dt><dd class="text-danger text-break">{{ yt.last_error }}</dd>{% endif %}
-          </dl>
-        </section>
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Szybka diagnoza</span>
+          <h2 class="h5 mb-0">Kluczowe informacje techniczne</h2>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table diagnostics-table align-middle">
+          <thead>
+            <tr>
+              <th>Parametr</th>
+              <th>Wartość</th>
+              <th>Status</th>
+              <th>Szczegóły</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <th scope="row">{{ row.label }}</th>
+                <td class="text-break">{{ row.value }}</td>
+                <td>
+                  <span class="badge diagnostics-badge diagnostics-badge-{{ row.status }}">{{ row.status_label }}</span>
+                </td>
+                <td class="text-break">{{ row.details or "-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 
-        <section class="diagnostics-section">
-          <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-            <h2 class="h5 mb-0">ffmpeg</h2>
-            <span class="badge {{ 'text-bg-success' if ffmpeg.available else 'text-bg-danger' }}">
-              {{ "dostępny" if ffmpeg.available else "niedostępny" }}
-            </span>
-          </div>
-          <dl class="diagnostics-list mb-0">
-            <dt>Wersja</dt><dd class="text-break">{{ ffmpeg.version }}</dd>
-            {% if ffmpeg.error %}<dt>Błąd</dt><dd class="text-danger text-break">{{ ffmpeg.error }}</dd>{% endif %}
-          </dl>
-        </section>
-
-        <section class="diagnostics-section diagnostics-section-storage">
-          <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-            <h2 class="h5 mb-0">Magazyn</h2>
-            <span class="badge {{ 'text-bg-success' if storage.free_percent >= 15 else 'text-bg-warning' }}">
-              {{ storage.free_percent }}% wolne
-            </span>
-          </div>
-          <div class="progress storage-progress mb-3" role="progressbar" aria-label="Zajętość magazynu" aria-valuenow="{{ storage.used_percent }}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar" style="width: {{ storage.used_percent }}%">{{ storage.used_percent }}%</div>
-          </div>
-          <dl class="diagnostics-list mb-0">
-            <dt>Razem</dt><dd>{{ storage.total|filesize }}</dd>
-            <dt>Zajęte</dt><dd>{{ storage.used|filesize }}</dd>
-            <dt>Wolne</dt><dd>{{ storage.free|filesize }}</dd>
-            <dt>Katalog pobrań</dt><dd class="text-break">{{ diagnostics.paths.download_dir }}</dd>
-            <dt>Miniatury</dt><dd class="text-break">{{ diagnostics.paths.thumbnail_dir }}</dd>
-          </dl>
-        </section>
-
-        <section class="diagnostics-section">
-          <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-            <h2 class="h5 mb-0">Home Assistant API</h2>
-            <span class="badge {{ 'text-bg-success' if ha.available else 'text-bg-danger' }}">
-              {{ "online" if ha.available else "problem" }}
-            </span>
-          </div>
-          <dl class="diagnostics-list mb-0">
-            <dt>Token</dt><dd>{{ "skonfigurowany" if ha.token_configured else "brak" }}</dd>
-            <dt>Adres API</dt><dd class="text-break">{{ ha.base_url }}</dd>
-            <dt>Kod HTTP</dt><dd>{{ ha.status_code or "brak danych" }}</dd>
-            <dt>Status</dt><dd class="text-break">{{ ha.message }}</dd>
-          </dl>
-        </section>
-
-        <section class="diagnostics-section">
-          <h2 class="h5 mb-3">Ścieżki i kolejka</h2>
-          <dl class="diagnostics-list mb-0">
-            <dt>Historia</dt><dd class="text-break">{{ diagnostics.paths.history_file }}</dd>
-            <dt>Katalog zadań</dt><dd class="text-break">{{ diagnostics.paths.jobs_dir }}</dd>
-            <dt>Zadania razem</dt><dd>{{ diagnostics.jobs.total }}</dd>
-            <dt>Aktywne</dt><dd>{{ diagnostics.jobs.active }}</dd>
-            <dt>Błędy</dt><dd>{{ diagnostics.jobs.failed }}</dd>
-          </dl>
-        </section>
+  <section class="card app-card">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <span class="eyebrow">Ostatni problem</span>
+          <h2 class="h5 mb-1">Ostatni błąd diagnostyczny</h2>
+          {% if diagnostics.last_error %}
+            <p class="diagnostics-last-error text-danger mb-0">{{ diagnostics.last_error }}</p>
+          {% else %}
+            <p class="text-body-secondary mb-0">Brak błędów diagnostycznych.</p>
+          {% endif %}
+        </div>
+        <span class="badge {{ 'text-bg-danger' if diagnostics.last_error else 'text-bg-success' }}">
+          {{ "błąd" if diagnostics.last_error else "OK" }}
+        </span>
       </div>
     </div>
   </section>

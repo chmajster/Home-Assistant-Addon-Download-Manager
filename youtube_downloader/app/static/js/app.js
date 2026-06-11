@@ -247,7 +247,7 @@
         formatId.focus();
       }
     });
-    syncFormatId();
+    syncDownloadProfile();
 
     document.querySelectorAll(".format-download").forEach((button) => {
       button.addEventListener("click", () => {

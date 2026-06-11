@@ -5,6 +5,7 @@ from __future__ import annotations
 import errno
 import importlib.util
 import json
+import sqlite3
 import tempfile
 import threading
 import time
@@ -31,6 +32,7 @@ from app.services.ha_options import (
 from app.services.ha_notifications import HomeAssistantNotifier
 from app.services.job_manager import JobManager, now_iso
 from app.services.media_service import MediaService, MediaServiceError
+from app.services.state_store import SQLiteStateStore
 from app.services.ytdlp_updater import YtDlpUpdater
 
 
@@ -74,6 +76,136 @@ class ReleaseToolTestCase(unittest.TestCase):
             changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
             self.assertLess(changelog.index("## 1.3.55"), changelog.index("## 1.3.54"))
             self.assertIn("- Dodano automatyzację wersji.", changelog)
+
+
+class SQLiteStateStoreTestCase(unittest.TestCase):
+    """Keep SQLite schema migrations compatible with existing installations."""
+
+    def test_v1_schema_is_migrated_to_v2_with_normalized_columns_and_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "state.sqlite3"
+            log_lines = [f"line {index:02d}" for index in range(45)]
+            history_payload = {
+                "title": "Old video",
+                "url": "https://www.youtube.com/watch?v=old",
+                "type": "best",
+                "filename": "old.mp4",
+                "status": "completed",
+                "size": 123,
+                "duration": 60,
+                "downloaded_at": "2026-01-01T10:00:00+00:00",
+                "tags": ["music", "video"],
+            }
+            job_payload = {
+                "job_id": "legacy-job",
+                "url": "https://youtu.be/legacy",
+                "title": "Legacy job",
+                "status": "completed",
+                "download_type": "best",
+                "is_live": False,
+                "created_at": "2026-01-01T10:00:00+00:00",
+                "finished_at": "2026-01-01T10:01:00+00:00",
+                "log_lines": log_lines,
+            }
+            connection = sqlite3.connect(db_path)
+            try:
+                connection.executescript(
+                    """
+                    CREATE TABLE schema_meta (
+                        key TEXT PRIMARY KEY,
+                        value TEXT NOT NULL
+                    );
+                    INSERT INTO schema_meta (key, value)
+                    VALUES ('schema_version', '1');
+                    CREATE TABLE history_records (
+                        position INTEGER PRIMARY KEY,
+                        downloaded_at TEXT,
+                        filename TEXT,
+                        title TEXT,
+                        url TEXT,
+                        download_type TEXT,
+                        status TEXT,
+                        size INTEGER,
+                        duration INTEGER,
+                        payload TEXT NOT NULL
+                    );
+                    CREATE TABLE jobs (
+                        job_id TEXT PRIMARY KEY,
+                        created_at TEXT,
+                        status TEXT,
+                        payload TEXT NOT NULL
+                    );
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO history_records (
+                        position, downloaded_at, filename, title, url,
+                        download_type, status, size, duration, payload
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        0,
+                        history_payload["downloaded_at"],
+                        history_payload["filename"],
+                        history_payload["title"],
+                        history_payload["url"],
+                        history_payload["type"],
+                        history_payload["status"],
+                        history_payload["size"],
+                        history_payload["duration"],
+                        json.dumps(history_payload),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO jobs (job_id, created_at, status, payload)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        job_payload["job_id"],
+                        job_payload["created_at"],
+                        job_payload["status"],
+                        json.dumps(job_payload),
+                    ),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            store = SQLiteStateStore(db_path)
+
+            connection = sqlite3.connect(db_path)
+            try:
+                connection.row_factory = sqlite3.Row
+                schema_version = connection.execute(
+                    "SELECT value FROM schema_meta WHERE key = 'schema_version'"
+                ).fetchone()["value"]
+                history_row = connection.execute(
+                    "SELECT source, tags FROM history_records"
+                ).fetchone()
+                job_row = connection.execute(
+                    "SELECT title, url, download_type, is_live, payload FROM jobs"
+                ).fetchone()
+                log_count = connection.execute(
+                    "SELECT COUNT(*) AS total FROM job_log_lines WHERE job_id = ?",
+                    ("legacy-job",),
+                ).fetchone()["total"]
+            finally:
+                connection.close()
+
+            self.assertEqual(schema_version, "2")
+            self.assertEqual(history_row["source"], "youtube")
+            self.assertEqual(history_row["tags"], "music,video")
+            self.assertEqual(job_row["title"], "Legacy job")
+            self.assertEqual(job_row["url"], "https://youtu.be/legacy")
+            self.assertEqual(job_row["download_type"], "best")
+            self.assertEqual(job_row["is_live"], 0)
+            self.assertEqual(log_count, 45)
+            self.assertEqual(store.job_logs("legacy-job")[0], "line 00")
+            self.assertEqual(store.job_logs("legacy-job")[-1], "line 44")
+            self.assertEqual(len(json.loads(job_row["payload"])["log_lines"]), 40)
 
 
 class ApplicationTestCase(unittest.TestCase):
@@ -213,12 +345,21 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("line 00", body)
         self.assertIn("line 44", body)
         self.assertIn('class="job-full-log mb-0"', body)
-        self.assertEqual(len(manager.get_job(job.job_id).log_lines), 45)
+        self.assertEqual(len(manager.get_job(job.job_id).log_lines), 40)
+        self.assertEqual(len(manager.state_store.job_logs(job.job_id)), 45)
         self.assertEqual(len(api_job["log_lines"]), 40)
         self.assertEqual(len(api_job["recent_log_lines"]), 40)
         self.assertEqual(api_job["log_lines"][0], "line 05")
         self.assertEqual(api_job["recent_log_lines"][0], "line 05")
         self.assertEqual(api_job["recent_log_lines"][-1], "line 44")
+        connection = sqlite3.connect(manager.state_store.db_path)
+        try:
+            payload = connection.execute(
+                "SELECT payload FROM jobs WHERE job_id = ?", (job.job_id,)
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        self.assertEqual(len(json.loads(payload)["log_lines"]), 40)
 
     def test_inactive_job_can_be_deleted_from_jobs_page(self) -> None:
         manager = self.app.extensions["job_manager"]
@@ -883,17 +1024,20 @@ class ApplicationTestCase(unittest.TestCase):
             body = self.client.get("/diagnostics").get_data(as_text=True)
 
         self.assertIn("Panel diagnostyczny", body)
-        self.assertIn('class="card app-card diagnostics-panel"', body)
-        self.assertIn('class="diagnostics-strip"', body)
-        self.assertIn('class="diagnostics-section"', body)
-        self.assertNotIn("diagnostics-grid", body)
-        self.assertIn("yt-dlp", body)
+        self.assertIn("diagnostics-panel", body)
+        self.assertIn('class="diagnostics-summary', body)
+        self.assertIn('class="table diagnostics-table', body)
+        self.assertIn("Wersja yt-dlp", body)
         self.assertIn("ffmpeg version 8.1.1", body)
-        self.assertIn("Ostatnia pr", body)
+        self.assertIn("Ostatnia aktualizacja yt-dlp", body)
+        self.assertIn("2026-06-10 10:00:00", body)
+        self.assertIn("Wolne miejsce na dysku", body)
         self.assertIn("Katalog pobra", body)
         self.assertIn(str(self.app.extensions["file_service"].download_dir), body)
         self.assertIn("Home Assistant API", body)
+        self.assertIn("Ostatni b", body)
         self.assertIn("Brak SUPERVISOR_TOKEN", body)
+        self.assertIn("diagnostics-badge-error", body)
 
     def test_frontend_toggles_theme(self) -> None:
         script = self.client.get("/static/js/app.js").get_data(as_text=True)
@@ -1694,6 +1838,9 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('href="https://youtu.be/example"', body)
         self.assertIn('target="_blank" rel="noreferrer"', body)
         self.assertIn('id="download-profile"', body)
+        self.assertIn('value="best-quality"', body)
+        self.assertIn('data-download-type="best" selected', body)
+        self.assertIn("Najlepsza jakość", body)
         self.assertIn('value="audio-mp3"', body)
         self.assertIn("Audio MP3", body)
         self.assertIn('value="live-archive"', body)
@@ -2216,6 +2363,33 @@ class FileServiceThumbnailTestCase(unittest.TestCase):
             result = self.files.generate_thumbnail(video.name)
         self.assertEqual(result.warning_message, THUMBNAIL_STORAGE_WARNING)
 
+    def test_legacy_history_json_is_migrated_to_sqlite(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            history_file = root / "jobs" / "history.json"
+            history_file.parent.mkdir(parents=True)
+            history_file.write_text(
+                json.dumps(
+                    [
+                        {
+                            "title": "Old clip",
+                            "url": "https://youtu.be/old",
+                            "type": "best",
+                            "filename": "old.mp4",
+                            "size": 3,
+                            "downloaded_at": "2026-01-01T10:00:00+00:00",
+                            "status": "completed",
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            files = FileService(root / "downloads", history_file)
+            (files.download_dir / "old.mp4").write_bytes(b"old")
+
+            self.assertEqual(files.history()[0]["title"], "Old clip")
+            self.assertTrue((root / "jobs" / "state.sqlite3").is_file())
+
 
 class FakeMediaService:
     """Deterministic extractor stand-in for JobManager tests."""
@@ -2359,6 +2533,34 @@ class JobManagerTestCase(unittest.TestCase):
         ).get_job(job.job_id)
         self.assertEqual(restored.status, "interrupted")
         self.assertIn("restart", restored.error_message)
+
+    def test_legacy_queue_json_is_migrated_to_sqlite(self) -> None:
+        jobs_file = self.files.history_file.parent / "legacy-queue.json"
+        jobs_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "job_id": "legacy-job",
+                        "url": "https://youtu.be/abc",
+                        "title": "Legacy",
+                        "status": "pending",
+                        "download_type": "best",
+                        "created_at": "2026-01-01T10:00:00+00:00",
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        restored = JobManager(
+            FakeMediaService(self.download_dir),
+            self.files,
+            max_concurrent_jobs=1,
+            jobs_file=jobs_file,
+        )
+
+        self.assertEqual(restored.get_job("legacy-job").status, "interrupted")
+        self.assertTrue((self.files.history_file.parent / "state.sqlite3").is_file())
 
     def test_explicit_format_id_is_recorded_in_history(self) -> None:
         job = self.manager.start_download(
