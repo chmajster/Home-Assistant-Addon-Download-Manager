@@ -171,6 +171,14 @@
     return node;
   };
 
+  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]);
+
   const downloadTypeLabel = (downloadType) => ({
     best: "najlepsza",
     video: "najlepsza",
@@ -382,13 +390,28 @@
       : `${minutes}:${String(rest).padStart(2, "0")}`;
   };
 
+  const playerIcon = (name) => {
+    const icons = {
+      captions: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 14.5v-8Zm2.5-.7a.7.7 0 0 0-.7.7v8c0 .39.31.7.7.7h11a.7.7 0 0 0 .7-.7v-8a.7.7 0 0 0-.7-.7h-11ZM7.5 10.1c0-1.2.95-2.1 2.25-2.1.78 0 1.38.25 1.85.7l-.8 1.02c-.3-.25-.6-.42-1.02-.42-.58 0-.95.35-.95.8v.8c0 .45.37.8.95.8.42 0 .72-.17 1.02-.42l.8 1.02c-.47.45-1.07.7-1.85.7-1.3 0-2.25-.9-2.25-2.1v-.8Zm5.2 0c0-1.2.95-2.1 2.25-2.1.78 0 1.38.25 1.85.7l-.8 1.02c-.3-.25-.6-.42-1.02-.42-.58 0-.95.35-.95.8v.8c0 .45.37.8.95.8.42 0 .72-.17 1.02-.42l.8 1.02c-.47.45-1.07.7-1.85.7-1.3 0-2.25-.9-2.25-2.1v-.8Z"/></svg>',
+      fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9V5h4v2H7v2H5Zm10-4h4v4h-2V7h-2V5ZM7 15v2h2v2H5v-4h2Zm10 2v-2h2v4h-4v-2h2Z"/></svg>',
+      fullscreenExit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v4H5V7h2V5h2Zm8 0v2h2v2h-4V5h2ZM5 15h4v4H7v-2H5v-2Zm14 0v2h-2v2h-2v-4h4Z"/></svg>',
+      mini: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11Zm2.5-.7a.7.7 0 0 0-.7.7v11c0 .39.31.7.7.7h11a.7.7 0 0 0 .7-.7v-11a.7.7 0 0 0-.7-.7h-11Zm4.3 6.2h5.4v3.5h-5.4V12Z"/></svg>',
+      pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7V5Zm7 0h3v14h-3V5Z"/></svg>',
+      play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2L18.4 12 8 5.4Z"/></svg>',
+      settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19.2 13.35 1.55 1.2-1.8 3.1-1.85-.75a7.7 7.7 0 0 1-1.45.85L15.4 19.7h-3.6l-.25-1.95a7.7 7.7 0 0 1-1.45-.85l-1.85.75-1.8-3.1 1.55-1.2a6.5 6.5 0 0 1 0-1.7l-1.55-1.2 1.8-3.1 1.85.75c.45-.33.93-.62 1.45-.85l.25-1.95h3.6l.25 1.95c.52.23 1 .52 1.45.85l1.85-.75 1.8 3.1-1.55 1.2a6.5 6.5 0 0 1 0 1.7ZM13.6 9.4a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2Z"/></svg>',
+      volume: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.2h3.4L12 5.3v13.4l-4.6-3.9H4V9.2Zm11.1-.7a5.2 5.2 0 0 1 0 7l-1.25-1.25a3.4 3.4 0 0 0 0-4.5L15.1 8.5Zm2.7-2.35a8.7 8.7 0 0 1 0 11.7l-1.25-1.25a6.9 6.9 0 0 0 0-9.2l1.25-1.25Z"/></svg>',
+      volumeOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.2h3.4L12 5.3v13.4l-4.6-3.9H4V9.2Zm10.25.2L16 11.15l1.75-1.75 1.25 1.25-1.75 1.75L19 14.15l-1.25 1.25L16 13.65l-1.75 1.75L13 14.15l1.75-1.75L13 10.65l1.25-1.25Z"/></svg>',
+    };
+    return icons[name] || "";
+  };
+
   const customPlayerButton = (label, icon, className = "") => {
     const button = document.createElement("button");
     button.className = `custom-player-button ${className}`.trim();
     button.type = "button";
     button.setAttribute("aria-label", label);
     button.title = label;
-    button.textContent = icon;
+    button.innerHTML = icon;
     return button;
   };
 
@@ -442,14 +465,21 @@
     volume: 1,
     muted: false,
     playbackRate: 1,
+    loop: false,
+    autoplayNext: false,
+    fitMode: "contain",
     ...readJsonStorage(playerSettingsStorageKey, {}),
   });
 
   const writePlayerSettings = (settings) => {
+    const fitMode = settings.fitMode === "cover" ? "cover" : "contain";
     const normalized = {
       volume: Math.min(1, Math.max(0, Number(settings.volume) || 0)),
       muted: Boolean(settings.muted),
       playbackRate: Number(settings.playbackRate) || 1,
+      loop: Boolean(settings.loop),
+      autoplayNext: Boolean(settings.autoplayNext),
+      fitMode,
     };
     writeJsonStorage(playerSettingsStorageKey, normalized);
   };
@@ -482,6 +512,8 @@
     media.playbackRate = speedOptions.includes(Number(storedSettings.playbackRate))
       ? Number(storedSettings.playbackRate)
       : 1;
+    media.loop = Boolean(storedSettings.loop);
+    player.classList.toggle("custom-player-fit-cover", storedSettings.fitMode === "cover");
     if (media instanceof HTMLVideoElement && !player.hasAttribute("tabindex")) {
       player.tabIndex = 0;
       player.setAttribute("aria-keyshortcuts", "Space K J L ArrowLeft ArrowRight ArrowUp ArrowDown M F");
@@ -496,17 +528,74 @@
     progress.step = "1";
     progress.setAttribute("aria-label", "Postęp odtwarzania");
 
-    const play = customPlayerButton("Odtwórz", "\u25b6", "custom-player-play");
-    const stop = customPlayerButton("Stop", "\u25a0");
-    const rewind30 = customPlayerButton("Cofnij 30 sekund", "-30");
-    const rewind = customPlayerButton("Cofnij 10 sekund", "\u21b6");
-    const forward = customPlayerButton("Przewiń 10 sekund", "\u21b7");
-    const forward30 = customPlayerButton("Przewiń 30 sekund", "+30");
-    const loop = customPlayerButton("Pętla", "\u221e", "custom-player-loop");
-    loop.setAttribute("aria-pressed", "false");
-    const mute = customPlayerButton("Wycisz", "\ud83d\udd0a", "custom-player-mute");
-    const fullscreen = customPlayerButton("Pełny ekran", "\u26f6", "custom-player-fullscreen");
-    const pip = customPlayerButton("Picture-in-Picture", "PiP", "custom-player-pip");
+    const play = customPlayerButton("Odtwórz", playerIcon("play"), "custom-player-play");
+    const playSecondary = customPlayerButton(
+      "Odtwórz",
+      playerIcon("play"),
+      "custom-player-play custom-player-play-secondary"
+    );
+    const mute = customPlayerButton("Wycisz", playerIcon("volume"), "custom-player-mute");
+    const captions = customPlayerButton(
+      "Napisy",
+      playerIcon("captions"),
+      "custom-player-captions"
+    );
+    captions.setAttribute("aria-pressed", "false");
+    const settings = customPlayerButton(
+      "Ustawienia jakości i prędkości",
+      `${playerIcon("settings")}<span class="custom-player-hd-badge">HD</span>`,
+      "custom-player-settings"
+    );
+    const mini = customPlayerButton(
+      "Tryb theater",
+      playerIcon("mini"),
+      "custom-player-mini"
+    );
+    mini.setAttribute("aria-pressed", "false");
+    const fullscreen = customPlayerButton(
+      "Pełny ekran",
+      playerIcon("fullscreen"),
+      "custom-player-fullscreen"
+    );
+    const inThisVideo = document.createElement("button");
+    inThisVideo.className = "custom-player-pill";
+    inThisVideo.type = "button";
+    inThisVideo.setAttribute("aria-label", "W tym filmie");
+    inThisVideo.textContent = "W tym filmie >";
+    const settingsPanel = document.createElement("div");
+    settingsPanel.className = "custom-player-settings-panel";
+    settingsPanel.hidden = true;
+    settingsPanel.setAttribute("role", "menu");
+    settingsPanel.setAttribute("aria-label", "Ustawienia playera");
+    const qualityLabel = escapeHtml(player.dataset.qualityLabel || "Oryginalna");
+    settingsPanel.innerHTML = `
+      <div class="custom-player-settings-heading">Ustawienia</div>
+      <div class="custom-player-settings-row">
+        <span>Jakość</span>
+        <strong>${qualityLabel}</strong>
+      </div>
+      <div class="custom-player-settings-group" data-setting-group="speed">
+        <span>Prędkość</span>
+        <div class="custom-player-settings-options">
+          ${speedOptions.map((option) => `<button type="button" data-speed="${option}">${option}x</button>`).join("")}
+        </div>
+      </div>
+      <label class="custom-player-settings-toggle">
+        <span>Zapętlaj</span>
+        <input type="checkbox" data-setting-loop>
+      </label>
+      <label class="custom-player-settings-toggle">
+        <span>Auto-play następnego</span>
+        <input type="checkbox" data-setting-autoplay-next>
+      </label>
+      <div class="custom-player-settings-group" data-setting-group="fit">
+        <span>Dopasowanie</span>
+        <div class="custom-player-settings-options">
+          <button type="button" data-fit="contain">Contain</button>
+          <button type="button" data-fit="cover">Cover</button>
+        </div>
+      </div>
+    `;
     const time = text("span", "0:00 / 0:00", "custom-player-time");
     const speed = document.createElement("select");
     speed.className = "custom-player-speed";
@@ -529,36 +618,58 @@
 
     const controls = document.createElement("div");
     controls.className = "custom-player-controls";
-    const progressRow = document.createElement("div");
-    progressRow.className = "custom-player-row";
-    progressRow.append(progress);
     const mainRow = document.createElement("div");
     mainRow.className = "custom-player-row custom-player-main-row";
-    const transport = document.createElement("div");
-    transport.className = "custom-player-row";
-    transport.append(play, stop, rewind30, rewind, forward, forward30, loop, time);
-    const audio = document.createElement("div");
-    audio.className = "custom-player-row custom-player-volume-row";
-    audio.append(speed, mute, volume);
-    if (media instanceof HTMLVideoElement && document.pictureInPictureEnabled) audio.append(pip);
-    audio.append(fullscreen);
-    mainRow.append(transport, audio);
-    controls.append(progressRow, mainRow);
+    const leftControls = document.createElement("div");
+    leftControls.className = "custom-player-row custom-player-left-controls";
+    const volumeGroup = document.createElement("div");
+    volumeGroup.className = "custom-player-volume-group";
+    volumeGroup.append(mute, volume);
+    leftControls.append(play, volumeGroup, time, inThisVideo);
+    const rightControls = document.createElement("div");
+    rightControls.className = "custom-player-row custom-player-right-controls";
+    rightControls.append(playSecondary, captions, settings, mini, fullscreen);
+    mainRow.append(leftControls, rightControls);
+    controls.append(progress, mainRow, speed);
     player.append(controls);
+    player.append(settingsPanel);
     if (!supportsFullscreen(player) && !media.webkitEnterFullscreen) fullscreen.hidden = true;
+    const nextUrl = player.dataset.nextUrl || "";
+    const settingLoop = settingsPanel.querySelector("[data-setting-loop]");
+    const settingAutoplayNext = settingsPanel.querySelector("[data-setting-autoplay-next]");
+    const speedButtons = Array.from(settingsPanel.querySelectorAll("[data-speed]"));
+    const fitButtons = Array.from(settingsPanel.querySelectorAll("[data-fit]"));
+    if (settingAutoplayNext instanceof HTMLInputElement) settingAutoplayNext.checked = Boolean(storedSettings.autoplayNext);
 
     const previewThumbnailUrl = player.dataset.previewThumbnail || "";
+    const timelineThumbnails = (() => {
+      try {
+        const parsed = JSON.parse(player.dataset.previewThumbnails || "[]");
+        return Array.isArray(parsed)
+          ? parsed
+              .map((item) => ({
+                time: Number(item.time),
+                url: String(item.url || ""),
+              }))
+              .filter((item) => Number.isFinite(item.time) && item.url)
+              .sort((left, right) => left.time - right.time)
+          : [];
+      } catch {
+        return [];
+      }
+    })();
     let seekPreview = null;
+    let seekPreviewImage = null;
     let seekPreviewTime = null;
     if (media instanceof HTMLVideoElement) {
       seekPreview = document.createElement("div");
       seekPreview.className = "custom-player-seek-preview";
-      if (previewThumbnailUrl) {
-        const seekPreviewImage = document.createElement("img");
+      if (previewThumbnailUrl || timelineThumbnails.length) {
+        seekPreviewImage = document.createElement("img");
         seekPreviewImage.className = "custom-player-seek-preview-image";
         seekPreviewImage.alt = "";
         seekPreviewImage.loading = "lazy";
-        seekPreviewImage.src = previewThumbnailUrl;
+        seekPreviewImage.src = timelineThumbnails[0]?.url || previewThumbnailUrl;
         seekPreview.append(seekPreviewImage);
       }
       seekPreviewTime = text("span", "0:00", "custom-player-seek-preview-time");
@@ -587,7 +698,7 @@
       range.style.setProperty(property, `${Math.min(100, Math.max(0, percent))}%`);
     };
     const hideControls = () => {
-      if (!isVideo || media.paused || seeking || player.matches(":focus-within")) return;
+      if (!isVideo || media.paused || seeking || player.matches(":focus-within") || !settingsPanel.hidden) return;
       player.classList.add("custom-player-controls-hidden");
     };
     const showControls = () => {
@@ -599,22 +710,26 @@
     const syncFullscreen = () => {
       const active = fullscreenElement() === player;
       player.classList.toggle("custom-player-is-fullscreen", active);
-      fullscreen.textContent = active ? "\u2715" : "\u26f6";
+      fullscreen.innerHTML = active ? playerIcon("fullscreenExit") : playerIcon("fullscreen");
       fullscreen.setAttribute("aria-label", active ? "Zamknij pełny ekran" : "Pełny ekran");
       fullscreen.title = active ? "Zamknij pełny ekran" : "Pełny ekran";
     };
     const syncPlay = () => {
       const paused = media.paused;
-      play.textContent = paused ? "\u25b6" : "\u23f8";
-      play.setAttribute("aria-label", paused ? "Odtwórz" : "Pauza");
-      play.title = paused ? "Odtwórz" : "Pauza";
+      const label = paused ? "Odtwórz" : "Pauza";
+      const icon = paused ? playerIcon("play") : playerIcon("pause");
+      [play, playSecondary].forEach((button) => {
+        button.innerHTML = icon;
+        button.setAttribute("aria-label", label);
+        button.title = label;
+      });
       player.classList.toggle("custom-player-playing", !paused);
-      if (overlayIcon) overlayIcon.textContent = paused ? "\u25b6" : "\u23f8";
+      if (overlayIcon) overlayIcon.innerHTML = icon;
       showControls();
     };
     const syncMute = () => {
       const muted = media.muted || media.volume === 0;
-      mute.textContent = muted ? "\ud83d\udd07" : "\ud83d\udd0a";
+      mute.innerHTML = muted ? playerIcon("volumeOff") : playerIcon("volume");
       mute.setAttribute("aria-label", muted ? "Włącz dźwięk" : "Wycisz");
       mute.title = muted ? "Włącz dźwięk" : "Wycisz";
       volume.value = String(media.muted ? 0 : media.volume);
@@ -624,7 +739,31 @@
       volume: media.volume,
       muted: media.muted,
       playbackRate: media.playbackRate,
+      loop: media.loop,
+      autoplayNext: settingAutoplayNext instanceof HTMLInputElement && settingAutoplayNext.checked,
+      fitMode: player.classList.contains("custom-player-fit-cover") ? "cover" : "contain",
     });
+    const syncSpeedButton = () => {
+      settings.title = `Prędkość: ${media.playbackRate}x`;
+    };
+    const syncSettingsPanel = () => {
+      speedButtons.forEach((button) => {
+        button.classList.toggle("custom-player-settings-active", Number(button.dataset.speed) === media.playbackRate);
+      });
+      fitButtons.forEach((button) => {
+        const activeFit = player.classList.contains("custom-player-fit-cover") ? "cover" : "contain";
+        button.classList.toggle("custom-player-settings-active", button.dataset.fit === activeFit);
+      });
+      if (settingLoop instanceof HTMLInputElement) settingLoop.checked = media.loop;
+      if (settingAutoplayNext instanceof HTMLInputElement) {
+        settingAutoplayNext.disabled = !nextUrl;
+      }
+    };
+    const setFitMode = (mode) => {
+      player.classList.toggle("custom-player-fit-cover", mode === "cover");
+      syncSettingsPanel();
+      persistSettings();
+    };
     const restorePosition = () => {
       const key = playerPositionKey(media);
       const saved = Number(readPlayerPositions()[key] || 0);
@@ -656,8 +795,20 @@
         Math.max(0, (clientX - progressRect.left) / progressRect.width)
       );
       const previewX = progressRect.left + ratio * progressRect.width - playerRect.left;
+      const previewTime = ratio * duration;
+      if (seekPreviewImage && timelineThumbnails.length) {
+        const frame = timelineThumbnails.reduce(
+          (best, item) => (
+            Math.abs(item.time - previewTime) < Math.abs(best.time - previewTime)
+              ? item
+              : best
+          ),
+          timelineThumbnails[0]
+        );
+        if (frame?.url && seekPreviewImage.src !== frame.url) seekPreviewImage.src = frame.url;
+      }
       seekPreview.style.left = `${previewX}px`;
-      seekPreviewTime.textContent = formatMediaTime(ratio * duration);
+      seekPreviewTime.textContent = formatMediaTime(previewTime);
       seekPreview.classList.add("custom-player-seek-preview-visible");
     };
     const hideSeekPreview = () => {
@@ -714,18 +865,37 @@
       if (media.paused) media.play().catch(() => {});
       else media.pause();
     });
-    stop.addEventListener("click", () => {
-      media.pause();
-      media.currentTime = 0;
+    playSecondary.addEventListener("click", () => play.click());
+    captions.addEventListener("click", () => {
+      captions.classList.toggle("custom-player-button-active");
+      captions.setAttribute(
+        "aria-pressed",
+        String(captions.classList.contains("custom-player-button-active"))
+      );
     });
-    rewind30.addEventListener("click", () => seekBy(-30));
-    rewind.addEventListener("click", () => seekBy(-10));
-    forward.addEventListener("click", () => seekBy(10));
-    forward30.addEventListener("click", () => seekBy(30));
-    loop.addEventListener("click", () => {
-      media.loop = !media.loop;
-      loop.classList.toggle("custom-player-button-active", media.loop);
-      loop.setAttribute("aria-pressed", String(media.loop));
+    settings.addEventListener("click", () => {
+      settingsPanel.hidden = !settingsPanel.hidden;
+      settings.classList.toggle("custom-player-button-active", !settingsPanel.hidden);
+      syncSettingsPanel();
+      showControls();
+    });
+    speedButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        speed.value = String(button.dataset.speed || "1");
+        speed.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+    fitButtons.forEach((button) => {
+      button.addEventListener("click", () => setFitMode(button.dataset.fit === "cover" ? "cover" : "contain"));
+    });
+    settingLoop?.addEventListener("change", () => {
+      media.loop = settingLoop instanceof HTMLInputElement && settingLoop.checked;
+      syncSettingsPanel();
+      persistSettings();
+    });
+    settingAutoplayNext?.addEventListener("change", () => {
+      persistSettings();
+      syncSettingsPanel();
     });
     mute.addEventListener("click", () => {
       media.muted = !media.muted;
@@ -740,6 +910,7 @@
     });
     speed.addEventListener("change", () => {
       media.playbackRate = Number(speed.value) || 1;
+      syncSpeedButton();
       persistSettings();
     });
     progress.addEventListener("input", () => {
@@ -785,14 +956,21 @@
         showControls();
       }
     });
-    pip.addEventListener("click", async () => {
-      if (!(media instanceof HTMLVideoElement) || !document.pictureInPictureEnabled) return;
-      try {
-        if (document.pictureInPictureElement === media) await document.exitPictureInPicture();
-        else await media.requestPictureInPicture();
-      } catch (error) {
-        console.error("Nie można uruchomić Picture-in-Picture:", error);
-      }
+    mini.addEventListener("click", () => {
+      if (!(media instanceof HTMLVideoElement)) return;
+      player.classList.toggle("custom-player-theater");
+      document.body.classList.toggle(
+        "custom-player-theater-active",
+        player.classList.contains("custom-player-theater") && Boolean(player.closest(".preview-stage"))
+      );
+      mini.classList.toggle(
+        "custom-player-button-active",
+        player.classList.contains("custom-player-theater")
+      );
+      mini.setAttribute(
+        "aria-pressed",
+        String(player.classList.contains("custom-player-theater"))
+      );
     });
     player.addEventListener("mousemove", showControls);
     player.addEventListener("mouseenter", () => {
@@ -813,6 +991,11 @@
     document.addEventListener("fullscreenchange", syncFullscreen);
     document.addEventListener("webkitfullscreenchange", syncFullscreen);
     document.addEventListener("keydown", handleKeyboardShortcut);
+    document.addEventListener("pointerdown", (event) => {
+      if (settingsPanel.hidden || player.contains(event.target)) return;
+      settingsPanel.hidden = true;
+      settings.classList.remove("custom-player-button-active");
+    });
     media.addEventListener("click", () => {
       activeCustomPlayer = player;
       play.click();
@@ -834,13 +1017,27 @@
     });
     media.addEventListener("ratechange", () => {
       speed.value = String(media.playbackRate);
+      syncSpeedButton();
+      syncSettingsPanel();
       persistSettings();
     });
-    media.addEventListener("ended", () => writePlayerPosition(media));
+    media.addEventListener("ended", () => {
+      writePlayerPosition(media);
+      if (
+        nextUrl &&
+        settingAutoplayNext instanceof HTMLInputElement &&
+        settingAutoplayNext.checked &&
+        !media.loop
+      ) {
+        window.location.href = nextUrl;
+      }
+    });
     syncPlay();
     syncMute();
     syncTime();
     syncFullscreen();
+    syncSpeedButton();
+    syncSettingsPanel();
     if (media.hasAttribute("autoplay")) media.play().catch(() => {});
   };
 

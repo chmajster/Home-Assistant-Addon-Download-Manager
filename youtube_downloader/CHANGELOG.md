@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.63
+
+- Dodano menu ustawień playera z prędkością, informacją o jakości, zapętlaniem, auto-play następnego pliku i trybem `contain`/`cover`.
+- Dodano prawdziwy tryb theater dla strony podglądu, bez przechodzenia w fullscreen.
+- Dodano generowanie zestawu miniaturek osi czasu i wybór najbliższej klatki przy przewijaniu po pasku postępu.
+- Dodano proste reguły automatyczne pobierania dla treści podcast/audio oraz wykrytych live z Twitcha.
+
 ## 1.3.62
 
 - Dodano skróty klawiaturowe web playera w stylu YouTube: spacja, K, J, L, strzałki, M i F.

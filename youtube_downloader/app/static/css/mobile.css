@@ -127,39 +127,65 @@
   }
 
   .custom-player-controls {
-    padding: 1.45rem 0.5rem 0.55rem;
+    padding: 1.35rem 0.45rem 0.45rem;
   }
 
   .custom-player-button {
-    font-size: 0.82rem;
-    height: 1.85rem;
-    min-width: 1.85rem;
-    padding: 0 0.32rem;
+    height: 1.9rem;
+    min-width: 1.9rem;
+  }
+
+  .custom-player-button svg {
+    height: 1.18rem;
+    width: 1.18rem;
   }
 
   .custom-player-main-row {
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.25rem;
   }
 
-  .custom-player-volume-row {
+  .custom-player-left-controls {
     flex: 1 1 auto;
-    justify-content: flex-end;
+    gap: 0.18rem;
+  }
+
+  .custom-player-right-controls {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .custom-player-captions,
+  .custom-player-mini,
+  .custom-player-pill,
+  .custom-player-play-secondary,
+  .custom-player-settings {
+    display: none;
   }
 
   .custom-player-volume {
-    max-width: 4.8rem;
+    max-width: 3.7rem;
+    width: 3.7rem;
   }
 
   .custom-player-time {
     font-size: 0.7rem;
-    min-width: 5.8rem;
+    min-width: 5.5rem;
   }
 
   .custom-player-seek-preview {
     bottom: 6.6rem;
     width: 7.5rem;
+  }
+
+  .custom-player-settings-panel {
+    bottom: 3.55rem;
+    left: 0.55rem;
+    min-width: 0;
+    right: 0.55rem;
   }
 
   .page-heading {

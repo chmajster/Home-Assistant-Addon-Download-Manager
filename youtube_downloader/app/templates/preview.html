@@ -23,8 +23,15 @@
       <div
         class="custom-player custom-player-video"
         data-custom-player
+        data-quality-label="{{ download_type_labels.get(file_info.download_type, file_info.download_type or 'Oryginalna') }}"
+        {% if next_preview_url %}
+          data-next-url="{{ next_preview_url }}"
+        {% endif %}
         {% if file_info.thumbnail_exists %}
           data-preview-thumbnail="{{ ingress_url('web.thumbnail', filename=file_info.thumbnail_filename) }}"
+        {% endif %}
+        {% if timeline_thumbnails %}
+          data-preview-thumbnails='{{ timeline_thumbnails|tojson }}'
         {% endif %}
       >
         <video class="custom-player-media preview-player" preload="metadata" autoplay playsinline>

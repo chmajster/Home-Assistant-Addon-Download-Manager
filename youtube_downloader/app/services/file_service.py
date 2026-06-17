@@ -227,11 +227,89 @@ class FileService:
         finally:
             temporary.unlink(missing_ok=True)
 
+    def generate_timeline_thumbnails(
+        self,
+        filename: str,
+        duration: int | None,
+        interval_seconds: int = 30,
+        max_frames: int = 60,
+    ) -> list[dict[str, int | str]]:
+        """Create cached timeline thumbnails for hover previews."""
+
+        source = self.resolve_download(filename)
+        if source.suffix.lower() not in VIDEO_EXTENSIONS or not duration or duration < 10:
+            return []
+        interval = max(10, int(interval_seconds))
+        frame_count = min(max_frames, max(1, int(duration // interval) + 1))
+        timestamps = [min(max(1, index * interval), max(1, duration - 1)) for index in range(frame_count)]
+        frames: list[dict[str, int | str]] = []
+        for timestamp in timestamps:
+            thumbnail = self.resolve_thumbnail(
+                f"{source.name}.timeline-{timestamp:05d}.jpg",
+                require_exists=False,
+            )
+            if not thumbnail.is_file():
+                temporary = self.resolve_thumbnail(
+                    f"{source.name}.timeline-{timestamp:05d}.{os.getpid()}.{threading.get_ident()}.tmp.jpg",
+                    require_exists=False,
+                )
+                try:
+                    command = [
+                        "ffmpeg",
+                        "-hide_banner",
+                        "-loglevel",
+                        "error",
+                        "-y",
+                        "-ss",
+                        str(timestamp),
+                        "-i",
+                        str(source),
+                        "-frames:v",
+                        "1",
+                        "-vf",
+                        "scale=320:-2:force_original_aspect_ratio=decrease",
+                        "-q:v",
+                        "4",
+                        str(temporary),
+                    ]
+                    result = subprocess.run(
+                        command,
+                        capture_output=True,
+                        check=False,
+                        text=True,
+                        timeout=20,
+                    )
+                    if result.returncode == 0 and temporary.is_file():
+                        os.replace(temporary, thumbnail)
+                    else:
+                        LOGGER.debug(
+                            "Nie wygenerowano miniatury osi czasu %s @ %ss: %s",
+                            filename,
+                            timestamp,
+                            result.stderr.strip(),
+                        )
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    LOGGER.debug(
+                        "Nie wygenerowano miniatury osi czasu %s @ %ss: %s",
+                        filename,
+                        timestamp,
+                        error,
+                    )
+                finally:
+                    temporary.unlink(missing_ok=True)
+            if thumbnail.is_file():
+                frames.append({"time": timestamp, "filename": thumbnail.name})
+        return frames
+
     def delete_thumbnail(self, filename: str) -> None:
         """Remove a generated thumbnail associated with a managed download."""
 
         thumbnail = self.resolve_thumbnail(f"{filename}.jpg", require_exists=False)
         thumbnail.unlink(missing_ok=True)
+        prefix = f"{filename}.timeline-"
+        for timeline_thumbnail in self.thumbnail_dir.iterdir():
+            if timeline_thumbnail.is_file() and timeline_thumbnail.name.startswith(prefix):
+                timeline_thumbnail.unlink(missing_ok=True)
 
     def history(self) -> list[dict[str, Any]]:
         """Load download history and enrich it with current file existence."""

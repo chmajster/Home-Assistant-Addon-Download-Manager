@@ -425,6 +425,27 @@ def _profile_download_type(
     return str(profile.get("download_type") or download_type or "best")
 
 
+def _automatic_download_type(
+    url: object,
+    title: object,
+    download_type: str,
+    is_live: object = None,
+) -> tuple[str, str | None]:
+    """Apply lightweight built-in download rules without overriding explicit formats."""
+
+    if download_type == "format":
+        return download_type, None
+    validated_url = MediaService.validate_url(str(url or ""))
+    platform = MediaService.detect_platform(validated_url)
+    title_text = str(title or "").casefold()
+    url_text = validated_url.casefold()
+    if platform == "twitch" and str(is_live).casefold() in {"1", "true", "yes", "on"}:
+        return "live", "Twitch live wykryty automatycznie."
+    if any(marker in title_text or marker in url_text for marker in ("podcast", "audio", "mp3")):
+        return "audio", "Podcast/audio wykryte automatycznie."
+    return download_type, None
+
+
 def _selected_playlist_entries() -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -946,6 +967,12 @@ def start_download():
             request.form.get("download_type", "best"),
             request.form.get("url", ""),
         )
+        download_type, automatic_rule = _automatic_download_type(
+            request.form.get("url", ""),
+            request.form.get("title", ""),
+            download_type,
+            request.form.get("is_live"),
+        )
         format_id = request.form.get("format_id") or None
         if download_type != "format":
             format_id = None
@@ -965,13 +992,20 @@ def start_download():
             )
         if playlist_entries:
             for entry in playlist_entries:
+                entry_download_type, _ = _automatic_download_type(
+                    entry["url"],
+                    entry["title"],
+                    download_type,
+                )
                 _job_manager().start_download(
                     url=entry["url"],
                     title=entry["title"],
-                    download_type=download_type,
+                    download_type=entry_download_type,
                     duration=entry["duration"],
                 )
             flash(f"Uruchomiono zadania z playlisty: {len(playlist_entries)}.", "success")
+            if automatic_rule:
+                flash(f"Zastosowano regułę automatyczną: {automatic_rule}", "info")
             return redirect(ingress_url("web.jobs"))
         job = _job_manager().start_download(
             url=request.form.get("url", ""),
@@ -981,6 +1015,8 @@ def start_download():
             duration=_duration_value(request.form.get("duration")),
         )
         flash(f"Uruchomiono zadanie {job.job_id[:8]}.", "success")
+        if automatic_rule:
+            flash(f"Zastosowano regułę automatyczną: {automatic_rule}", "info")
     except MediaServiceError as error:
         flash(str(error), "danger")
     return redirect(ingress_url("web.jobs"))
@@ -1013,10 +1049,16 @@ def import_downloads():
         for url in urls:
             try:
                 validated_url = MediaService.validate_url(url)
+                title = _bulk_download_title(validated_url)
+                download_type, _ = _automatic_download_type(
+                    validated_url,
+                    title,
+                    "best",
+                )
                 _job_manager().start_download(
                     url=validated_url,
-                    title=_bulk_download_title(validated_url),
-                    download_type="best",
+                    title=title,
+                    download_type=download_type,
                 )
                 created += 1
             except MediaServiceError:
@@ -1286,15 +1328,27 @@ def preview(filename: str):
             "error.html", message="Nie znaleziono pobranego pliku."
         ), 404
 
-    record = next(
+    history_records = _file_service().history()
+    current_index = next(
         (
-            item
-            for item in _file_service().history()
+            index
+            for index, item in enumerate(history_records)
             if item.get("filename") == path.name
         ),
-        {},
+        -1,
     )
+    record = history_records[current_index] if current_index >= 0 else {}
     enriched_record = _history_records([record])[0] if record else {}
+    next_preview_url = ""
+    if current_index >= 0:
+        for item in history_records[current_index + 1 :]:
+            filename = str(item.get("filename") or "")
+            if not item.get("file_exists") or not filename:
+                continue
+            next_mime_type = mimetypes.guess_type(filename)[0] or ""
+            if next_mime_type.startswith(("video/", "audio/")):
+                next_preview_url = ingress_url("web.preview", filename=filename)
+                break
     mime_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     media_kind = "video" if mime_type.startswith("video/") else "audio"
     if not mime_type.startswith(("video/", "audio/")):
@@ -1303,12 +1357,24 @@ def preview(filename: str):
     downloaded_at = record.get("downloaded_at") or datetime.fromtimestamp(
         stat.st_mtime, UTC
     ).isoformat()
+    duration = _duration_value(enriched_record.get("duration"))
+    timeline_thumbnails = []
+    if media_kind == "video":
+        timeline_thumbnails = [
+            {
+                "time": frame["time"],
+                "url": ingress_url("web.thumbnail", filename=str(frame["filename"])),
+            }
+            for frame in _file_service().generate_timeline_thumbnails(path.name, duration)
+        ]
     return render_template(
         "preview.html",
         title=enriched_record.get("title") or path.name,
         filename=path.name,
         mime_type=mime_type,
         media_kind=media_kind,
+        next_preview_url=next_preview_url,
+        timeline_thumbnails=timeline_thumbnails,
         file_info={
             "size": stat.st_size,
             "downloaded_at": downloaded_at,
@@ -1321,6 +1387,7 @@ def preview(filename: str):
             "all_tags": enriched_record.get("all_tags", []),
             "thumbnail_exists": enriched_record.get("thumbnail_exists"),
             "thumbnail_filename": enriched_record.get("thumbnail_filename"),
+            "duration": duration,
         },
     )
 

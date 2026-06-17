@@ -32,6 +32,7 @@ from app.services.ha_options import (
 from app.services.ha_notifications import HomeAssistantNotifier
 from app.services.job_manager import JobManager, now_iso
 from app.services.media_service import MediaService, MediaServiceError
+from app.routes.web import _automatic_download_type
 from app.services.state_store import SQLiteStateStore
 from app.services.ytdlp_updater import YtDlpUpdater
 
@@ -1378,13 +1379,14 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("media-web-downloader-player-settings", script)
         self.assertIn("media-web-downloader-player-positions", script)
         self.assertIn("playbackRate", script)
-        self.assertIn("custom-player-loop", script)
         self.assertIn("custom-player-overlay", script)
-        self.assertIn("Cofnij 30 sekund", script)
-        self.assertIn("Przewiń 30 sekund", script)
+        self.assertIn("custom-player-captions", script)
+        self.assertIn("custom-player-settings", script)
+        self.assertIn("custom-player-settings-panel", script)
+        self.assertIn("custom-player-right-controls", script)
+        self.assertIn("custom-player-theater-active", script)
+        self.assertIn("W tym filmie >", script)
         self.assertIn("bulk-url-remove", script)
-        self.assertIn("pictureInPictureEnabled", script)
-        self.assertIn("requestPictureInPicture", script)
         self.assertIn("Odtwórz tutaj", script)
 
     def test_history_bulk_delete_records_keeps_files(self) -> None:
@@ -2240,6 +2242,24 @@ class HomeAssistantOptionsTestCase(unittest.TestCase):
             self.assertEqual(load_options().preferred_format, "best")
 
 
+class AutomaticDownloadRulesTestCase(unittest.TestCase):
+    """Apply lightweight built-in download rules."""
+
+    def test_podcast_audio_and_twitch_live_rules(self) -> None:
+        self.assertEqual(
+            _automatic_download_type("https://youtu.be/example", "Podcast 01", "best")[0],
+            "audio",
+        )
+        self.assertEqual(
+            _automatic_download_type("https://www.twitch.tv/example", "Stream", "best", "true")[0],
+            "live",
+        )
+        self.assertEqual(
+            _automatic_download_type("https://youtu.be/example", "Podcast 01", "format")[0],
+            "format",
+        )
+
+
 class HomeAssistantNotifierTestCase(unittest.TestCase):
     """Format Home Assistant persistent notifications."""
 
@@ -2449,6 +2469,26 @@ class FileServiceThumbnailTestCase(unittest.TestCase):
         self.assertIsNone(result.filename)
         self.assertIsNone(result.warning_message)
         ffmpeg.assert_not_called()
+
+    def test_timeline_thumbnails_are_generated_and_deleted(self) -> None:
+        video = self.files.download_dir / "example.mp4"
+        video.write_bytes(b"video")
+
+        def fake_ffmpeg(command, **kwargs):
+            Path(command[-1]).write_bytes(b"timeline")
+            return SimpleNamespace(returncode=0, stderr="")
+
+        with patch("app.services.file_service.subprocess.run", side_effect=fake_ffmpeg):
+            frames = self.files.generate_timeline_thumbnails(
+                video.name,
+                duration=75,
+                interval_seconds=30,
+            )
+
+        self.assertEqual([frame["time"] for frame in frames], [1, 30, 60])
+        self.assertTrue(self.files.resolve_thumbnail(str(frames[0]["filename"])).is_file())
+        self.files.delete_file(video.name)
+        self.assertFalse(any(self.files.thumbnail_dir.glob("example.mp4.timeline-*.jpg")))
 
     def test_short_video_uses_first_frame_as_thumbnail_fallback(self) -> None:
         video = self.files.download_dir / "short.mp4"
