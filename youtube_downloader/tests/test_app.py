@@ -259,6 +259,12 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("/api/hassio_ingress/token/static/css/style.css", body)
         self.assertIn("/api/hassio_ingress/token/analyze", body)
 
+    def test_index_exposes_quick_download_button(self) -> None:
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn('formaction="/download"', body)
+        self.assertIn('data-quick-download-submit', body)
+        self.assertIn('name="download_type"', body)
+
     def test_empty_job_api(self) -> None:
         response = self.client.get("/api/jobs")
         self.assertEqual(response.get_json(), {"jobs": []})
@@ -300,6 +306,8 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertIn("media-web-downloader-restore-path", body)
             self.assertIn('"beforeunload"', body)
             self.assertIn("window.location.replace(route(restorePath))", body)
+            self.assertIn("data-quick-download-submit", body)
+            self.assertIn("Szybkie pobieranie obsługuje jeden link naraz.", body)
             self.assertIn("jobAutoRetryBlock", body)
             self.assertIn("next_retry_at", body)
             self.assertIn("auto_retry_attempts", body)
@@ -2135,8 +2143,27 @@ class MediaUrlTestCase(unittest.TestCase):
 
         self.assertIn("--live-from-start", command)
         self.assertNotIn("--live-from-start", command_without_start)
+        self.assertIn("--extractor-args", command)
+        self.assertIn(
+            "youtube:player_client=default,mweb,web_embedded",
+            command,
+        )
         self.assertEqual(command[-1], "https://youtu.be/live")
         self.assertEqual(command_without_start[-1], "https://youtu.be/live")
+
+    def test_public_youtube_options_add_non_cookie_clients(self) -> None:
+        options: dict[str, object] = {}
+
+        MediaService._apply_public_youtube_options(options, "https://youtu.be/example")
+
+        self.assertEqual(
+            options["extractor_args"],
+            {
+                "youtube": {
+                    "player_client": ["default", "mweb", "web_embedded"],
+                }
+            },
+        )
 
 
 class MediaFormatSelectionTestCase(unittest.TestCase):
@@ -2221,6 +2248,26 @@ class MediaErrorMessageTestCase(unittest.TestCase):
                 "ERROR: Postprocessing: ffmpeg conversion failed"
             ),
             FFMPEG_ERROR_MESSAGE,
+        )
+
+    def test_youtube_bot_challenge_is_explained_without_cookies(self) -> None:
+        self.assertEqual(
+            MediaService.polish_error(
+                "ERROR: [youtube] abc: Sign in to confirm you’re not a bot. "
+                "Use --cookies-from-browser or --cookies for the authentication."
+            ),
+            (
+                "YouTube zablokował anonimowy dostęp z tego adresu IP. "
+                "Dodatek nie używa logowania ani cookies; zaktualizuj yt-dlp, odczekaj i spróbuj ponownie."
+            ),
+        )
+
+    def test_private_video_still_reports_unsupported_login(self) -> None:
+        self.assertEqual(
+            MediaService.polish_error(
+                "Private video. Sign in if you've been granted access"
+            ),
+            "Ten materiał jest prywatny. Dodatek nie obsługuje logowania ani prywatnych materiałów.",
         )
 
 
@@ -2568,6 +2615,18 @@ class FakeMediaService:
     validate_url = staticmethod(MediaService.validate_url)
     format_selection = staticmethod(MediaService.format_selection)
 
+    def effective_download_options(
+        self, url: str, download_type: str, format_id: str | None = None
+    ) -> tuple[str, dict[str, object]]:
+        validated_url = self.validate_url(url)
+        selection, postprocessors = self.format_selection(download_type, format_id)
+        return validated_url, {
+            "format": selection,
+            "outtmpl": str(self.download_dir / "%(title).180B [%(id)s].%(ext)s"),
+            "postprocessors": postprocessors,
+            "retries": 5,
+        }
+
     def download(self, **kwargs):
         target = self.download_dir / "example.mp4"
         target.write_text("media", encoding="utf-8")
@@ -2683,6 +2742,11 @@ class JobManagerTestCase(unittest.TestCase):
         self.assertEqual(completed.downloaded_bytes, 5)
         self.assertEqual(completed.total_bytes, 5)
         self.assertTrue(any("[download]" in line for line in completed.log_lines))
+        full_log = "\n".join(self.manager.state_store.job_logs(job.job_id))
+        self.assertIn("[yt-dlp] Parametry pobierania:", full_log)
+        self.assertIn('"url": "https://youtu.be/abc"', full_log)
+        self.assertIn('"download_type": "best"', full_log)
+        self.assertIn('"format": "bestvideo*+bestaudio/best"', full_log)
         self.assertEqual(self.files.history()[0]["title"], "Example")
         self.assertEqual(self.files.history()[0]["size"], 5)
         self.assertEqual(self.files.history()[0]["duration"], 125)

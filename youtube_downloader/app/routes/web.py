@@ -956,20 +956,31 @@ def start_download():
 
     if not _valid_form():
         return redirect(ingress_url("web.index"))
+    urls = _bulk_url_candidates(request.form.get("url", ""))
+    if not urls:
+        flash("Wklej co najmniej jeden adres URL.", "warning")
+        return redirect(ingress_url("web.index"))
+    if len(urls) > 1 and not request.form.get("playlist_picker"):
+        flash("Szybkie pobieranie obsługuje jeden link naraz.", "warning")
+        return redirect(ingress_url("web.index"))
     if _limited("download", 10):
         flash("Zbyt wiele prób uruchomienia pobierania. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
         _ensure_ytdlp_recent()
+        validated_url = MediaService.validate_url(urls[0])
+        title = str(request.form.get("title") or "").strip() or _bulk_download_title(
+            validated_url
+        )
         profile = _selected_download_profile(request.form.get("download_profile"))
         download_type = _profile_download_type(
             profile,
             request.form.get("download_type", "best"),
-            request.form.get("url", ""),
+            validated_url,
         )
         download_type, automatic_rule = _automatic_download_type(
-            request.form.get("url", ""),
-            request.form.get("title", ""),
+            validated_url,
+            title,
             download_type,
             request.form.get("is_live"),
         )
@@ -986,8 +997,8 @@ def start_download():
         if not request.form.get("allow_duplicate"):
             _flash_duplicate_warnings(
                 _duplicate_download_warnings(
-                    request.form.get("url", ""),
-                    request.form.get("title", ""),
+                    validated_url,
+                    title,
                 )
             )
         if playlist_entries:
@@ -1008,8 +1019,8 @@ def start_download():
                 flash(f"Zastosowano regułę automatyczną: {automatic_rule}", "info")
             return redirect(ingress_url("web.jobs"))
         job = _job_manager().start_download(
-            url=request.form.get("url", ""),
-            title=request.form.get("title", ""),
+            url=validated_url,
+            title=title,
             download_type=download_type,
             format_id=format_id,
             duration=_duration_value(request.form.get("duration")),

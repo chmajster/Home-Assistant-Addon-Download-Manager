@@ -34,6 +34,14 @@ VIDEO_QUALITY_LIMITS = {
     "video-720": 720,
     "video-1080": 1080,
 }
+YOUTUBE_PUBLIC_PLAYER_CLIENTS = ("default", "mweb", "web_embedded")
+YOUTUBE_ANONYMOUS_ACCESS_MESSAGE = (
+    "YouTube zablokował anonimowy dostęp z tego adresu IP. "
+    "Dodatek nie używa logowania ani cookies; zaktualizuj yt-dlp, odczekaj i spróbuj ponownie."
+)
+LOGIN_ACCESS_MESSAGE = (
+    "Serwis wymaga dodatkowego dostępu. Dodatek nie używa logowania ani cookies."
+)
 
 
 def _yt_dlp_api() -> tuple[Any, type[Exception]]:
@@ -106,6 +114,7 @@ class MediaService:
             "noplaylist": False,
             "ignoreerrors": False,
         }
+        self._apply_public_youtube_options(options, validated_url)
         YoutubeDL, DownloadError = _yt_dlp_api()
         try:
             with YoutubeDL(options) as ydl:
@@ -132,8 +141,9 @@ class MediaService:
     ) -> list[Path]:
         """Download a URL synchronously. JobManager runs this method in a worker."""
 
-        validated_url = self.validate_url(url)
-        options = self.download_options(download_type, format_id)
+        validated_url, options = self.effective_download_options(
+            url, download_type, format_id
+        )
         options["progress_hooks"] = [progress_hook]
         options["postprocessor_hooks"] = [postprocessor_hook]
         YoutubeDL, DownloadError = _yt_dlp_api()
@@ -151,6 +161,16 @@ class MediaService:
         if download_type == "audio":
             paths.extend(path.with_suffix(".mp3") for path in list(paths))
         return self._existing_managed_paths(paths)
+
+    def effective_download_options(
+        self, url: str, download_type: str, format_id: str | None = None
+    ) -> tuple[str, dict[str, Any]]:
+        """Return the validated URL and final yt-dlp options used for a download."""
+
+        validated_url = self.validate_url(url)
+        options = self.download_options(download_type, format_id)
+        self._apply_public_youtube_options(options, validated_url)
+        return validated_url, options
 
     def download_options(
         self, download_type: str, format_id: str | None = None
@@ -234,10 +254,35 @@ class MediaService:
             "--output",
             str(options["outtmpl"]),
         ]
+        if self.detect_platform(validated_url) == "youtube":
+            command.extend(
+                [
+                    "--extractor-args",
+                    f"youtube:player_client={','.join(YOUTUBE_PUBLIC_PLAYER_CLIENTS)}",
+                ]
+            )
         if live_from_start:
             command.append("--live-from-start")
         command.append(validated_url)
         return command
+
+    @staticmethod
+    def _apply_public_youtube_options(options: dict[str, Any], url: str) -> None:
+        if MediaService.detect_platform(url) != "youtube":
+            return
+
+        extractor_args = {
+            key: dict(value)
+            for key, value in dict(options.get("extractor_args") or {}).items()
+        }
+        youtube_args = dict(extractor_args.get("youtube") or {})
+        requested_clients = list(youtube_args.get("player_client") or [])
+        for client in YOUTUBE_PUBLIC_PLAYER_CLIENTS:
+            if client not in requested_clients:
+                requested_clients.append(client)
+        youtube_args["player_client"] = requested_clients
+        extractor_args["youtube"] = youtube_args
+        options["extractor_args"] = extractor_args
 
     @staticmethod
     def polish_error(message: str) -> str:
@@ -260,11 +305,29 @@ class MediaService:
             return "Ta transmisja jeszcze się nie rozpoczęła."
         if "drm" in lowered:
             return "Materiał jest chroniony DRM i nie może zostać pobrany."
+        if MediaService._is_youtube_anonymous_access_block(lowered):
+            return YOUTUBE_ANONYMOUS_ACCESS_MESSAGE
         if "login" in lowered or "sign in" in lowered or "cookies" in lowered:
-            return "Serwis wymaga dodatkowego dostępu. Dodatek nie używa logowania ani cookies."
+            return LOGIN_ACCESS_MESSAGE
         if "unsupported url" in lowered:
             return "yt-dlp nie obsługuje tego adresu URL."
         return "yt-dlp nie mógł obsłużyć materiału. Sprawdź dostępność linku i logi dodatku."
+
+    @staticmethod
+    def _is_youtube_anonymous_access_block(lowered_message: str) -> bool:
+        return any(
+            marker in lowered_message
+            for marker in (
+                "sign in to confirm you're not a bot",
+                "sign in to confirm you’re not a bot",
+                "confirm you're not a bot",
+                "confirm you’re not a bot",
+                "captcha challenge",
+                "has been rate-limited by youtube",
+                "http error 429",
+                "too many requests",
+            )
+        )
 
     def _normalize_info(self, info: dict[str, Any], url: str) -> dict[str, Any]:
         entries = info.get("entries")

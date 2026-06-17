@@ -17,6 +17,7 @@
       </div>
       <form action="{{ ingress_url('web.analyze') }}" method="post" class="url-form needs-validation" novalidate>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="download_type" value="{{ app_settings.preferred_format or 'best' }}">
         <label class="visually-hidden" for="media-url">Adres materiału</label>
         <div class="input-group input-group-lg hero-input-group">
           <span class="input-group-text" aria-hidden="true">URL</span>
@@ -24,6 +25,10 @@
           <button class="btn btn-accent px-4 analyze-submit" type="submit">
             <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
             <span class="analyze-submit-label">Analizuj</span>
+          </button>
+          <button class="btn btn-primary px-4 quick-download-submit" type="submit" formaction="{{ ingress_url('web.start_download') }}" data-quick-download-submit>
+            <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
+            <span class="quick-download-submit-label">Pobierz</span>
           </button>
           <div class="invalid-feedback">Wklej poprawny adres HTTP lub HTTPS z obsługiwanej domeny YouTube, Instagram, Kick albo Twitch.</div>
         </div>

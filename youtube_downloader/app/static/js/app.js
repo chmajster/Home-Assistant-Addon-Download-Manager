@@ -347,17 +347,21 @@
       renderBulkUrlReview();
     }, 0));
     form.addEventListener("submit", (event) => {
+      const quickDownload = event.submitter instanceof HTMLElement
+        && event.submitter.matches("[data-quick-download-submit]");
       const detectedUrls = pastedUrls(input?.value || "");
       const urls = detectedUrls.length > 1 ? selectedBulkUrls() : detectedUrls;
       const invalidUrls = urls.filter((url) => !isValidMediaUrl(url));
-      if (!urls.length || invalidUrls.length) {
+      if (!urls.length || invalidUrls.length || (quickDownload && urls.length !== 1)) {
         event.preventDefault();
         event.stopPropagation();
         input?.classList.add("is-invalid");
         if (feedback) {
           feedback.textContent = !urls.length
             ? "Wklej co najmniej jeden adres URL."
-            : `Niepoprawne URL-e: ${invalidUrls.join(", ")}`;
+            : invalidUrls.length
+              ? `Niepoprawne URL-e: ${invalidUrls.join(", ")}`
+              : "Szybkie pobieranie obsługuje jeden link naraz.";
         }
         return;
       }
@@ -368,13 +372,26 @@
       input?.classList.remove("is-invalid");
       syncTextareaHeight();
       form.classList.add("was-validated");
-      const button = form.querySelector(".analyze-submit");
-      button?.setAttribute("disabled", "disabled");
-      button?.setAttribute("aria-disabled", "true");
+      const button = form.querySelector(
+        quickDownload ? ".quick-download-submit" : ".analyze-submit"
+      );
+      form.querySelectorAll('button[type="submit"]').forEach((submitButton) => {
+        submitButton.setAttribute("disabled", "disabled");
+        submitButton.setAttribute("aria-disabled", "true");
+      });
       button?.querySelector(".spinner-border")?.classList.remove("d-none");
-      const label = button?.querySelector(".analyze-submit-label");
+      const label = button?.querySelector(
+        quickDownload ? ".quick-download-submit-label" : ".analyze-submit-label"
+      );
       if (label) label.textContent = "Analizuję...";
-      form.querySelector(".analyze-loading")?.classList.remove("d-none");
+      if (label && quickDownload) label.textContent = "Dodaję...";
+      const loading = form.querySelector(".analyze-loading");
+      if (loading) {
+        loading.innerHTML = quickDownload
+          ? '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Dodaję pobieranie do kolejki.'
+          : '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Analizuję materiał przez yt-dlp. To może potrwać chwilę.';
+        loading.classList.remove("d-none");
+      }
     });
   });
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.65
+
+- Dodano przycisk Pobierz w prywatnym panelu pobierania, uruchamiający zadanie bez wcześniejszej analizy.
+- Rozszerzono log zadania o pełne parametry yt-dlp użyte do pobierania.
+
 ## 1.3.64
 
 - Dodano własne menu kontekstowe playera pod prawym przyciskiem myszy, bez domyślnego menu przeglądarki.

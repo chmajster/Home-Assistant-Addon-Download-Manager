@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -667,6 +668,26 @@ class JobManager:
         if limit is not None and len(job.log_lines) > limit:
             job.log_lines = job.log_lines[-limit:]
 
+    def _append_download_parameters(self, job: Job) -> None:
+        validated_url, options = self.media_service.effective_download_options(
+            job.url, job.download_type, job.format_id
+        )
+        payload = {
+            "url": validated_url,
+            "download_type": job.download_type,
+            "format_id": job.format_id,
+            "yt_dlp_options": options,
+        }
+        self._append_log_line(job, "[yt-dlp] Parametry pobierania:", limit=None)
+        for line in json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+            default=str,
+        ).splitlines():
+            self._append_log_line(job, line, limit=None)
+
     @classmethod
     def _progress_log_line(cls, data: dict[str, Any]) -> str | None:
         status = data.get("status")
@@ -709,6 +730,7 @@ class JobManager:
                             self._finish(job, "stopped")
                         return
                     self._start(job)
+                    self._append_download_parameters(job)
                 collected: set[Path] = set()
 
                 def collect_path(data: dict[str, Any]) -> None:
