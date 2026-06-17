@@ -39,17 +39,45 @@ class HomeAssistantNotifier:
             payload = dict(job)
         status = payload.get("status")
         if status == "completed":
+            output_files = payload.get("output_files") or []
             self._send_async(
-                "Media Web Downloader: pobieranie zakończone",
+                (
+                    "Media Web Downloader: playlista zakończona"
+                    if len(output_files) > 1
+                    else "Media Web Downloader: pobieranie zakończone"
+                ),
                 self._completed_message(payload),
                 self._notification_id(payload, "completed"),
             )
         elif status == "error":
+            is_storage_error = self._is_storage_error(payload.get("error_message"))
             self._send_async(
-                "Media Web Downloader: błąd pobierania",
+                (
+                    "Media Web Downloader: brak miejsca na dysku"
+                    if is_storage_error
+                    else "Media Web Downloader: błąd pobierania"
+                ),
                 self._error_message(payload),
-                self._notification_id(payload, "error"),
+                self._notification_id(
+                    payload, "storage_error" if is_storage_error else "error"
+                ),
             )
+
+    def notify_storage(self, storage: dict[str, Any]) -> None:
+        """Notify Home Assistant when free space is low after a finished job."""
+
+        try:
+            free_percent = float(storage.get("free_percent") or 0)
+        except (TypeError, ValueError):
+            free_percent = 0.0
+        if free_percent >= 15:
+            return
+        severity = "krytycznie mało miejsca" if free_percent < 5 else "mało miejsca"
+        self._send_async(
+            f"Media Web Downloader: {severity}",
+            self._storage_message(storage),
+            "media_web_downloader_storage_low",
+        )
 
     def health_status(self) -> dict[str, Any]:
         """Return a compact Home Assistant API diagnostic status."""
@@ -140,6 +168,30 @@ class HomeAssistantNotifier:
                 f"URL: {job.get('url') or 'brak danych'}",
                 f"Błąd: {job.get('error_message') or 'nieznany błąd'}",
             ]
+        )
+
+    @staticmethod
+    def _storage_message(storage: dict[str, Any]) -> str:
+        return "\n".join(
+            [
+                f"Wolne: {storage.get('free_percent', 'brak danych')}%",
+                f"Zajęte: {storage.get('used_percent', 'brak danych')}%",
+                "Usuń starsze pliki albo zwiększ dostępne miejsce przed kolejnymi pobraniami.",
+            ]
+        )
+
+    @staticmethod
+    def _is_storage_error(message: object) -> bool:
+        lowered = str(message or "").casefold()
+        return any(
+            marker in lowered
+            for marker in (
+                "no space left",
+                "not enough space",
+                "disk full",
+                "brak miejsca",
+                "za mało miejsca",
+            )
         )
 
     @staticmethod

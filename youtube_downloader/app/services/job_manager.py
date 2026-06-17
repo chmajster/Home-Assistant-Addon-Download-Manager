@@ -1040,6 +1040,10 @@ class JobManager:
         self._persist_jobs()
         if status in {"completed", "error"} and self.notifier:
             self.notifier.notify_job(Job(**asdict(job)))
+            try:
+                self.notifier.notify_storage(self.file_service.storage_usage())
+            except Exception as error:
+                LOGGER.warning("Nie udało się sprawdzić miejsca na dysku: %s", error)
 
     def _fail(self, job_id: str, message: str) -> None:
         with self._lock:

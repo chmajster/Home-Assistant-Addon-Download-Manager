@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.62
+
+- Dodano skróty klawiaturowe web playera w stylu YouTube: spacja, K, J, L, strzałki, M i F.
+- Dodano podgląd czasu i miniatury przy przewijaniu po pasku postępu, gdy dla nagrania istnieje miniatura.
+- Rozszerzono powiadomienia Home Assistant o ukończenie playlisty oraz ostrzeżenia o małej ilości miejsca na dysku.
+- Rozbudowano diagnostykę o test zapisu katalogu, test ffmpeg, test yt-dlp CLI, test sieci i kontrolę NFS.
+
+## 1.3.61
+
+- Poprawiono web player w stylu YouTube: ciemny overlay, responsywne kontrolki, przewijanie i auto-ukrywanie sterowania.
+- Naprawiono tryb fullscreen playera, aby wideo było wyśrodkowane, skalowane z zachowaniem proporcji i osadzone na czarnym tle.
+
 ## 1.3.60
 
 - Odświeżono styl sekcji startowej `Prywatny panel pobierania` i nagłówka `Twoje media`.

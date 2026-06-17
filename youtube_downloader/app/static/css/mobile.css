@@ -127,25 +127,39 @@
   }
 
   .custom-player-controls {
-    padding: 0.6rem;
+    padding: 1.45rem 0.5rem 0.55rem;
+  }
+
+  .custom-player-button {
+    font-size: 0.82rem;
+    height: 1.85rem;
+    min-width: 1.85rem;
+    padding: 0 0.32rem;
   }
 
   .custom-player-main-row {
-    align-items: stretch;
+    align-items: center;
     flex-wrap: wrap;
+    gap: 0.25rem;
   }
 
   .custom-player-volume-row {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
+    justify-content: flex-end;
   }
 
   .custom-player-volume {
-    flex: 1 1 auto;
-    width: auto;
+    max-width: 4.8rem;
   }
 
   .custom-player-time {
-    min-width: auto;
+    font-size: 0.7rem;
+    min-width: 5.8rem;
+  }
+
+  .custom-player-seek-preview {
+    bottom: 6.6rem;
+    width: 7.5rem;
   }
 
   .page-heading {

@@ -392,6 +392,33 @@
     return button;
   };
 
+  const supportsFullscreen = (element) => (
+    Boolean(element?.requestFullscreen) ||
+    Boolean(element?.webkitRequestFullscreen)
+  );
+
+  const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+
+  const requestFullscreen = (element) => {
+    if (element.requestFullscreen) return element.requestFullscreen();
+    if (element.webkitRequestFullscreen) return element.webkitRequestFullscreen();
+    return Promise.resolve();
+  };
+
+  const exitFullscreen = () => {
+    if (document.exitFullscreen) return document.exitFullscreen();
+    if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+    return Promise.resolve();
+  };
+
+  let activeCustomPlayer = null;
+  const isEditableShortcutTarget = (target) => {
+    if (!(target instanceof Element)) return false;
+    return Boolean(
+      target.closest("input, textarea, select, button, [contenteditable='true']")
+    );
+  };
+
   const readJsonStorage = (key, fallback) => {
     try {
       const raw = localStorage.getItem(key);
@@ -455,6 +482,10 @@
     media.playbackRate = speedOptions.includes(Number(storedSettings.playbackRate))
       ? Number(storedSettings.playbackRate)
       : 1;
+    if (media instanceof HTMLVideoElement && !player.hasAttribute("tabindex")) {
+      player.tabIndex = 0;
+      player.setAttribute("aria-keyshortcuts", "Space K J L ArrowLeft ArrowRight ArrowUp ArrowDown M F");
+    }
 
     const progress = document.createElement("input");
     progress.className = "custom-player-range custom-player-progress";
@@ -465,16 +496,16 @@
     progress.step = "1";
     progress.setAttribute("aria-label", "Postęp odtwarzania");
 
-    const play = customPlayerButton("Odtwórz", "▶", "custom-player-play");
-    const stop = customPlayerButton("Stop", "■");
+    const play = customPlayerButton("Odtwórz", "\u25b6", "custom-player-play");
+    const stop = customPlayerButton("Stop", "\u25a0");
     const rewind30 = customPlayerButton("Cofnij 30 sekund", "-30");
-    const rewind = customPlayerButton("Cofnij 10 sekund", "↶");
-    const forward = customPlayerButton("Przewiń 10 sekund", "↷");
+    const rewind = customPlayerButton("Cofnij 10 sekund", "\u21b6");
+    const forward = customPlayerButton("Przewiń 10 sekund", "\u21b7");
     const forward30 = customPlayerButton("Przewiń 30 sekund", "+30");
-    const loop = customPlayerButton("Pętla", "∞", "custom-player-loop");
+    const loop = customPlayerButton("Pętla", "\u221e", "custom-player-loop");
     loop.setAttribute("aria-pressed", "false");
-    const mute = customPlayerButton("Wycisz", "🔊", "custom-player-mute");
-    const fullscreen = customPlayerButton("Pełny ekran", "⛶");
+    const mute = customPlayerButton("Wycisz", "\ud83d\udd0a", "custom-player-mute");
+    const fullscreen = customPlayerButton("Pełny ekran", "\u26f6", "custom-player-fullscreen");
     const pip = customPlayerButton("Picture-in-Picture", "PiP", "custom-player-pip");
     const time = text("span", "0:00 / 0:00", "custom-player-time");
     const speed = document.createElement("select");
@@ -514,6 +545,26 @@
     mainRow.append(transport, audio);
     controls.append(progressRow, mainRow);
     player.append(controls);
+    if (!supportsFullscreen(player) && !media.webkitEnterFullscreen) fullscreen.hidden = true;
+
+    const previewThumbnailUrl = player.dataset.previewThumbnail || "";
+    let seekPreview = null;
+    let seekPreviewTime = null;
+    if (media instanceof HTMLVideoElement) {
+      seekPreview = document.createElement("div");
+      seekPreview.className = "custom-player-seek-preview";
+      if (previewThumbnailUrl) {
+        const seekPreviewImage = document.createElement("img");
+        seekPreviewImage.className = "custom-player-seek-preview-image";
+        seekPreviewImage.alt = "";
+        seekPreviewImage.loading = "lazy";
+        seekPreviewImage.src = previewThumbnailUrl;
+        seekPreview.append(seekPreviewImage);
+      }
+      seekPreviewTime = text("span", "0:00", "custom-player-seek-preview-time");
+      seekPreview.append(seekPreviewTime);
+      player.append(seekPreview);
+    }
 
     let overlayTime = null;
     let overlayIcon = null;
@@ -522,28 +573,52 @@
       overlay.className = "custom-player-overlay";
       overlay.type = "button";
       overlay.setAttribute("aria-label", "Odtwórz lub pauzuj");
-      overlayIcon = text("span", "▶", "custom-player-overlay-icon");
+      overlayIcon = text("span", "\u25b6", "custom-player-overlay-icon");
       overlayTime = text("span", "0:00 / 0:00", "custom-player-overlay-time");
       overlay.append(overlayIcon, overlayTime);
       overlay.addEventListener("click", () => play.click());
       player.append(overlay);
     }
 
+    let controlsTimer = null;
     let seeking = false;
+    const isVideo = media instanceof HTMLVideoElement;
+    const updateRangeFill = (range, percent, property) => {
+      range.style.setProperty(property, `${Math.min(100, Math.max(0, percent))}%`);
+    };
+    const hideControls = () => {
+      if (!isVideo || media.paused || seeking || player.matches(":focus-within")) return;
+      player.classList.add("custom-player-controls-hidden");
+    };
+    const showControls = () => {
+      if (!isVideo) return;
+      player.classList.remove("custom-player-controls-hidden");
+      if (controlsTimer) window.clearTimeout(controlsTimer);
+      if (!media.paused) controlsTimer = window.setTimeout(hideControls, 2600);
+    };
+    const syncFullscreen = () => {
+      const active = fullscreenElement() === player;
+      player.classList.toggle("custom-player-is-fullscreen", active);
+      fullscreen.textContent = active ? "\u2715" : "\u26f6";
+      fullscreen.setAttribute("aria-label", active ? "Zamknij pełny ekran" : "Pełny ekran");
+      fullscreen.title = active ? "Zamknij pełny ekran" : "Pełny ekran";
+    };
     const syncPlay = () => {
       const paused = media.paused;
-      play.textContent = paused ? "▶" : "Ⅱ";
+      play.textContent = paused ? "\u25b6" : "\u23f8";
       play.setAttribute("aria-label", paused ? "Odtwórz" : "Pauza");
       play.title = paused ? "Odtwórz" : "Pauza";
       player.classList.toggle("custom-player-playing", !paused);
-      if (overlayIcon) overlayIcon.textContent = paused ? "▶" : "Ⅱ";
+      if (overlayIcon) overlayIcon.textContent = paused ? "\u25b6" : "\u23f8";
+      showControls();
     };
     const syncMute = () => {
       const muted = media.muted || media.volume === 0;
-      mute.textContent = muted ? "🔇" : "🔊";
+      mute.textContent = muted ? "\ud83d\udd07" : "\ud83d\udd0a";
       mute.setAttribute("aria-label", muted ? "Włącz dźwięk" : "Wycisz");
       mute.title = muted ? "Włącz dźwięk" : "Wycisz";
       volume.value = String(media.muted ? 0 : media.volume);
+      updateRangeFill(volume, Number(volume.value) * 100, "--volume-fill");
     };
     const persistSettings = () => writePlayerSettings({
       volume: media.volume,
@@ -560,6 +635,7 @@
     const syncTime = () => {
       const duration = Number.isFinite(media.duration) ? media.duration : 0;
       if (!seeking) progress.value = duration ? String((media.currentTime / duration) * 1000) : "0";
+      updateRangeFill(progress, Number(progress.value) / 10, "--progress-fill");
       time.textContent = `${formatMediaTime(media.currentTime)} / ${formatMediaTime(duration)}`;
       if (overlayTime) overlayTime.textContent = time.textContent;
     };
@@ -567,6 +643,71 @@
       const duration = Number.isFinite(media.duration) ? media.duration : 0;
       const target = Math.max(0, media.currentTime + seconds);
       media.currentTime = duration ? Math.min(duration, target) : target;
+    };
+    const updateSeekPreview = (clientX) => {
+      if (!seekPreview || !seekPreviewTime) return;
+      const duration = Number.isFinite(media.duration) ? media.duration : 0;
+      if (!duration) return;
+      const progressRect = progress.getBoundingClientRect();
+      if (!progressRect.width) return;
+      const playerRect = player.getBoundingClientRect();
+      const ratio = Math.min(
+        1,
+        Math.max(0, (clientX - progressRect.left) / progressRect.width)
+      );
+      const previewX = progressRect.left + ratio * progressRect.width - playerRect.left;
+      seekPreview.style.left = `${previewX}px`;
+      seekPreviewTime.textContent = formatMediaTime(ratio * duration);
+      seekPreview.classList.add("custom-player-seek-preview-visible");
+    };
+    const hideSeekPreview = () => {
+      if (!seekPreview || seeking) return;
+      seekPreview.classList.remove("custom-player-seek-preview-visible");
+    };
+    const changeVolumeBy = (delta) => {
+      media.volume = Math.min(1, Math.max(0, media.volume + delta));
+      media.muted = media.volume === 0;
+      syncMute();
+      persistSettings();
+    };
+    const handleKeyboardShortcut = (event) => {
+      if (!isVideo || isEditableShortcutTarget(event.target)) return;
+      const active = activeCustomPlayer === player;
+      const fullscreenActive = fullscreenElement() === player;
+      const focused = player.contains(document.activeElement);
+      if (!active && !fullscreenActive && !focused) return;
+      const key = event.key.toLowerCase();
+      if (key === " " || key === "k") {
+        event.preventDefault();
+        play.click();
+      } else if (key === "j") {
+        event.preventDefault();
+        seekBy(-10);
+      } else if (key === "l") {
+        event.preventDefault();
+        seekBy(10);
+      } else if (key === "arrowleft") {
+        event.preventDefault();
+        seekBy(-5);
+      } else if (key === "arrowright") {
+        event.preventDefault();
+        seekBy(5);
+      } else if (key === "arrowup") {
+        event.preventDefault();
+        changeVolumeBy(0.05);
+      } else if (key === "arrowdown") {
+        event.preventDefault();
+        changeVolumeBy(-0.05);
+      } else if (key === "m") {
+        event.preventDefault();
+        mute.click();
+      } else if (key === "f") {
+        event.preventDefault();
+        fullscreen.click();
+      } else {
+        return;
+      }
+      showControls();
     };
 
     play.addEventListener("click", () => {
@@ -604,17 +745,45 @@
     progress.addEventListener("input", () => {
       seeking = true;
       const duration = Number.isFinite(media.duration) ? media.duration : 0;
+      updateRangeFill(progress, Number(progress.value) / 10, "--progress-fill");
       time.textContent = `${formatMediaTime((Number(progress.value) / 1000) * duration)} / ${formatMediaTime(duration)}`;
+      showControls();
     });
     progress.addEventListener("change", () => {
       const duration = Number.isFinite(media.duration) ? media.duration : 0;
       media.currentTime = duration ? (Number(progress.value) / 1000) * duration : 0;
       seeking = false;
       syncTime();
+      showControls();
     });
-    fullscreen.addEventListener("click", () => {
-      if (document.fullscreenElement) document.exitFullscreen?.();
-      else player.requestFullscreen?.();
+    progress.addEventListener("pointerenter", (event) => {
+      updateSeekPreview(event.clientX);
+      showControls();
+    });
+    progress.addEventListener("pointermove", (event) => {
+      updateSeekPreview(event.clientX);
+      showControls();
+    });
+    progress.addEventListener("pointerleave", hideSeekPreview);
+    progress.addEventListener("pointerdown", (event) => {
+      updateSeekPreview(event.clientX);
+      showControls();
+    });
+    progress.addEventListener("pointerup", (event) => {
+      updateSeekPreview(event.clientX);
+      window.setTimeout(hideSeekPreview, 250);
+    });
+    fullscreen.addEventListener("click", async () => {
+      try {
+        if (fullscreenElement() === player) await exitFullscreen();
+        else if (supportsFullscreen(player)) await requestFullscreen(player);
+        else if (media.webkitEnterFullscreen) media.webkitEnterFullscreen();
+      } catch (error) {
+        console.error("Nie można uruchomić pełnego ekranu:", error);
+      } finally {
+        syncFullscreen();
+        showControls();
+      }
     });
     pip.addEventListener("click", async () => {
       if (!(media instanceof HTMLVideoElement) || !document.pictureInPictureEnabled) return;
@@ -625,7 +794,30 @@
         console.error("Nie można uruchomić Picture-in-Picture:", error);
       }
     });
-    media.addEventListener("click", () => play.click());
+    player.addEventListener("mousemove", showControls);
+    player.addEventListener("mouseenter", () => {
+      activeCustomPlayer = player;
+      showControls();
+    });
+    player.addEventListener("touchstart", () => {
+      activeCustomPlayer = player;
+      showControls();
+    }, { passive: true });
+    player.addEventListener("focusin", () => {
+      activeCustomPlayer = player;
+      showControls();
+    });
+    player.addEventListener("keydown", showControls);
+    controls.addEventListener("pointerdown", showControls);
+    controls.addEventListener("pointerup", showControls);
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    document.addEventListener("webkitfullscreenchange", syncFullscreen);
+    document.addEventListener("keydown", handleKeyboardShortcut);
+    media.addEventListener("click", () => {
+      activeCustomPlayer = player;
+      play.click();
+      showControls();
+    });
     media.addEventListener("play", syncPlay);
     media.addEventListener("pause", syncPlay);
     media.addEventListener("loadedmetadata", () => {
@@ -648,6 +840,7 @@
     syncPlay();
     syncMute();
     syncTime();
+    syncFullscreen();
     if (media.hasAttribute("autoplay")) media.play().catch(() => {});
   };
 

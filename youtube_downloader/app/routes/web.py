@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+import os
 import re
+import socket
 import subprocess
+import tempfile
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
@@ -132,6 +135,92 @@ def _command_first_line(command: list[str], timeout: float = 3.0) -> dict[str, A
     }
 
 
+def _directory_write_test(path: object) -> dict[str, Any]:
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=".diagnostic-write-",
+            suffix=".tmp",
+            dir=str(path),
+            delete=False,
+        ) as handle:
+            handle.write(b"ok")
+            temporary_name = handle.name
+        os.unlink(temporary_name)
+        return {"available": True, "message": "Zapis i usuwanie pliku działa."}
+    except OSError as error:
+        return {"available": False, "message": str(error)}
+
+
+def _network_test(host: str = "github.com", port: int = 443) -> dict[str, Any]:
+    try:
+        with socket.create_connection((host, port), timeout=3.0):
+            return {
+                "available": True,
+                "message": f"Połączono z {host}:{port}.",
+            }
+    except OSError as error:
+        return {"available": False, "message": str(error)}
+
+
+def _mount_type(path: object) -> str | None:
+    try:
+        resolved = os.path.realpath(os.fspath(path))
+        best_match = ""
+        best_type: str | None = None
+        with open("/proc/mounts", "r", encoding="utf-8") as mounts:
+            for line in mounts:
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                mount_point = parts[1].replace("\\040", " ")
+                if resolved == mount_point or resolved.startswith(mount_point.rstrip("/") + "/"):
+                    if len(mount_point) > len(best_match):
+                        best_match = mount_point
+                        best_type = parts[2]
+        return best_type
+    except OSError:
+        return None
+
+
+def _nfs_test(settings: Any, download_dir: object) -> dict[str, Any]:
+    if settings.storage_mode != "nfs":
+        return {
+            "available": True,
+            "status": "ok",
+            "value": "lokalny",
+            "message": "Tryb NFS jest wyłączony.",
+        }
+    if not os.path.isdir(download_dir):
+        return {
+            "available": False,
+            "status": "error",
+            "value": "brak katalogu",
+            "message": f"Nie znaleziono katalogu NFS: {download_dir}.",
+        }
+    mount_type = _mount_type(download_dir)
+    if mount_type and "nfs" in mount_type.casefold():
+        return {
+            "available": True,
+            "status": "ok",
+            "value": mount_type,
+            "message": f"Udział NFS jest zamontowany w {download_dir}.",
+        }
+    if mount_type:
+        return {
+            "available": True,
+            "status": "warning",
+            "value": mount_type,
+            "message": "Katalog działa, ale typ montowania nie wygląda na NFS.",
+        }
+    return {
+        "available": True,
+        "status": "warning",
+        "value": "niezweryfikowany",
+        "message": "Nie można odczytać typu montowania z /proc/mounts.",
+    }
+
+
 def _diagnostic_status_label(status: str) -> str:
     return {
         "ok": "OK",
@@ -248,6 +337,44 @@ def _diagnostics_snapshot() -> dict[str, Any]:
     }
     home_assistant = _ha_notifier().health_status()
     rows = _diagnostic_rows(ytdlp, ffmpeg, storage, paths, home_assistant)
+    write_test = _directory_write_test(file_service.download_dir)
+    ytdlp_cli = _command_first_line(["yt-dlp", "--version"])
+    network = _network_test()
+    nfs = _nfs_test(settings, file_service.download_dir)
+    rows.extend(
+        [
+            _diagnostic_row(
+                "Test zapisu katalogu",
+                "działa" if write_test.get("available") else "problem",
+                "ok" if write_test.get("available") else "error",
+                write_test.get("message"),
+            ),
+            _diagnostic_row(
+                "Test ffmpeg",
+                "działa" if ffmpeg.get("available") else "problem",
+                "ok" if ffmpeg.get("available") else "error",
+                ffmpeg.get("error") or ffmpeg.get("version"),
+            ),
+            _diagnostic_row(
+                "Test yt-dlp CLI",
+                ytdlp_cli.get("version"),
+                "ok" if ytdlp_cli.get("available") else "warning",
+                ytdlp_cli.get("error") or "CLI yt-dlp odpowiada.",
+            ),
+            _diagnostic_row(
+                "Test sieci",
+                "połączono" if network.get("available") else "problem",
+                "ok" if network.get("available") else "error",
+                network.get("message"),
+            ),
+            _diagnostic_row(
+                "Test NFS",
+                nfs.get("value"),
+                str(nfs.get("status") or "ok"),
+                nfs.get("message"),
+            ),
+        ]
+    )
     return {
         "rows": rows,
         "last_error": _last_diagnostic_error(rows),
@@ -256,6 +383,12 @@ def _diagnostics_snapshot() -> dict[str, Any]:
         "storage": storage,
         "paths": paths,
         "home_assistant": home_assistant,
+        "checks": {
+            "write": write_test,
+            "yt_dlp_cli": ytdlp_cli,
+            "network": network,
+            "nfs": nfs,
+        },
         "jobs": {
             "total": len(jobs),
             "active": sum(1 for job in jobs if job.status in JobManager.ACTIVE_STATUSES),
@@ -1186,6 +1319,8 @@ def preview(filename: str):
             "tags": enriched_record.get("tags", []),
             "visible_auto_tags": enriched_record.get("visible_auto_tags", []),
             "all_tags": enriched_record.get("all_tags", []),
+            "thumbnail_exists": enriched_record.get("thumbnail_exists"),
+            "thumbnail_filename": enriched_record.get("thumbnail_filename"),
         },
     )
 

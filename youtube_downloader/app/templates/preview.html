@@ -20,7 +20,13 @@
 
   <section class="preview-stage">
     {% if media_kind == "video" %}
-      <div class="custom-player custom-player-video" data-custom-player>
+      <div
+        class="custom-player custom-player-video"
+        data-custom-player
+        {% if file_info.thumbnail_exists %}
+          data-preview-thumbnail="{{ ingress_url('web.thumbnail', filename=file_info.thumbnail_filename) }}"
+        {% endif %}
+      >
         <video class="custom-player-media preview-player" preload="metadata" autoplay playsinline>
           <source src="{{ ingress_url('web.media', filename=filename) }}" type="{{ mime_type }}">
         </video>

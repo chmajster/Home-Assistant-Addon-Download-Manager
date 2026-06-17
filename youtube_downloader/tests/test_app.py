@@ -1058,7 +1058,8 @@ class ApplicationTestCase(unittest.TestCase):
                 stdout="ffmpeg version 8.1.1 Copyright\nmore",
                 stderr="",
             ),
-        ):
+        ), patch("app.routes.web.socket.create_connection") as connect:
+            connect.return_value.__enter__.return_value = object()
             body = self.client.get("/diagnostics").get_data(as_text=True)
 
         self.assertIn("Panel diagnostyczny", body)
@@ -1072,6 +1073,11 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Ostatnia aktualizacja yt-dlp", body)
         self.assertIn("2026-06-10 10:00:00", body)
         self.assertIn("Wolne miejsce na dysku", body)
+        self.assertIn("Test zapisu katalogu", body)
+        self.assertIn("Test ffmpeg", body)
+        self.assertIn("Test yt-dlp CLI", body)
+        self.assertIn("Test sieci", body)
+        self.assertIn("Test NFS", body)
         self.assertIn("Katalog pobra", body)
         self.assertIn(str(self.app.extensions["file_service"].download_dir), body)
         self.assertIn("Home Assistant API", body)
@@ -1365,6 +1371,9 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("pausePanelMedia", script)
         self.assertIn("enhanceCustomPlayer", script)
         self.assertIn("custom-player-progress", script)
+        self.assertIn("aria-keyshortcuts", script)
+        self.assertIn("handleKeyboardShortcut", script)
+        self.assertIn("custom-player-seek-preview", script)
         self.assertIn("requestFullscreen", script)
         self.assertIn("media-web-downloader-player-settings", script)
         self.assertIn("media-web-downloader-player-positions", script)
@@ -2285,6 +2294,54 @@ class HomeAssistantNotifierTestCase(unittest.TestCase):
         self.assertIn("Example", payload["message"])
         self.assertIn("example.mp4", payload["message"])
 
+    def test_playlist_and_storage_notifications_use_specific_titles(self) -> None:
+        notifier = HomeAssistantNotifier(token="token", base_url="http://ha", timeout=1)
+        requests = []
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self):
+                return b"{}"
+
+        def fake_urlopen(request, timeout):
+            requests.append(request)
+            return FakeResponse()
+
+        playlist_job = SimpleNamespace(
+            job_id="playlist123456",
+            status="completed",
+            title="Playlist",
+            download_type="best",
+            output_file="one.mp4",
+            output_files=["one.mp4", "two.mp4"],
+        )
+        storage_job = SimpleNamespace(
+            job_id="storage123456",
+            status="error",
+            title="Big video",
+            url="https://youtu.be/example",
+            error_message="No space left on device",
+        )
+
+        with patch("app.services.ha_notifications.threading.Thread") as thread:
+            thread.side_effect = lambda target, args, **_: SimpleNamespace(
+                start=lambda: target(*args)
+            )
+            with patch("app.services.ha_notifications.urllib.request.urlopen", fake_urlopen):
+                notifier.notify_job(playlist_job)
+                notifier.notify_job(storage_job)
+                notifier.notify_storage({"free_percent": 4.2, "used_percent": 95.8})
+
+        titles = [json.loads(request.data.decode("utf-8"))["title"] for request in requests]
+        self.assertIn("Media Web Downloader: playlista zakończona", titles)
+        self.assertIn("Media Web Downloader: brak miejsca na dysku", titles)
+        self.assertIn("Media Web Downloader: krytycznie mało miejsca", titles)
+
 
 class YtDlpUpdaterTestCase(unittest.TestCase):
     """Track periodic yt-dlp updates without running pip in tests."""
@@ -2533,9 +2590,13 @@ class FakeNotifier:
 
     def __init__(self) -> None:
         self.jobs = []
+        self.storage = []
 
     def notify_job(self, job) -> None:
         self.jobs.append(job)
+
+    def notify_storage(self, storage) -> None:
+        self.storage.append(storage)
 
 
 class JobManagerTestCase(unittest.TestCase):
