@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import mimetypes
 import os
 import re
@@ -375,8 +376,35 @@ def _diagnostics_snapshot() -> dict[str, Any]:
             ),
         ]
     )
+    quick_checks = [
+        _diagnostic_row(
+            "yt-dlp CLI",
+            ytdlp_cli.get("version"),
+            "ok" if ytdlp_cli.get("available") else "warning",
+            ytdlp_cli.get("error") or "CLI yt-dlp odpowiada.",
+        ),
+        _diagnostic_row(
+            "ffmpeg",
+            "działa" if ffmpeg.get("available") else "problem",
+            "ok" if ffmpeg.get("available") else "error",
+            ffmpeg.get("error") or ffmpeg.get("version"),
+        ),
+        _diagnostic_row(
+            "Zapis katalogu",
+            "działa" if write_test.get("available") else "problem",
+            "ok" if write_test.get("available") else "error",
+            write_test.get("message"),
+        ),
+        _diagnostic_row(
+            "Sieć",
+            "połączono" if network.get("available") else "problem",
+            "ok" if network.get("available") else "error",
+            network.get("message"),
+        ),
+    ]
     return {
         "rows": rows,
+        "quick_checks": quick_checks,
         "last_error": _last_diagnostic_error(rows),
         "yt_dlp": ytdlp,
         "ffmpeg": ffmpeg,
@@ -395,6 +423,97 @@ def _diagnostics_snapshot() -> dict[str, Any]:
             "failed": sum(1 for job in jobs if job.status == "error"),
         },
     }
+
+
+def _job_parameter_snapshot(job: dict[str, Any]) -> dict[str, Any]:
+    """Return the full yt-dlp parameter block saved in the job log."""
+
+    lines = list(job.get("log_lines") or [])
+    marker = "[yt-dlp] Parametry pobierania:"
+    if marker in lines:
+        start = lines.index(marker) + 1
+        collected: list[str] = []
+        balance = 0
+        for line in lines[start:]:
+            if line.startswith("[") and collected:
+                break
+            collected.append(line)
+            balance += line.count("{") - line.count("}")
+            if collected and balance <= 0 and line.strip().endswith("}"):
+                break
+        raw_json = "\n".join(collected).strip()
+        if raw_json:
+            try:
+                return json.loads(raw_json)
+            except json.JSONDecodeError:
+                return {"raw": raw_json}
+    return {
+        "url": job.get("url"),
+        "download_type": job.get("download_type"),
+        "format_id": job.get("format_id"),
+        "is_live": job.get("is_live"),
+        "live_from_start": job.get("live_from_start"),
+        "duration": job.get("duration"),
+    }
+
+
+def _job_timeline(job: dict[str, Any]) -> list[dict[str, str]]:
+    events: list[dict[str, str]] = []
+
+    def add(label: str, timestamp: object, detail: object = "", status: str = "ok") -> None:
+        if not timestamp:
+            return
+        events.append(
+            {
+                "label": label,
+                "time": _date_time_label(timestamp),
+                "detail": str(detail or ""),
+                "status": status,
+            }
+        )
+
+    add("Dodano do kolejki", job.get("created_at"), job.get("url"))
+    add("Rozpoczęto", job.get("started_at"), job.get("status_label"))
+    for line in job.get("log_lines") or []:
+        line_text = str(line)
+        if line_text.startswith("[retry]"):
+            add(
+                "Ponowienie",
+                job.get("finished_at") or job.get("created_at"),
+                line_text,
+                "warning",
+            )
+        elif line_text.startswith("[error]"):
+            add(
+                "Błąd",
+                job.get("finished_at") or job.get("created_at"),
+                line_text.removeprefix("[error] ").strip(),
+                "error",
+            )
+    add("Następna próba", job.get("next_retry_at"), "Automatyczne ponowienie", "warning")
+    add(
+        "Zakończono",
+        job.get("finished_at"),
+        job.get("status_label"),
+        "error" if job.get("status") == "error" else "ok",
+    )
+    return events
+
+
+def _job_retry_history(job: dict[str, Any]) -> list[str]:
+    history = [
+        str(line)
+        for line in job.get("log_lines") or []
+        if str(line).startswith("[retry]")
+    ]
+    if not history and (job.get("auto_retry_attempts") or job.get("next_retry_at")):
+        history.append(
+            (
+                f"Automatyczne próby: {job.get('auto_retry_attempts')}/"
+                f"{job.get('auto_retry_max_attempts')}"
+            )
+        )
+    return history
 
 
 def _duration_value(value: object) -> int | None:
@@ -1293,11 +1412,47 @@ def jobs():
     """Render active and completed jobs."""
 
     manager = _job_manager()
-    job_filter = "errors" if request.args.get("filter") == "errors" else "all"
+    allowed_filters = {
+        "all",
+        "in_progress",
+        "completed",
+        "errors",
+        "stopped",
+        "interrupted",
+    }
+    requested_filter = request.args.get("filter")
+    job_filter = requested_filter if requested_filter in allowed_filters else "all"
     return render_template(
         "jobs.html",
         jobs=[manager.job_dict(job) for job in manager.list_jobs()],
         job_filter=job_filter,
+    )
+
+
+@web_bp.get("/jobs/<job_id>")
+def job_details(job_id: str):
+    """Render detailed diagnostics for one queued job."""
+
+    try:
+        job = _job_manager().get_job(job_id)
+    except KeyError:
+        return render_template("error.html", message="Nie znaleziono zadania."), 404
+    payload = _job_manager().job_dict(job, include_full_log=True)
+    parameters = _job_parameter_snapshot(payload)
+    return render_template(
+        "job_details.html",
+        job=payload,
+        parameters=parameters,
+        parameters_json=json.dumps(
+            parameters,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+            default=str,
+        ),
+        timeline=_job_timeline(payload),
+        retry_history=_job_retry_history(payload),
+        removable_statuses=JobManager.REMOVABLE_STATUSES,
     )
 
 

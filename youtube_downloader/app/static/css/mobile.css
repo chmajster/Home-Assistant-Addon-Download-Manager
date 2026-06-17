@@ -216,6 +216,14 @@
     align-items: start !important;
   }
 
+  .job-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .job-parameter-grid {
+    grid-template-columns: 1fr;
+  }
+
   .action-panel {
     position: static;
   }

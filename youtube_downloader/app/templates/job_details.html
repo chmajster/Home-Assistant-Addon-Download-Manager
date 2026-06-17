@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Szczegóły zadania | Media Web Downloader{% endblock %}
+{% block content %}
+  <section class="page-heading d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <span class="eyebrow">Szczegóły zadania</span>
+      <h1 class="h3 mb-1 text-break">{{ job.title }}</h1>
+      <p class="section-copy mb-0 text-break">{{ job.job_id }}</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
+      <a class="btn btn-outline-primary" href="{{ ingress_url('web.job_log', job_id=job.job_id) }}">Otwórz log</a>
+      {% if job.status == "error" %}
+        <form id="job-action-retry" method="post" action="{{ ingress_url('web.retry_job', job_id=job.job_id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-primary" type="submit">Ponów</button>
+        </form>
+      {% endif %}
+      {% if job.status in removable_statuses %}
+        <form id="job-action-delete" method="post" action="{{ ingress_url('web.delete_job', job_id=job.job_id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-danger" type="submit">Usuń zadanie</button>
+        </form>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="job-detail-summary mb-4">
+    <article class="job-detail-kpi">
+      <span>Status</span>
+      <strong>{{ job.status_label }}</strong>
+    </article>
+    <article class="job-detail-kpi">
+      <span>Postęp</span>
+      <strong>{{ job.progress or 0 }}%</strong>
+    </article>
+    <article class="job-detail-kpi">
+      <span>Ponowienia</span>
+      <strong>{{ job.auto_retry_attempts }}/{{ job.auto_retry_max_attempts }}</strong>
+    </article>
+    <article class="job-detail-kpi">
+      <span>Wynik</span>
+      {% if job.output_file %}
+        <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.downloaded', filename=job.output_file) }}">Pobierz</a>
+      {% else %}
+        <strong>-</strong>
+      {% endif %}
+    </article>
+  </section>
+
+  <section class="job-detail-grid">
+    <article class="card app-card">
+      <div class="card-body">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Timeline</span>
+            <h2 class="h5 mb-0">Zdarzenia zadania</h2>
+          </div>
+        </div>
+        {% if timeline %}
+          <ol class="job-timeline mb-0">
+            {% for item in timeline %}
+              <li class="job-timeline-item job-timeline-{{ item.status }}">
+                <time>{{ item.time }}</time>
+                <strong>{{ item.label }}</strong>
+                {% if item.detail %}<small class="text-break">{{ item.detail }}</small>{% endif %}
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p class="text-body-secondary mb-0">Brak zdarzeń do pokazania.</p>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="card app-card">
+      <div class="card-body">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Błędy i ponowienia</span>
+            <h2 class="h5 mb-0">Ostatni błąd</h2>
+          </div>
+        </div>
+        {% if job.error_message %}
+          <p class="job-error-box text-danger mb-3">{{ job.error_message }}</p>
+        {% else %}
+          <p class="text-body-secondary mb-3">Brak zapisanego błędu.</p>
+        {% endif %}
+        <h3 class="h6">Retry history</h3>
+        {% if retry_history %}
+          <ul class="job-retry-list mb-0">
+            {% for item in retry_history %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-body-secondary mb-0">Brak prób ponowienia.</p>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="card app-card job-detail-wide">
+      <div class="card-body">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Parametry</span>
+            <h2 class="h5 mb-0">Pełne parametry pobierania</h2>
+          </div>
+        </div>
+        <dl class="job-parameter-grid">
+          <dt>URL</dt>
+          <dd class="text-break">{{ job.url }}</dd>
+          <dt>Typ</dt>
+          <dd>{{ job.download_type }}</dd>
+          <dt>Format</dt>
+          <dd>{{ job.format_id or "-" }}</dd>
+          <dt>Live</dt>
+          <dd>{{ "tak" if job.is_live else "nie" }}</dd>
+          <dt>Utworzono</dt>
+          <dd>{{ job.created_at|replace("T", " ")|truncate(19, True, "") }}</dd>
+        </dl>
+        <pre class="job-parameters-json mb-0">{{ parameters_json }}</pre>
+      </div>
+    </article>
+  </section>
+{% endblock %}

@@ -28,7 +28,7 @@
     {% set active_endpoint = request.endpoint or "" %}
     {% set start_active = active_endpoint in ["web.index", "web.analyze"] %}
     {% set history_active = active_endpoint in ["web.history", "web.preview"] %}
-    {% set jobs_active = active_endpoint in ["web.jobs", "web.job_log"] %}
+    {% set jobs_active = active_endpoint in ["web.jobs", "web.job_details", "web.job_log"] %}
     <nav class="navbar navbar-expand-md sticky-top app-navbar">
       <div class="container-fluid app-container">
         <a class="navbar-brand app-brand" href="{{ ingress_url('web.index') }}">

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.66
+
+- Dodano filtry statusu w widoku `Zadania`: `W toku`, `Ukończone`, `Błędy`, `Zatrzymane` i `Przerwane`.
+- Ulepszono pusty stan filtrów zadań oraz responsywne zawijanie przycisków filtrów.
+- Dodano widok szczegółów zadania z timeline, pełnymi parametrami pobierania, ostatnim błędem i historią ponowień.
+- Rozszerzono powiadomienia Home Assistant o linki-akcje do ponowienia, logu i usunięcia zadania.
+- Dodano w diagnostyce przycisk szybkiego testu `yt-dlp`, `ffmpeg`, zapisu katalogu i sieci.
+
 ## 1.3.65
 
 - Dodano przycisk Pobierz w prywatnym panelu pobierania, uruchamiający zadanie bez wcześniejszej analizy.

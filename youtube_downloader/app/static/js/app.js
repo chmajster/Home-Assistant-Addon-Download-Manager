@@ -1663,7 +1663,40 @@
   const selectedJobIds = new Set();
   const openJobLogIds = new Set();
   const jobLogScrollTops = new Map();
-  let jobsFilter = document.getElementById("jobs-filter-state")?.dataset.initialFilter === "errors" ? "errors" : "all";
+  const jobFilterConfig = {
+    all: {
+      matches: () => true,
+      emptyTitle: "Nie ma zadań",
+      emptyCopy: "Wklej link na stronie startowej, a postęp pobierania pojawi się tutaj automatycznie.",
+    },
+    in_progress: {
+      matches: isActiveJob,
+      emptyTitle: "Nie ma zadań w toku",
+      emptyCopy: "Wróć do pełnej kolejki, aby zobaczyć oczekujące, aktywne i zakończone pobrania.",
+    },
+    completed: {
+      matches: (job) => job.status === "completed",
+      emptyTitle: "Nie ma ukończonych zadań",
+      emptyCopy: "Ukończone pobrania pojawią się tutaj po zakończeniu pracy kolejki.",
+    },
+    errors: {
+      matches: (job) => job.status === "error",
+      emptyTitle: "Nie ma nieudanych zadań",
+      emptyCopy: "Filtr błędów jest pusty. Wróć do pełnej kolejki, aby zobaczyć aktywne i zakończone pobrania.",
+    },
+    stopped: {
+      matches: (job) => job.status === "stopped",
+      emptyTitle: "Nie ma zatrzymanych zadań",
+      emptyCopy: "Zatrzymane pobrania pojawią się tutaj, gdy przerwiesz je ręcznie.",
+    },
+    interrupted: {
+      matches: (job) => job.status === "interrupted",
+      emptyTitle: "Nie ma przerwanych zadań",
+      emptyCopy: "Przerwane zadania pojawią się tutaj po restarcie lub nieoczekiwanym zatrzymaniu pracy.",
+    },
+  };
+  const initialJobsFilter = document.getElementById("jobs-filter-state")?.dataset.initialFilter || "all";
+  let jobsFilter = jobFilterConfig[initialJobsFilter] ? initialJobsFilter : "all";
 
   const statusBadge = (job) => {
     const colors = {
@@ -1892,10 +1925,13 @@
     if (button) button.disabled = selectedJobIds.size === 0;
   };
 
-  const filteredJobs = (jobs) => jobsFilter === "errors" ? jobs.filter((job) => job.status === "error") : jobs;
+  const filteredJobs = (jobs) => {
+    const config = jobFilterConfig[jobsFilter] || jobFilterConfig.all;
+    return jobs.filter(config.matches);
+  };
 
   const setJobsFilter = (filter, updateUrl = true) => {
-    jobsFilter = filter === "errors" ? "errors" : "all";
+    jobsFilter = jobFilterConfig[filter] ? filter : "all";
     document.querySelectorAll("[data-jobs-filter]").forEach((button) => {
       const active = button.dataset.jobsFilter === jobsFilter;
       const errorButton = button.dataset.jobsFilter === "errors";
@@ -1906,10 +1942,18 @@
     });
     if (updateUrl && document.getElementById("jobs-table-body")) {
       const url = new URL(window.location.href);
-      if (jobsFilter === "errors") url.searchParams.set("filter", "errors");
+      if (jobsFilter !== "all") url.searchParams.set("filter", jobsFilter);
       else url.searchParams.delete("filter");
       window.history.replaceState({}, "", url);
     }
+  };
+
+  const updateJobsFilterEmptyState = () => {
+    const config = jobFilterConfig[jobsFilter] || jobFilterConfig.all;
+    const title = document.getElementById("jobs-filter-empty-title");
+    const copy = document.getElementById("jobs-filter-empty-copy");
+    if (title) title.textContent = config.emptyTitle;
+    if (copy) copy.textContent = config.emptyCopy;
   };
 
   const updateJobsToolbar = (jobs) => {
@@ -1923,6 +1967,11 @@
     document.getElementById("jobs-toolbar")?.classList.toggle("d-none", jobs.length === 0);
     const totalCount = document.getElementById("jobs-total-count");
     if (totalCount) totalCount.textContent = String(jobs.length);
+    document.querySelectorAll("[data-jobs-filter-count]").forEach((count) => {
+      const filter = count.dataset.jobsFilterCount || "";
+      const config = jobFilterConfig[filter];
+      count.textContent = String(config ? jobs.filter(config.matches).length : 0);
+    });
     const errorFilterCount = document.getElementById("jobs-error-filter-count");
     if (errorFilterCount) errorFilterCount.textContent = String(failedJobs.length);
     const failedCount = document.getElementById("jobs-failed-count");
@@ -1945,6 +1994,7 @@
       selectAll.indeterminate = selectedCount > 0 && selectedCount < visibleRemovableJobs.length;
     }
     setJobsFilter(jobsFilter, false);
+    updateJobsFilterEmptyState();
     syncJobSelectionControls();
   };
 
@@ -1967,6 +2017,9 @@
   const jobActions = (job) => {
     const actions = document.createElement("span");
     actions.className = "d-flex flex-wrap gap-2";
+    const detailsLink = text("a", "Szczegóły", "btn btn-sm btn-soft");
+    detailsLink.href = route(`/jobs/${encodeURIComponent(job.job_id)}`);
+    actions.append(detailsLink);
     if (job.is_live && ["pending", "downloading", "waiting"].includes(job.status)) {
       actions.append(actionForm(
         route(`/live/stop/${encodeURIComponent(job.job_id)}`),

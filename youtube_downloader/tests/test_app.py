@@ -287,6 +287,9 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertIn("jobs-retry-failed-form", body)
             self.assertIn("jobs-failed-count", body)
             self.assertIn("data-jobs-filter", body)
+            self.assertIn("jobFilterConfig", body)
+            self.assertIn("data-jobs-filter-count", body)
+            self.assertIn('url.searchParams.set("filter", jobsFilter)', body)
             self.assertIn("jobErrorHint", body)
             self.assertIn("job-error-copy", body)
             self.assertIn("copyTextToClipboard", body)
@@ -313,6 +316,8 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertIn("auto_retry_attempts", body)
             self.assertIn("jobPreviewPath", body)
             self.assertIn("/view/", body)
+            self.assertIn("Szczeg", body)
+            self.assertIn("route(`/jobs/${encodeURIComponent(job.job_id)}`)", body)
             self.assertIn("jobTitle", body)
             self.assertIn("job-title-link", body)
             self.assertIn("job-thumbnail-link", body)
@@ -326,12 +331,22 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('id="jobs-select-all"', body)
         self.assertIn('id="jobs-retry-failed-form"', body)
         self.assertIn('id="jobs-failed-count"', body)
+        self.assertIn('id="jobs-filter-in-progress"', body)
+        self.assertIn('data-jobs-filter="in_progress"', body)
+        self.assertIn('id="jobs-filter-completed"', body)
+        self.assertIn('data-jobs-filter="completed"', body)
         self.assertIn('id="jobs-filter-errors"', body)
+        self.assertIn('id="jobs-filter-stopped"', body)
+        self.assertIn('data-jobs-filter="stopped"', body)
+        self.assertIn('id="jobs-filter-interrupted"', body)
+        self.assertIn('data-jobs-filter="interrupted"', body)
         self.assertIn('id="jobs-error-panel"', body)
         self.assertIn('id="jobs-select-errors"', body)
         self.assertIn('id="jobs-filter-empty"', body)
+        self.assertIn('id="jobs-filter-empty-title"', body)
+        self.assertIn('id="jobs-filter-empty-copy"', body)
         self.assertIn("Kolejka jest pusta", body)
-        self.assertIn("Nie ma nieudanych", body)
+        self.assertIn("Nie ma zadań w tym filtrze", body)
         self.assertIn('id="jobs-empty-show-all"', body)
 
     def test_jobs_page_can_open_error_filter(self) -> None:
@@ -339,6 +354,17 @@ class ApplicationTestCase(unittest.TestCase):
             as_text=True
         )
         self.assertIn('id="jobs-filter-state" data-initial-filter="errors"', body)
+
+    def test_jobs_page_can_open_status_filters(self) -> None:
+        for job_filter in ("in_progress", "completed", "stopped", "interrupted"):
+            with self.subTest(job_filter=job_filter):
+                body = self.client.get(
+                    "/jobs", query_string={"filter": job_filter}
+                ).get_data(as_text=True)
+                self.assertIn(
+                    f'id="jobs-filter-state" data-initial-filter="{job_filter}"',
+                    body,
+                )
 
     def test_job_log_page_displays_full_log(self) -> None:
         manager = self.app.extensions["job_manager"]
@@ -372,6 +398,38 @@ class ApplicationTestCase(unittest.TestCase):
         finally:
             connection.close()
         self.assertEqual(len(json.loads(payload)["log_lines"]), 40)
+
+    def test_job_details_page_displays_timeline_parameters_and_actions(self) -> None:
+        manager = self.app.extensions["job_manager"]
+        job = manager._new_job(
+            "https://youtu.be/details", "Details", "best", is_live=False
+        )
+        with manager._lock:
+            active = manager._jobs[job.job_id]
+            active.status = "error"
+            active.started_at = "2026-06-10T10:00:00+00:00"
+            active.finished_at = "2026-06-10T10:02:00+00:00"
+            active.error_message = "network"
+            manager._append_log_line(active, "[yt-dlp] Parametry pobierania:", limit=None)
+            manager._append_log_line(active, "{", limit=None)
+            manager._append_log_line(active, '  "download_type": "best",', limit=None)
+            manager._append_log_line(
+                active, '  "url": "https://youtu.be/details"', limit=None
+            )
+            manager._append_log_line(active, "}", limit=None)
+            manager._append_log_line(active, "[retry] Zaplanowano próbę 1/3.", limit=None)
+            manager._append_log_line(active, "[error] network", limit=None)
+            manager._persist_jobs()
+
+        body = self.client.get(f"/jobs/{job.job_id}").get_data(as_text=True)
+
+        self.assertIn("job-detail-grid", body)
+        self.assertIn("job-timeline", body)
+        self.assertIn("job-action-retry", body)
+        self.assertIn("job-action-delete", body)
+        self.assertIn("job-parameters-json", body)
+        self.assertIn("download_type", body)
+        self.assertIn("Retry history", body)
 
     def test_inactive_job_can_be_deleted_from_jobs_page(self) -> None:
         manager = self.app.extensions["job_manager"]
@@ -1083,6 +1141,9 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("2026-06-10 10:00:00", body)
         self.assertIn("Wolne miejsce na dysku", body)
         self.assertIn("Test zapisu katalogu", body)
+        self.assertIn("diagnostics-quick-card", body)
+        self.assertIn("Uruchom szybki test", body)
+        self.assertIn("yt-dlp, ffmpeg, zapis i sie", body)
         self.assertIn("Test ffmpeg", body)
         self.assertIn("Test yt-dlp CLI", body)
         self.assertIn("Test sieci", body)
@@ -1093,6 +1154,11 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Ostatni b", body)
         self.assertIn("Brak SUPERVISOR_TOKEN", body)
         self.assertIn("diagnostics-badge-error", body)
+
+        quick_body = self.client.get("/diagnostics", query_string={"run": "quick"}).get_data(
+            as_text=True
+        )
+        self.assertIn("Szybki test zosta", quick_body)
 
     def test_frontend_toggles_theme(self) -> None:
         script = self.client.get("/static/js/app.js").get_data(as_text=True)
@@ -2366,6 +2432,9 @@ class HomeAssistantNotifierTestCase(unittest.TestCase):
         )
         self.assertIn("Example", payload["message"])
         self.assertIn("example.mp4", payload["message"])
+        self.assertIn("Akcje:", payload["message"])
+        self.assertIn("/jobs/log/abcdef1234567890", payload["message"])
+        self.assertIn("#job-action-delete", payload["message"])
 
     def test_playlist_and_storage_notifications_use_specific_titles(self) -> None:
         notifier = HomeAssistantNotifier(token="token", base_url="http://ha", timeout=1)
@@ -2410,10 +2479,13 @@ class HomeAssistantNotifierTestCase(unittest.TestCase):
                 notifier.notify_job(storage_job)
                 notifier.notify_storage({"free_percent": 4.2, "used_percent": 95.8})
 
-        titles = [json.loads(request.data.decode("utf-8"))["title"] for request in requests]
+        payloads = [json.loads(request.data.decode("utf-8")) for request in requests]
+        titles = [payload["title"] for payload in payloads]
+        messages = [payload["message"] for payload in payloads]
         self.assertIn("Media Web Downloader: playlista zakończona", titles)
         self.assertIn("Media Web Downloader: brak miejsca na dysku", titles)
         self.assertIn("Media Web Downloader: krytycznie mało miejsca", titles)
+        self.assertTrue(any("#job-action-retry" in message for message in messages))
 
 
 class YtDlpUpdaterTestCase(unittest.TestCase):

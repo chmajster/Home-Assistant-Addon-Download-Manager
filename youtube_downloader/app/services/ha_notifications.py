@@ -158,17 +158,43 @@ class HomeAssistantNotifier:
             lines.append("Pliki: " + ", ".join(str(item) for item in files))
         elif job.get("output_file"):
             lines.append(f"Plik: {job['output_file']}")
+        lines.extend(HomeAssistantNotifier._action_links(job, include_retry=False))
         return "\n".join(lines)
 
     @staticmethod
     def _error_message(job: dict[str, Any]) -> str:
-        return "\n".join(
-            [
-                f"Tytuł: {job.get('title') or 'brak danych'}",
-                f"URL: {job.get('url') or 'brak danych'}",
-                f"Błąd: {job.get('error_message') or 'nieznany błąd'}",
-            ]
-        )
+        lines = [
+            f"Tytuł: {job.get('title') or 'brak danych'}",
+            f"URL: {job.get('url') or 'brak danych'}",
+            f"Błąd: {job.get('error_message') or 'nieznany błąd'}",
+        ]
+        lines.extend(HomeAssistantNotifier._action_links(job, include_retry=True))
+        return "\n".join(lines)
+
+    @staticmethod
+    def _action_links(job: dict[str, Any], include_retry: bool) -> list[str]:
+        job_id = str(job.get("job_id") or "")
+        if not job_id:
+            return []
+        details_url = HomeAssistantNotifier._web_link(f"/jobs/{job_id}")
+        log_url = HomeAssistantNotifier._web_link(f"/jobs/log/{job_id}")
+        actions = ["", "Akcje:"]
+        if include_retry:
+            actions.append(f"- [Ponów]({details_url}#job-action-retry)")
+        actions.append(f"- [Otwórz log]({log_url})")
+        actions.append(f"- [Usuń zadanie]({details_url}#job-action-delete)")
+        return actions
+
+    @staticmethod
+    def _web_link(path: str) -> str:
+        base_url = (
+            os.environ.get("MEDIA_WEB_DOWNLOADER_URL")
+            or os.environ.get("APP_BASE_URL")
+            or ""
+        ).rstrip("/")
+        if base_url:
+            return f"{base_url}{path}"
+        return path
 
     @staticmethod
     def _storage_message(storage: dict[str, Any]) -> str:

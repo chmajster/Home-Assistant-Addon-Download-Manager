@@ -8,7 +8,33 @@
       <h1 class="h3 mb-1">Panel diagnostyczny</h1>
       <p class="section-copy mb-0">Najważniejsze dane techniczne do szybkiej diagnozy pobierania i integracji Home Assistant.</p>
     </div>
-    <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-primary" href="{{ ingress_url('web.diagnostics', run='quick') }}">Uruchom szybki test</a>
+      <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
+    </div>
+  </section>
+
+  {% if request.args.get("run") == "quick" %}
+    <div class="alert alert-info app-alert" role="status">Szybki test został wykonany.</div>
+  {% endif %}
+
+  <section class="diagnostics-quick-card mb-4">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">Szybki test</span>
+        <h2 class="h5 mb-0">yt-dlp, ffmpeg, zapis i sieć</h2>
+      </div>
+    </div>
+    <div class="diagnostics-summary mb-0" aria-label="Szybki test zależności">
+      {% for row in diagnostics.quick_checks %}
+        <article class="diagnostics-status-card diagnostics-status-{{ row.status }}">
+          <span class="badge diagnostics-badge diagnostics-badge-{{ row.status }}">{{ row.status_label }}</span>
+          <strong>{{ row.label }}</strong>
+          <span class="diagnostics-card-value">{{ row.value }}</span>
+          {% if row.details %}<small class="text-body-secondary text-break">{{ row.details }}</small>{% endif %}
+        </article>
+      {% endfor %}
+    </div>
   </section>
 
   <section class="diagnostics-summary mb-4" aria-label="Podsumowanie diagnostyki">

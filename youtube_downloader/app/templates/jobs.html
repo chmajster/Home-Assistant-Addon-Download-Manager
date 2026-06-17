@@ -17,8 +17,20 @@
           <button id="jobs-filter-all" class="btn btn-soft" type="button" data-jobs-filter="all" aria-pressed="false">
             Wszystkie (<span id="jobs-total-count">0</span>)
           </button>
+          <button id="jobs-filter-in-progress" class="btn btn-soft" type="button" data-jobs-filter="in_progress" aria-pressed="false">
+            W toku (<span data-jobs-filter-count="in_progress">0</span>)
+          </button>
+          <button id="jobs-filter-completed" class="btn btn-soft" type="button" data-jobs-filter="completed" aria-pressed="false">
+            Ukończone (<span data-jobs-filter-count="completed">0</span>)
+          </button>
           <button id="jobs-filter-errors" class="btn btn-outline-danger" type="button" data-jobs-filter="errors" aria-pressed="false">
             Błędy (<span id="jobs-error-filter-count">0</span>)
+          </button>
+          <button id="jobs-filter-stopped" class="btn btn-soft" type="button" data-jobs-filter="stopped" aria-pressed="false">
+            Zatrzymane (<span data-jobs-filter-count="stopped">0</span>)
+          </button>
+          <button id="jobs-filter-interrupted" class="btn btn-soft" type="button" data-jobs-filter="interrupted" aria-pressed="false">
+            Przerwane (<span data-jobs-filter-count="interrupted">0</span>)
           </button>
         </div>
         <form id="jobs-delete-selected-form" method="post" action="{{ ingress_url('web.delete_jobs') }}">
@@ -63,8 +75,8 @@
       </div>
       <div id="jobs-filter-empty" class="empty-state d-none">
         <span class="empty-state-mark empty-state-mark-ok" aria-hidden="true">✓</span>
-        <strong>Nie ma nieudanych zadań</strong>
-        <small>Filtr błędów jest pusty. Wróć do pełnej kolejki, aby zobaczyć aktywne i zakończone pobrania.</small>
+        <strong id="jobs-filter-empty-title">Nie ma zadań w tym filtrze</strong>
+        <small id="jobs-filter-empty-copy">Wróć do pełnej kolejki, aby zobaczyć aktywne i zakończone pobrania.</small>
         <button class="btn btn-sm btn-soft mt-2" id="jobs-empty-show-all" type="button" data-jobs-filter="all">Pokaż wszystkie</button>
         {% if false %}
         <span class="empty-state-mark" aria-hidden="true">!</span>
