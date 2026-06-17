@@ -188,6 +188,30 @@
     right: 0.55rem;
   }
 
+  .custom-player-context-menu {
+    max-width: calc(100vw - 1rem);
+    min-width: min(18rem, calc(100vw - 1rem));
+  }
+
+  .custom-player-context-item {
+    font-size: 0.78rem;
+    min-height: 2.2rem;
+    padding: 0 0.8rem;
+  }
+
+  .custom-player-stats {
+    left: 0.55rem;
+    max-width: calc(100% - 1.1rem);
+    min-width: 0;
+    right: 0.55rem;
+    top: 0.55rem;
+  }
+
+  .custom-player-stats-content {
+    font-size: 0.64rem;
+    max-height: 54vh;
+  }
+
   .page-heading {
     align-items: start !important;
   }

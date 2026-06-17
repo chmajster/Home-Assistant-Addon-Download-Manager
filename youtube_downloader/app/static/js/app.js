@@ -395,10 +395,17 @@
       captions: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 14.5v-8Zm2.5-.7a.7.7 0 0 0-.7.7v8c0 .39.31.7.7.7h11a.7.7 0 0 0 .7-.7v-8a.7.7 0 0 0-.7-.7h-11ZM7.5 10.1c0-1.2.95-2.1 2.25-2.1.78 0 1.38.25 1.85.7l-.8 1.02c-.3-.25-.6-.42-1.02-.42-.58 0-.95.35-.95.8v.8c0 .45.37.8.95.8.42 0 .72-.17 1.02-.42l.8 1.02c-.47.45-1.07.7-1.85.7-1.3 0-2.25-.9-2.25-2.1v-.8Zm5.2 0c0-1.2.95-2.1 2.25-2.1.78 0 1.38.25 1.85.7l-.8 1.02c-.3-.25-.6-.42-1.02-.42-.58 0-.95.35-.95.8v.8c0 .45.37.8.95.8.42 0 .72-.17 1.02-.42l.8 1.02c-.47.45-1.07.7-1.85.7-1.3 0-2.25-.9-2.25-2.1v-.8Z"/></svg>',
       fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9V5h4v2H7v2H5Zm10-4h4v4h-2V7h-2V5ZM7 15v2h2v2H5v-4h2Zm10 2v-2h2v4h-4v-2h2Z"/></svg>',
       fullscreenExit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v4H5V7h2V5h2Zm8 0v2h2v2h-4V5h2ZM5 15h4v4H7v-2H5v-2Zm14 0v2h-2v2h-2v-4h4Z"/></svg>',
+      copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3h1V7Zm3-1.2A1.2 1.2 0 0 0 9.8 7v6a1.2 1.2 0 0 0 1.2 1.2h6a1.2 1.2 0 0 0 1.2-1.2V7A1.2 1.2 0 0 0 17 5.8h-6ZM7 9.8A1.2 1.2 0 0 0 5.8 11v6A1.2 1.2 0 0 0 7 18.2h6a1.2 1.2 0 0 0 1.2-1.2v-1H11a3 3 0 0 1-3-3V9.8H7Z"/></svg>',
+      debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.6 5.2 4 8.8l3.6 3.6-1.25 1.25L1.5 8.8l4.85-4.85L7.6 5.2Zm8.8 0 1.25-1.25L22.5 8.8l-4.85 4.85-1.25-1.25L20 8.8l-3.6-3.6ZM14.2 3.5h1.9l-6.3 17H7.9l6.3-17Z"/></svg>',
+      embed: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13Zm2.5-.7a.7.7 0 0 0-.7.7v2.7h12.4V5.5a.7.7 0 0 0-.7-.7h-11Zm-.7 5.2v8.5c0 .39.31.7.7.7h11a.7.7 0 0 0 .7-.7V10H5.8Zm4.8 2.2 1.25 1.25L10.3 15l1.55 1.55-1.25 1.25L7.8 15l2.8-2.8Zm2.8 0 2.8 2.8-2.8 2.8-1.25-1.25L13.7 15l-1.55-1.55 1.25-1.25Z"/></svg>',
+      flag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9.4l.35 1.35H20v9h-6.4l-.35-1.35H6.8v7H5V4Zm1.8 1.8v5.4h7.85L15 12.55h3.2v-5.4h-4.85L13 5.8H6.8Z"/></svg>',
+      linkTime: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7.5h2V12l3.5 2.1-1 1.65-4.5-2.7V7.5Zm2.5-5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19Zm0 1.8a7.7 7.7 0 1 0 0 15.4 7.7 7.7 0 0 0 0-15.4Z"/></svg>',
+      loop: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h8.6l-2-2L15 3.6 19.4 8 15 12.4 13.6 11l2-2H7a3 3 0 0 0-3 3v1H2v-1a5 5 0 0 1 5-5Zm10 10H8.4l2 2L9 20.4 4.6 16 9 11.6l1.4 1.4-2 2H17a3 3 0 0 0 3-3v-1h2v1a5 5 0 0 1-5 5Z"/></svg>',
       mini: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11Zm2.5-.7a.7.7 0 0 0-.7.7v11c0 .39.31.7.7.7h11a.7.7 0 0 0 .7-.7v-11a.7.7 0 0 0-.7-.7h-11Zm4.3 6.2h5.4v3.5h-5.4V12Z"/></svg>',
       pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7V5Zm7 0h3v14h-3V5Z"/></svg>',
       play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.4v13.2L18.4 12 8 5.4Z"/></svg>',
       settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19.2 13.35 1.55 1.2-1.8 3.1-1.85-.75a7.7 7.7 0 0 1-1.45.85L15.4 19.7h-3.6l-.25-1.95a7.7 7.7 0 0 1-1.45-.85l-1.85.75-1.8-3.1 1.55-1.2a6.5 6.5 0 0 1 0-1.7l-1.55-1.2 1.8-3.1 1.85.75c.45-.33.93-.62 1.45-.85l.25-1.95h3.6l.25 1.95c.52.23 1 .52 1.45.85l1.85-.75 1.8 3.1-1.55 1.2a6.5 6.5 0 0 1 0 1.7ZM13.6 9.4a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2Z"/></svg>',
+      stats: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v2H4V5Zm0 4h10v2H4V9Zm0 4h16v2H4v-2Zm0 4h10v2H4v-2Zm13-8h3v2h-3V9Zm0 8h3v2h-3v-2Z"/></svg>',
       volume: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.2h3.4L12 5.3v13.4l-4.6-3.9H4V9.2Zm11.1-.7a5.2 5.2 0 0 1 0 7l-1.25-1.25a3.4 3.4 0 0 0 0-4.5L15.1 8.5Zm2.7-2.35a8.7 8.7 0 0 1 0 11.7l-1.25-1.25a6.9 6.9 0 0 0 0-9.2l1.25-1.25Z"/></svg>',
       volumeOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.2h3.4L12 5.3v13.4l-4.6-3.9H4V9.2Zm10.25.2L16 11.15l1.75-1.75 1.25 1.25-1.75 1.75L19 14.15l-1.25 1.25L16 13.65l-1.75 1.75L13 14.15l1.75-1.75L13 10.65l1.25-1.25Z"/></svg>',
     };
@@ -500,6 +507,121 @@
     writeJsonStorage(playerPositionsStorageKey, positions);
   };
 
+  const copyPlayerTextToClipboard = async (value) => {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+    const fallback = document.createElement("textarea");
+    fallback.value = value;
+    fallback.setAttribute("readonly", "readonly");
+    fallback.style.position = "fixed";
+    fallback.style.opacity = "0";
+    document.body.append(fallback);
+    fallback.select();
+    document.execCommand("copy");
+    fallback.remove();
+  };
+
+  const createPlayerContextMenuItem = (label, iconName, action) => {
+    const button = document.createElement("button");
+    button.className = "custom-player-context-item";
+    button.type = "button";
+    button.setAttribute("role", "menuitem");
+    button.innerHTML = `<span class="custom-player-context-icon">${playerIcon(iconName)}</span><span>${escapeHtml(label)}</span>`;
+    button.addEventListener("click", action);
+    return button;
+  };
+
+  const sourceLabelFromMedia = (media) => {
+    const source = media.currentSrc || media.querySelector("source")?.src || "";
+    if (!source) return "N/A";
+    try {
+      const url = new URL(source, window.location.href);
+      const filename = url.pathname.split("/").filter(Boolean).pop();
+      return filename ? decodeURIComponent(filename) : url.href;
+    } catch {
+      return source;
+    }
+  };
+
+  const bufferEndForMedia = (media) => {
+    try {
+      const ranges = media.buffered;
+      for (let index = 0; index < ranges.length; index += 1) {
+        if (ranges.start(index) <= media.currentTime && ranges.end(index) >= media.currentTime) {
+          return ranges.end(index);
+        }
+      }
+      return ranges.length ? ranges.end(ranges.length - 1) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const mediaNetworkStateLabel = (state) => ({
+    0: "empty",
+    1: "idle",
+    2: "loading",
+    3: "no source",
+  }[state] || "N/A");
+
+  const mediaReadyStateLabel = (state) => ({
+    0: "nothing",
+    1: "metadata",
+    2: "current data",
+    3: "future data",
+    4: "enough data",
+  }[state] || "N/A");
+
+  const getVideoDebugStats = (player, media) => {
+    const playbackQuality = typeof media.getVideoPlaybackQuality === "function"
+      ? media.getVideoPlaybackQuality()
+      : null;
+    const decodedFrames = playbackQuality?.totalVideoFrames ?? media.webkitDecodedFrameCount;
+    const droppedFrames = playbackQuality?.droppedVideoFrames ?? media.webkitDroppedFrameCount;
+    const playerRect = player.getBoundingClientRect();
+    const viewport = playerRect.width && playerRect.height
+      ? `${Math.round(playerRect.width)}x${Math.round(playerRect.height)}`
+      : "N/A";
+    const frames = Number.isFinite(decodedFrames)
+      ? `${decodedFrames} decoded / ${Number.isFinite(droppedFrames) ? droppedFrames : "N/A"} dropped`
+      : "N/A";
+    const resolution = media.videoWidth && media.videoHeight
+      ? `${media.videoWidth}x${media.videoHeight}`
+      : "N/A";
+    const source = media.querySelector("source");
+    const mimeType = source?.type || "";
+    const bufferedEnd = bufferEndForMedia(media);
+    const bufferHealth = Number.isFinite(bufferedEnd)
+      ? `${Math.max(0, bufferedEnd - media.currentTime).toFixed(2)} s`
+      : "N/A";
+    const connection = navigator.connection?.downlink
+      ? `${navigator.connection.downlink} Mbps`
+      : "N/A";
+    const duration = Number.isFinite(media.duration) ? formatMediaTime(media.duration) : "N/A";
+    const current = Number.isFinite(media.currentTime) ? formatMediaTime(media.currentTime) : "N/A";
+    const rows = [
+      ["Video ID / Name", player.dataset.videoId || player.dataset.videoTitle || sourceLabelFromMedia(media)],
+      ["Viewport / Frames", `${viewport} / ${frames}`],
+      ["Current / Optimal Res", `${resolution} / N/A`],
+      ["Volume / Normalized", `${media.muted ? "muted" : `${Math.round(media.volume * 100)}%`} / N/A`],
+      ["Codecs", mimeType || "N/A"],
+      ["Color", "N/A"],
+      ["Connection Speed", connection],
+      ["Network Activity", `${mediaNetworkStateLabel(media.networkState)} / ${mediaReadyStateLabel(media.readyState)}`],
+      ["Buffer Health", bufferHealth],
+      ["Mystery Text", `current=${current}; duration=${duration}; src=${sourceLabelFromMedia(media)}`],
+    ];
+    return rows;
+  };
+
+  const formatVideoDebugStats = (player, media) => (
+    getVideoDebugStats(player, media)
+      .map(([label, value]) => `${label}: ${value || "N/A"}`)
+      .join("\n")
+  );
+
   const enhanceCustomPlayer = (player) => {
     const media = player.querySelector(".custom-player-media");
     if (!(media instanceof HTMLMediaElement) || player.dataset.customPlayerReady) return;
@@ -514,7 +636,8 @@
       : 1;
     media.loop = Boolean(storedSettings.loop);
     player.classList.toggle("custom-player-fit-cover", storedSettings.fitMode === "cover");
-    if (media instanceof HTMLVideoElement && !player.hasAttribute("tabindex")) {
+    const isVideo = media instanceof HTMLVideoElement;
+    if (isVideo && !player.hasAttribute("tabindex")) {
       player.tabIndex = 0;
       player.setAttribute("aria-keyshortcuts", "Space K J L ArrowLeft ArrowRight ArrowUp ArrowDown M F");
     }
@@ -691,14 +814,208 @@
       player.append(overlay);
     }
 
+    let contextMenu = null;
+    let statsOverlay = null;
+    let statsContent = null;
+    let statsTimer = null;
+    let loopContextItem = null;
+    if (isVideo) {
+      contextMenu = document.createElement("div");
+      contextMenu.className = "custom-player-context-menu";
+      contextMenu.hidden = true;
+      contextMenu.setAttribute("role", "menu");
+      contextMenu.setAttribute("aria-label", "Menu kontekstowe playera");
+
+      statsOverlay = document.createElement("section");
+      statsOverlay.className = "custom-player-stats";
+      statsOverlay.hidden = true;
+      statsOverlay.setAttribute("aria-label", "Statystyki dla nerdów");
+      const statsHeader = document.createElement("div");
+      statsHeader.className = "custom-player-stats-header";
+      statsHeader.append(text("strong", "Statystyki dla nerdów"));
+      const statsClose = document.createElement("button");
+      statsClose.className = "custom-player-stats-close";
+      statsClose.type = "button";
+      statsClose.textContent = "[X]";
+      statsClose.setAttribute("aria-label", "Zamknij statystyki");
+      statsHeader.append(statsClose);
+      statsContent = document.createElement("pre");
+      statsContent.className = "custom-player-stats-content";
+      statsOverlay.append(statsHeader, statsContent);
+      player.append(statsOverlay);
+      const copyFeedback = text("div", "", "custom-player-copy-feedback");
+      copyFeedback.hidden = true;
+      player.append(copyFeedback);
+      let copyFeedbackTimer = null;
+
+      const sourceUrlForCopy = () => media.currentSrc || media.querySelector("source")?.src || window.location.href;
+      const currentTimeUrl = () => `${sourceUrlForCopy().split("#")[0]}#t=${Math.max(0, Math.floor(media.currentTime || 0))}`;
+      const embedCode = () => `<video controls src="${escapeHtml(sourceUrlForCopy())}"></video>`;
+      const showPlayerCopyFeedback = (message) => {
+        copyFeedback.textContent = message;
+        copyFeedback.hidden = false;
+        if (copyFeedbackTimer) window.clearTimeout(copyFeedbackTimer);
+        copyFeedbackTimer = window.setTimeout(() => {
+          copyFeedback.hidden = true;
+        }, 1600);
+      };
+      const copyPlayerValue = async (value, successMessage) => {
+        try {
+          await copyPlayerTextToClipboard(value || "N/A");
+          showPlayerCopyFeedback(successMessage);
+          showAppToast(successMessage, { type: "success" });
+        } catch (error) {
+          console.error("Nie można skopiować danych playera:", error);
+          showPlayerCopyFeedback("Nie udało się skopiować danych");
+          showAppToast("Nie udało się skopiować danych", { type: "danger" });
+        }
+      };
+      const updateStatsOverlay = () => {
+        if (!statsOverlay || !statsContent || statsOverlay.hidden) return;
+        statsContent.textContent = formatVideoDebugStats(player, media);
+      };
+      const setStatsOverlayVisible = (visible) => {
+        if (!statsOverlay) return;
+        statsOverlay.hidden = !visible;
+        if (visible) {
+          updateStatsOverlay();
+          if (statsTimer) window.clearInterval(statsTimer);
+          statsTimer = window.setInterval(updateStatsOverlay, 500);
+        } else if (statsTimer) {
+          window.clearInterval(statsTimer);
+          statsTimer = null;
+        }
+      };
+      const toggleStatsOverlay = () => setStatsOverlayVisible(!statsOverlay || statsOverlay.hidden);
+      const hideContextMenu = () => {
+        if (contextMenu) contextMenu.hidden = true;
+      };
+      const positionContextMenu = (clientX, clientY) => {
+        if (!contextMenu) return;
+        const margin = 8;
+        contextMenu.hidden = false;
+        contextMenu.style.left = `${margin}px`;
+        contextMenu.style.top = `${margin}px`;
+        const rect = contextMenu.getBoundingClientRect();
+        const left = Math.min(
+          Math.max(margin, clientX),
+          Math.max(margin, window.innerWidth - rect.width - margin)
+        );
+        const top = Math.min(
+          Math.max(margin, clientY),
+          Math.max(margin, window.innerHeight - rect.height - margin)
+        );
+        contextMenu.style.left = `${left}px`;
+        contextMenu.style.top = `${top}px`;
+      };
+      const syncContextMenuState = () => {
+        loopContextItem?.classList.toggle("custom-player-context-item-active", media.loop);
+        loopContextItem?.setAttribute("aria-checked", String(media.loop));
+      };
+      const togglePictureInPicture = async () => {
+        try {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          } else if (typeof media.requestPictureInPicture === "function") {
+            await media.requestPictureInPicture();
+          } else {
+            mini.click();
+          }
+        } catch (error) {
+          console.error("Nie można uruchomić miniodtwarzacza:", error);
+          mini.click();
+        }
+      };
+
+      loopContextItem = createPlayerContextMenuItem("Odtwarzaj w pętli", "loop", () => {
+        media.loop = !media.loop;
+        if (settingLoop instanceof HTMLInputElement) settingLoop.checked = media.loop;
+        syncSettingsPanel();
+        persistSettings();
+        syncContextMenuState();
+        hideContextMenu();
+      });
+      loopContextItem.setAttribute("role", "menuitemcheckbox");
+      contextMenu.append(
+        loopContextItem,
+        createPlayerContextMenuItem("Miniodtwarzacz", "mini", () => {
+          hideContextMenu();
+          togglePictureInPicture();
+        }),
+        createPlayerContextMenuItem("Kopiuj adres URL filmu", "copy", () => {
+          hideContextMenu();
+          copyPlayerValue(sourceUrlForCopy(), "Skopiowano adres URL filmu");
+        }),
+        createPlayerContextMenuItem("Kopiuj adres URL bieżącego momentu", "linkTime", () => {
+          hideContextMenu();
+          copyPlayerValue(currentTimeUrl(), "Skopiowano adres URL bieżącego momentu");
+        }),
+        createPlayerContextMenuItem("Skopiuj kod do umieszczenia na stronie", "embed", () => {
+          hideContextMenu();
+          copyPlayerValue(embedCode(), "Skopiowano kod osadzenia");
+        }),
+        createPlayerContextMenuItem("Kopiuj informacje debugowania", "debug", () => {
+          hideContextMenu();
+          copyPlayerValue(formatVideoDebugStats(player, media), "Skopiowano informacje debugowania");
+        }),
+        createPlayerContextMenuItem("Rozwiąż problem z odtwarzaniem", "flag", () => {
+          hideContextMenu();
+          showAppToast("Otwórz Diagnostykę, aby sprawdzić ffmpeg, yt-dlp, sieć i miejsce na dysku", {
+            type: "info",
+            actionHref: route("/diagnostics"),
+            actionLabel: "Diagnostyka",
+          });
+        }),
+        createPlayerContextMenuItem("Statystyki dla nerdów", "stats", () => {
+          hideContextMenu();
+          toggleStatsOverlay();
+        })
+      );
+      player.append(contextMenu);
+      statsClose.addEventListener("click", () => setStatsOverlayVisible(false));
+      syncContextMenuState();
+
+      player.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        activeCustomPlayer = player;
+        settingsPanel.hidden = true;
+        settings.classList.remove("custom-player-button-active");
+        syncContextMenuState();
+        positionContextMenu(event.clientX, event.clientY);
+        showControls();
+      });
+      document.addEventListener("pointerdown", (event) => {
+        if (!contextMenu || contextMenu.hidden || contextMenu.contains(event.target)) return;
+        hideContextMenu();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || !contextMenu || contextMenu.hidden) return;
+        event.preventDefault();
+        hideContextMenu();
+      });
+      window.addEventListener("resize", hideContextMenu);
+      document.addEventListener("scroll", hideContextMenu, true);
+      media.addEventListener("timeupdate", updateStatsOverlay);
+      media.addEventListener("volumechange", updateStatsOverlay);
+      media.addEventListener("loadedmetadata", updateStatsOverlay);
+      media.addEventListener("progress", updateStatsOverlay);
+      media.addEventListener("emptied", updateStatsOverlay);
+    }
+
     let controlsTimer = null;
     let seeking = false;
-    const isVideo = media instanceof HTMLVideoElement;
     const updateRangeFill = (range, percent, property) => {
       range.style.setProperty(property, `${Math.min(100, Math.max(0, percent))}%`);
     };
     const hideControls = () => {
-      if (!isVideo || media.paused || seeking || player.matches(":focus-within") || !settingsPanel.hidden) return;
+      if (
+        !isVideo ||
+        media.paused ||
+        seeking ||
+        player.matches(":focus-within") ||
+        !settingsPanel.hidden ||
+        (contextMenu && !contextMenu.hidden)
+      ) return;
       player.classList.add("custom-player-controls-hidden");
     };
     const showControls = () => {

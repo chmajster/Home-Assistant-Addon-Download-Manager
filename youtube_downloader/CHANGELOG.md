@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.64
+
+- Dodano własne menu kontekstowe playera pod prawym przyciskiem myszy, bez domyślnego menu przeglądarki.
+- Dodano overlay `Statystyki dla nerdów` z danymi debugowania aktualizowanymi na żywo oraz kopiowaniem informacji do schowka.
+- Poprawiono style menu, panelu statystyk i komunikatu kopiowania w trybie normalnym, mobilnym oraz fullscreen.
+- Naprawiono kodowanie polskich znaków w dokumentacji dodatku.
+
 ## 1.3.63
 
 - Dodano menu ustawień playera z prędkością, informacją o jakości, zapętlaniem, auto-play następnego pliku i trybem `contain`/`cover`.
