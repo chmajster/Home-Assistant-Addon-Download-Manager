@@ -52,13 +52,26 @@
       </div>
       <div id="jobs-empty" class="empty-state{% if jobs %} d-none{% endif %}">
         <span class="empty-state-mark" aria-hidden="true">+</span>
+        <strong>Kolejka jest pusta</strong>
+        <small>Wklej link na stronie startowej, a postęp pobierania pojawi się tutaj automatycznie.</small>
+        <a class="btn btn-sm btn-accent mt-2" href="{{ ingress_url('web.index') }}">Dodaj link</a>
+        {% if false %}
         <strong>Brak zadań w tej sesji</strong>
         <small>Uruchom pobieranie lub zapis live, aby zobaczyć postęp.</small>
       </div>
+        {% endif %}
+      </div>
       <div id="jobs-filter-empty" class="empty-state d-none">
+        <span class="empty-state-mark empty-state-mark-ok" aria-hidden="true">✓</span>
+        <strong>Nie ma nieudanych zadań</strong>
+        <small>Filtr błędów jest pusty. Wróć do pełnej kolejki, aby zobaczyć aktywne i zakończone pobrania.</small>
+        <button class="btn btn-sm btn-soft mt-2" id="jobs-empty-show-all" type="button" data-jobs-filter="all">Pokaż wszystkie</button>
+        {% if false %}
         <span class="empty-state-mark" aria-hidden="true">!</span>
         <strong>Brak błędów</strong>
         <small>Filtr błędów pokaże tutaj nieudane pobrania, gdy takie się pojawią.</small>
+      </div>
+        {% endif %}
       </div>
       <div class="desktop-only table-responsive">
         <table class="table align-middle mb-0">

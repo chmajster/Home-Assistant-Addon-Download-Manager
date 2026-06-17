@@ -12,19 +12,66 @@
     padding-right: 0.8rem;
   }
 
+  .app-navbar .app-container {
+    flex-wrap: wrap;
+    row-gap: 0.55rem;
+  }
+
+  .app-brand {
+    max-width: calc(100% - 3rem);
+    min-width: 0;
+  }
+
+  .app-brand > span:last-child {
+    min-width: 0;
+  }
+
   .app-brand strong {
+    display: block;
     font-size: 0.96rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .brand-mark {
     border-radius: 0.65rem;
+    flex: 0 0 auto;
     height: 2rem;
     width: 2rem;
   }
 
+  .app-navbar-menu {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-basis: 100%;
+    margin-top: 0.1rem;
+    padding-top: 0.55rem;
+  }
+
+  .app-nav {
+    align-items: stretch;
+    gap: 0.35rem;
+    padding-bottom: 0.25rem;
+    width: 100%;
+  }
+
   .app-nav .nav-link {
-    font-size: 0.82rem;
-    padding: 0.48rem 0.6rem !important;
+    border-radius: 0.65rem;
+    font-size: 0.9rem;
+    min-height: 2.65rem;
+    padding: 0.68rem 0.75rem !important;
+  }
+
+  .theme-toggle {
+    align-self: start;
+    margin-top: 0.15rem;
+  }
+
+  .app-toast-container {
+    left: 0.5rem;
+    margin-top: 4rem;
+    max-width: none;
+    right: 0.5rem !important;
   }
 
   .hero-card .card-body {
@@ -33,6 +80,15 @@
 
   .hero-card .display-6 {
     font-size: 2rem;
+  }
+
+  .hero-eyebrow {
+    font-size: 0.64rem;
+    max-width: 100%;
+  }
+
+  .hero-title {
+    line-height: 1.08;
   }
 
   .url-form .input-group {
@@ -62,6 +118,36 @@
     padding-left: 1rem;
   }
 
+  .bulk-url-review {
+    padding: 0.75rem;
+  }
+
+  .bulk-url-list {
+    max-height: 16rem;
+  }
+
+  .custom-player-controls {
+    padding: 0.6rem;
+  }
+
+  .custom-player-main-row {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .custom-player-volume-row {
+    flex: 1 1 100%;
+  }
+
+  .custom-player-volume {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .custom-player-time {
+    min-width: auto;
+  }
+
   .page-heading {
     align-items: start !important;
   }
@@ -76,6 +162,76 @@
 
   .mobile-action {
     min-height: 2.6rem;
+  }
+
+  .history-mobile-view-toolbar {
+    display: flex;
+    width: 100%;
+  }
+
+  .history-mobile-view-toolbar .btn {
+    flex: 1 1 0;
+  }
+
+  .history-mobile-compact .history-mobile-card {
+    display: grid;
+    gap: 0.35rem 0.65rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 0.85rem !important;
+  }
+
+  .history-mobile-compact .history-mobile-select {
+    grid-row: 1 / span 3;
+    margin: 0 !important;
+  }
+
+  .history-mobile-compact .history-mobile-select .form-check-label {
+    display: none;
+  }
+
+  .history-mobile-compact .history-mobile-media,
+  .history-mobile-compact .history-mobile-url,
+  .history-mobile-compact .history-mobile-tags,
+  .history-mobile-compact .history-mobile-tags-editor {
+    display: none !important;
+  }
+
+  .history-mobile-compact .history-mobile-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .history-mobile-compact .history-mobile-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .history-mobile-compact .history-mobile-actions {
+    gap: 0.35rem !important;
+    margin-top: 0.1rem !important;
+  }
+
+  .history-mobile-compact .history-mobile-actions .btn,
+  .history-mobile-compact .history-mobile-actions .badge {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .history-mobile-compact .history-mobile-actions .history-icon-action {
+    height: 2rem;
+    min-width: 2rem;
+    padding: 0 !important;
+  }
+
+  .diagnostics-ytdlp-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnostics-ytdlp-grid dt {
+    margin-top: 0.35rem;
   }
 
   .preview-info-grid {

@@ -2,20 +2,28 @@
 {% block title %}Historia | Media Web Downloader{% endblock %}
 {% block content %}
   {% set download_type_labels = {"best": "najlepsza", "video": "najlepsza", "video-1080": "1080p", "video-720": "720p", "video-360": "360p", "audio": "audio MP3", "format": "konkretny format", "live": "live"} %}
-  {% macro history_mini_player(item, player_id) -%}
+  {% macro history_mini_player(item, player_id, icon=false) -%}
     {% if item.can_inline_play %}
       <button
-        class="btn btn-sm btn-soft history-mini-player-toggle"
+        class="btn btn-sm btn-soft history-mini-player-toggle{% if icon %} history-icon-action{% endif %}"
         type="button"
         data-target="{{ player_id }}"
+        data-closed-label="Odtwórz tutaj"
+        data-open-label="Zamknij odtwarzacz"
         aria-controls="{{ player_id }}"
         aria-expanded="false"
+        aria-label="{% if icon %}Odtwórz tutaj{% endif %}"
+        title="{% if icon %}Odtwórz tutaj{% endif %}"
       >Odtwórz tutaj</button>
       <div class="history-mini-player d-none" id="{{ player_id }}">
         {% if item.inline_media_kind == "video" %}
-          <video class="history-mini-player-media" controls preload="metadata" src="{{ ingress_url('web.media', filename=item.filename) }}"></video>
+          <div class="custom-player custom-player-compact custom-player-video" data-custom-player>
+            <video class="custom-player-media history-mini-player-media" preload="metadata" playsinline src="{{ ingress_url('web.media', filename=item.filename) }}"></video>
+          </div>
         {% elif item.inline_media_kind == "audio" %}
-          <audio class="history-mini-player-media" controls preload="metadata" src="{{ ingress_url('web.media', filename=item.filename) }}"></audio>
+          <div class="custom-player custom-player-compact custom-player-audio" data-custom-player>
+            <audio class="custom-player-media history-mini-player-media" preload="metadata" src="{{ ingress_url('web.media', filename=item.filename) }}"></audio>
+          </div>
         {% endif %}
       </div>
     {% endif %}
@@ -32,6 +40,31 @@
       <span class="badge text-bg-secondary">plik usunięty</span>
     {% endif %}
     <button class="btn btn-sm btn-outline-danger" type="submit" form="history-delete-record-{{ index }}">Usuń wpis</button>
+  {%- endmacro %}
+  {% macro history_mobile_actions(item, index, player_id) -%}
+    {% if item.can_repeat %}
+      <button class="btn btn-sm btn-soft history-icon-action" type="submit" form="history-repeat-{{ index }}" aria-label="Pobierz ponownie" title="Pobierz ponownie">
+        <span aria-hidden="true">↻</span>
+        <span class="visually-hidden">Pobierz ponownie</span>
+      </button>
+    {% endif %}
+    {% if item.file_exists %}
+      {{ history_mini_player(item, player_id, true) }}
+      <a class="btn btn-sm btn-outline-primary history-icon-action" href="{{ ingress_url('web.downloaded', filename=item.filename) }}" aria-label="Pobierz plik" title="Pobierz plik">
+        <span aria-hidden="true">↓</span>
+        <span class="visually-hidden">Pobierz plik</span>
+      </a>
+      <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" form="history-delete-file-{{ index }}" aria-label="Usuń plik" title="Usuń plik">
+        <span aria-hidden="true">⌫</span>
+        <span class="visually-hidden">Usuń plik</span>
+      </button>
+    {% else %}
+      <span class="badge text-bg-secondary">brak pliku</span>
+    {% endif %}
+    <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" form="history-delete-record-{{ index }}" aria-label="Usuń wpis z historii" title="Usuń wpis z historii">
+      <span aria-hidden="true">×</span>
+      <span class="visually-hidden">Usuń wpis z historii</span>
+    </button>
   {%- endmacro %}
   <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
@@ -82,7 +115,7 @@
   </section>
 
   {% if history %}
-    <form id="history-bulk-form" action="{{ ingress_url('web.bulk_history') }}" method="post" class="card app-card">
+    <form id="history-bulk-form" action="{{ ingress_url('web.bulk_history') }}" method="post" class="card app-card" data-history-mobile-view-root>
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="return_q" value="{{ query }}">
       <input type="hidden" name="return_sort" value="{{ sort }}">
@@ -104,6 +137,12 @@
             <button class="btn btn-sm btn-accent" id="history-bulk-submit" type="submit" disabled>Wykonaj</button>
           </div>
         </div>
+        {% if view != "gallery" %}
+          <div class="mobile-only history-mobile-view-toolbar mb-3" role="group" aria-label="Widok historii na telefonie">
+            <button class="btn btn-sm btn-soft" type="button" data-history-mobile-view="cards" aria-pressed="true">Kafelki</button>
+            <button class="btn btn-sm btn-soft" type="button" data-history-mobile-view="compact" aria-pressed="false">Kompakt</button>
+          </div>
+        {% endif %}
         {% if view == "gallery" %}
           <div class="history-gallery-grid">
             {% for item in history %}
@@ -233,47 +272,47 @@
           {% for item in history %}
             {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
             {% set tag_form_id = 'history-tags-mobile-' ~ loop.index0 %}
-            <article class="mobile-list-card p-3 mb-2">
-              <label class="form-check d-flex gap-2 align-items-center mb-3">
+            <article class="mobile-list-card history-mobile-card p-3 mb-2">
+              <label class="form-check d-flex gap-2 align-items-center mb-3 history-mobile-select">
                 <input class="form-check-input history-bulk-select" type="checkbox" name="history_keys" value="{{ item.downloaded_at }}">
                 <span class="form-check-label">Zaznacz</span>
               </label>
               {% if item.thumbnail_exists %}
                 {% if preview_url %}
-                  <a class="history-thumbnail-link d-block mb-3" href="{{ preview_url }}" aria-label="Otwórz film: {{ item.title }}">
+                  <a class="history-thumbnail-link history-mobile-media d-block mb-3" href="{{ preview_url }}" aria-label="Otwórz film: {{ item.title }}">
                     <img class="history-thumbnail history-thumbnail-mobile" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
                   </a>
                 {% else %}
-                  <img class="history-thumbnail history-thumbnail-mobile mb-3" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
+                  <img class="history-thumbnail history-thumbnail-mobile history-mobile-media mb-3" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
                 {% endif %}
               {% endif %}
               {% if preview_url %}
-                <a class="history-title-link d-block" href="{{ preview_url }}"><strong>{{ item.title }}</strong></a>
+                <a class="history-title-link history-mobile-title d-block" href="{{ preview_url }}"><strong>{{ item.title }}</strong></a>
               {% else %}
-                <strong class="d-block">{{ item.title }}</strong>
+                <strong class="history-mobile-title d-block">{{ item.title }}</strong>
               {% endif %}
-              <small class="d-block text-body-secondary">{{ item.platform }} | {{ item.downloaded_at_label }} | {{ item.size_label }} | {{ item.duration_label }}</small>
-              {% if item.url %}<a class="small text-break" href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.url }}</a>{% endif %}
+              <small class="history-mobile-meta d-block text-body-secondary">{{ item.platform }} | {{ item.downloaded_at_label }} | {{ item.size_label }} | {{ item.duration_label }}</small>
+              {% if item.url %}<a class="history-mobile-url small text-break" href="{{ item.url }}" target="_blank" rel="noreferrer">{{ item.url }}</a>{% endif %}
               {% if item.tags %}
-                <div class="d-flex flex-wrap gap-1 mt-2">
+                <div class="history-mobile-tags d-flex flex-wrap gap-1 mt-2">
                   {% for tag in item.tags %}
                     <a class="badge text-bg-light history-tag-link" href="{{ ingress_url('web.history', q=tag, sort=sort, order=order, view=view) }}">{{ tag }}</a>
                   {% endfor %}
                 </div>
               {% endif %}
               {% if item.visible_auto_tags %}
-                <div class="d-flex flex-wrap gap-1 mt-2">
+                <div class="history-mobile-tags d-flex flex-wrap gap-1 mt-2">
                   {% for tag in item.visible_auto_tags %}
                     <a class="badge text-bg-secondary history-tag-link" href="{{ ingress_url('web.history', q=tag, sort=sort, order=order, view=view) }}">{{ tag }}</a>
                   {% endfor %}
                 </div>
               {% endif %}
-              <div class="input-group input-group-sm history-tags-editor mt-2">
+              <div class="input-group input-group-sm history-tags-editor history-mobile-tags-editor mt-2">
                 <input class="form-control" name="tags" value="{{ item.tags_label }}" placeholder="muzyka, tutoriale, live" form="{{ tag_form_id }}">
                 <button class="btn btn-soft" type="submit" form="{{ tag_form_id }}">Zapisz</button>
               </div>
-              <div class="d-flex flex-wrap gap-2 mt-2">
-                {{ history_actions(item, loop.index0, 'history-player-mobile-' ~ loop.index0) }}
+              <div class="history-mobile-actions d-flex flex-wrap gap-2 mt-2">
+                {{ history_mobile_actions(item, loop.index0, 'history-player-mobile-' ~ loop.index0) }}
               </div>
             </article>
           {% endfor %}
@@ -343,8 +382,20 @@
     {% endfor %}
   {% else %}
     <div class="empty-state app-card">
+      <span class="empty-state-mark" aria-hidden="true">{{ "?" if total_history else "+" }}</span>
+      {% if total_history %}
+        <strong>Brak wyników wyszukiwania</strong>
+        <small>Nie znaleziono wpisów dla tej frazy lub zestawu filtrów.</small>
+        <a class="btn btn-sm btn-soft mt-2" href="{{ ingress_url('web.history', sort=sort, order=order, view=view) }}">Wyczyść wyszukiwanie</a>
+      {% else %}
+        <strong>Historia jest jeszcze pusta</strong>
+        <small>Po pierwszym pobraniu pojawią się tutaj miniatury, tagi i szybkie akcje.</small>
+        <a class="btn btn-sm btn-accent mt-2" href="{{ ingress_url('web.index') }}">Dodaj pierwszy link</a>
+      {% endif %}
+      {% if false %}
       <strong>Brak wyników</strong>
       <small>Zmień wyszukiwaną frazę albo wyczyść pole wyszukiwarki.</small>
+      {% endif %}
     </div>
   {% endif %}
 {% endblock %}

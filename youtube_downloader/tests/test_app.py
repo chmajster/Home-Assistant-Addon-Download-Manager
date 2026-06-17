@@ -321,6 +321,9 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('id="jobs-error-panel"', body)
         self.assertIn('id="jobs-select-errors"', body)
         self.assertIn('id="jobs-filter-empty"', body)
+        self.assertIn("Kolejka jest pusta", body)
+        self.assertIn("Nie ma nieudanych", body)
+        self.assertIn('id="jobs-empty-show-all"', body)
 
     def test_jobs_page_can_open_error_filter(self) -> None:
         body = self.client.get("/jobs", query_string={"filter": "errors"}).get_data(
@@ -487,7 +490,8 @@ class ApplicationTestCase(unittest.TestCase):
         )
         body = self.client.get("/view/example.mp4").get_data(as_text=True)
         self.assertIn("Example video", body)
-        self.assertIn('<video class="preview-player"', body)
+        self.assertIn('data-custom-player', body)
+        self.assertIn('<video class="custom-player-media preview-player"', body)
         self.assertIn('src="/media/example.mp4"', body)
         self.assertIn('href="/downloaded/example.mp4"', body)
         self.assertIn('action="/delete/example.mp4"', body)
@@ -979,6 +983,10 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("platform-chip platform-kick", body)
         self.assertIn("platform-chip platform-twitch", body)
         self.assertIn("hero-input-group", body)
+        self.assertIn("bulk-url-review", body)
+        self.assertIn('data-bulk-url-list', body)
+        self.assertIn('data-bulk-url-copy-invalid', body)
+        self.assertIn('data-bulk-url-remove-invalid', body)
         self.assertIn('action="/analyze"', body)
         self.assertIn('id="media-url"', body)
         self.assertIn("Wklej jeden lub wiele link", body)
@@ -1005,6 +1013,36 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("☀", body)
         self.assertIn("☾", body)
 
+    def test_navbar_marks_current_page(self) -> None:
+        history_body = self.client.get("/history").get_data(as_text=True)
+        jobs_body = self.client.get("/jobs").get_data(as_text=True)
+
+        self.assertIn(
+            '<a class="nav-link active" href="/history" aria-current="page">Historia</a>',
+            history_body,
+        )
+        self.assertIn(
+            '<a class="nav-link active" href="/jobs" aria-current="page">',
+            jobs_body,
+        )
+
+    def test_flash_messages_render_as_toasts(self) -> None:
+        body = self.client.post(
+            "/analyze",
+            data={"_csrf_token": self._csrf_token(), "url": ""},
+            follow_redirects=True,
+        ).get_data(as_text=True)
+
+        self.assertIn("toast app-toast text-bg-warning", body)
+        self.assertIn("data-app-toast", body)
+        self.assertIn("Wklej co najmniej jeden", body)
+
+        with self.client.session_transaction() as session:
+            session["_flashes"] = [("success", "Uruchomiono zadanie abc123.")]
+        success_body = self.client.get("/jobs").get_data(as_text=True)
+        self.assertIn("toast-action-link", success_body)
+        self.assertIn("Przejd", success_body)
+
     def test_diagnostics_page_displays_tool_and_storage_status(self) -> None:
         updater = self.app.extensions["ytdlp_updater"]
         updater._write_state(
@@ -1028,6 +1066,8 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('class="diagnostics-summary', body)
         self.assertIn('class="table diagnostics-table', body)
         self.assertIn("Wersja yt-dlp", body)
+        self.assertIn("diagnostics-ytdlp-card", body)
+        self.assertIn("diagnostics-ytdlp-grid", body)
         self.assertIn("ffmpeg version 8.1.1", body)
         self.assertIn("Ostatnia aktualizacja yt-dlp", body)
         self.assertIn("2026-06-10 10:00:00", body)
@@ -1249,6 +1289,21 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('value="gallery"', body)
         self.assertIn('name="history_keys"', body)
         self.assertIn(f'value="{record["downloaded_at"]}"', body)
+        self.assertIn('data-history-mobile-view-root', body)
+        self.assertIn('data-history-mobile-view="cards"', body)
+        self.assertIn('data-history-mobile-view="compact"', body)
+        self.assertIn('history-mobile-card', body)
+
+    def test_history_frontend_toggles_mobile_compact_view(self) -> None:
+        script = self.client.get("/static/js/app.js").get_data(as_text=True)
+
+        self.assertIn("media-web-downloader-history-mobile-view", script)
+        self.assertIn("history-mobile-compact", script)
+        self.assertIn("[data-history-mobile-view]", script)
+        self.assertIn("notifyNewJobErrors", script)
+        self.assertIn("Otwórz log", script)
+        self.assertIn("toast-action-link", script)
+        self.assertIn("history-icon-action", script)
 
     def test_history_page_exposes_mini_player_for_local_media(self) -> None:
         files = self.app.extensions["file_service"]
@@ -1276,11 +1331,10 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("history-mini-player-toggle", body)
         self.assertIn('data-target="history-player-desktop-', body)
         self.assertIn('aria-controls="history-player-desktop-', body)
+        self.assertIn('class="custom-player custom-player-compact custom-player-video"', body)
+        self.assertIn('data-custom-player', body)
+        self.assertIn('class="custom-player-media history-mini-player-media"', body)
         self.assertIn("Odtwórz tutaj", body)
-        self.assertIn(
-            '<video class="history-mini-player-media" controls preload="metadata" src="/media/example.mp4"></video>',
-            body,
-        )
         self.assertNotIn("/media/notes.txt", body)
 
     def test_history_gallery_view_exposes_mini_player(self) -> None:
@@ -1300,10 +1354,8 @@ class ApplicationTestCase(unittest.TestCase):
         )
 
         self.assertIn('id="history-player-gallery-0"', body)
-        self.assertIn(
-            '<video class="history-mini-player-media" controls preload="metadata" src="/media/example.mp4"></video>',
-            body,
-        )
+        self.assertIn('class="custom-player custom-player-compact custom-player-video"', body)
+        self.assertIn('class="custom-player-media history-mini-player-media"', body)
 
     def test_history_frontend_toggles_mini_players(self) -> None:
         script = self.client.get("/static/js/app.js").get_data(as_text=True)
@@ -1311,6 +1363,19 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn(".history-mini-player-toggle", script)
         self.assertIn("setMiniPlayerOpen", script)
         self.assertIn("pausePanelMedia", script)
+        self.assertIn("enhanceCustomPlayer", script)
+        self.assertIn("custom-player-progress", script)
+        self.assertIn("requestFullscreen", script)
+        self.assertIn("media-web-downloader-player-settings", script)
+        self.assertIn("media-web-downloader-player-positions", script)
+        self.assertIn("playbackRate", script)
+        self.assertIn("custom-player-loop", script)
+        self.assertIn("custom-player-overlay", script)
+        self.assertIn("Cofnij 30 sekund", script)
+        self.assertIn("Przewiń 30 sekund", script)
+        self.assertIn("bulk-url-remove", script)
+        self.assertIn("pictureInPictureEnabled", script)
+        self.assertIn("requestPictureInPicture", script)
         self.assertIn("Odtwórz tutaj", script)
 
     def test_history_bulk_delete_records_keeps_files(self) -> None:

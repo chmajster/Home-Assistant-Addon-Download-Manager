@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.60
+
+- Odświeżono styl sekcji startowej `Prywatny panel pobierania` i nagłówka `Twoje media`.
+- Dodano mobilne menu z podświetleniem aktywnej sekcji oraz toastami po akcjach.
+- Dodano mobilny tryb kompaktowy historii i ikonowe szybkie akcje dla wpisów historii.
+- Ulepszono puste stany historii i zadań oraz dodano linki w toastach do zadań i logów błędów.
+- Rozbudowano diagnostykę o osobną kartę stanu `yt-dlp`.
+- Dodano podgląd wielu wklejonych URL-i przed startem z możliwością odznaczenia wybranych linków.
+- Zastąpiono natywne kontrolki audio/wideo nowoczesnym, responsywnym custom playerem z przewijaniem, głośnością, mute, stop i fullscreen.
+- Player zapamiętuje głośność, wyciszenie, prędkość odtwarzania oraz ostatnią pozycję pliku; dla wideo dodano Picture-in-Picture.
+- Panel wielu URL-i pozwala usuwać pojedyncze pozycje oraz kopiować lub usuwać błędne linki.
+- Player dostał tryb pętli, skoki `-30s` i `+30s` oraz overlay play/pause z czasem na wideo.
+
 ## 1.3.59
 
 - Dodano jawne migracje schematu SQLite do wersji 2.

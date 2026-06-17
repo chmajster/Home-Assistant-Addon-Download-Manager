@@ -25,7 +25,11 @@
     <link href="{{ ingress_url('static', filename='css/desktop.css') }}" rel="stylesheet">
   </head>
   <body>
-    <nav class="navbar navbar-expand sticky-top app-navbar">
+    {% set active_endpoint = request.endpoint or "" %}
+    {% set start_active = active_endpoint in ["web.index", "web.analyze"] %}
+    {% set history_active = active_endpoint in ["web.history", "web.preview"] %}
+    {% set jobs_active = active_endpoint in ["web.jobs", "web.job_log"] %}
+    <nav class="navbar navbar-expand-md sticky-top app-navbar">
       <div class="container-fluid app-container">
         <a class="navbar-brand app-brand" href="{{ ingress_url('web.index') }}">
           <span class="brand-mark" aria-hidden="true">MWD</span>
@@ -34,17 +38,22 @@
             <small>Home Assistant</small>
           </span>
         </a>
-        <div class="navbar-nav app-nav ms-auto">
-          <a class="nav-link" href="{{ ingress_url('web.index') }}">Start</a>
-          <a class="nav-link" href="{{ ingress_url('web.history') }}">Historia</a>
-          <a class="nav-link" href="{{ ingress_url('web.diagnostics') }}">Diagnostyka</a>
-          <a class="nav-link" href="{{ ingress_url('web.jobs') }}">
-            Zadania <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="Aktywne zadania">0</span>
-          </a>
-          <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="Zmień motyw" aria-pressed="false" title="Zmień motyw">
-            <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
-            <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
-          </button>
+        <button class="navbar-toggler app-navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#app-navbar-menu" aria-controls="app-navbar-menu" aria-expanded="false" aria-label="Otwórz menu">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse app-navbar-menu" id="app-navbar-menu">
+          <div class="navbar-nav app-nav ms-md-auto">
+            <a class="nav-link{% if start_active %} active{% endif %}" href="{{ ingress_url('web.index') }}"{% if start_active %} aria-current="page"{% endif %}>Start</a>
+            <a class="nav-link{% if history_active %} active{% endif %}" href="{{ ingress_url('web.history') }}"{% if history_active %} aria-current="page"{% endif %}>Historia</a>
+            <a class="nav-link{% if active_endpoint == 'web.diagnostics' %} active{% endif %}" href="{{ ingress_url('web.diagnostics') }}"{% if active_endpoint == 'web.diagnostics' %} aria-current="page"{% endif %}>Diagnostyka</a>
+            <a class="nav-link{% if jobs_active %} active{% endif %}" href="{{ ingress_url('web.jobs') }}"{% if jobs_active %} aria-current="page"{% endif %}>
+              Zadania <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="Aktywne zadania">0</span>
+            </a>
+            <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="Zmień motyw" aria-pressed="false" title="Zmień motyw">
+              <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+              <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
+            </button>
+          </div>
         </div>
       </div>
     </nav>
@@ -53,12 +62,27 @@
         Brak połączenia / nie można odświeżyć zadań
       </div>
       {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show app-alert" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zamknij"></button>
+        {% if messages %}
+          <div class="toast-container app-toast-container position-fixed top-0 end-0 p-3">
+            {% for category, message in messages %}
+              {% set toast_class = {"success": "text-bg-success", "warning": "text-bg-warning", "danger": "text-bg-danger", "info": "text-bg-info"}.get(category, "text-bg-primary") %}
+              {% set close_light = category in ["success", "danger"] %}
+              {% set message_text = message|string %}
+              {% set show_jobs_link = category == "success" and ("Uruchomiono" in message_text or "Zaimportowano" in message_text or "Wznowiono" in message_text or "ponowne pobrania" in message_text) %}
+              <div class="toast app-toast {{ toast_class }}" data-app-toast role="{% if category == 'danger' %}alert{% else %}status{% endif %}" aria-live="{% if category == 'danger' %}assertive{% else %}polite{% endif %}" aria-atomic="true" data-bs-delay="5200">
+                <div class="d-flex">
+                  <div class="toast-body">
+                    <span>{{ message }}</span>
+                    {% if show_jobs_link %}
+                      <a class="toast-action-link" href="{{ ingress_url('web.jobs') }}">Przejdź do zadań</a>
+                    {% endif %}
+                  </div>
+                  <button type="button" class="btn-close{% if close_light %} btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="Zamknij"></button>
+                </div>
+              </div>
+            {% endfor %}
           </div>
-        {% endfor %}
+        {% endif %}
       {% endwith %}
       {% block content %}{% endblock %}
     </main>

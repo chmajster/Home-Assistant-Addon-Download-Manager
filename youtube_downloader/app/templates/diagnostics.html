@@ -21,6 +21,29 @@
     {% endfor %}
   </section>
 
+  <section class="card app-card diagnostics-ytdlp-card mb-4">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+          <span class="eyebrow">yt-dlp</span>
+          <h2 class="h5 mb-1">Stan narzędzia pobierania</h2>
+          <p class="section-copy mb-0">Wersja, ostatnia aktualizacja i ewentualny błąd aktualizatora.</p>
+        </div>
+        <span class="badge {{ 'text-bg-danger' if diagnostics.yt_dlp.last_error else ('text-bg-warning' if diagnostics.yt_dlp.needs_update else 'text-bg-success') }}">
+          {{ "błąd" if diagnostics.yt_dlp.last_error else ("do sprawdzenia" if diagnostics.yt_dlp.needs_update else "OK") }}
+        </span>
+      </div>
+      <dl class="diagnostics-ytdlp-grid mb-0 mt-3">
+        <dt>Wersja</dt>
+        <dd>{{ diagnostics.yt_dlp.version }}</dd>
+        <dt>Ostatnia aktualizacja</dt>
+        <dd>{{ diagnostics.yt_dlp.last_success|replace("T", " ")|truncate(19, True, "") if diagnostics.yt_dlp.last_success else "brak danych" }}</dd>
+        <dt>Ostatni błąd</dt>
+        <dd class="{{ 'text-danger' if diagnostics.yt_dlp.last_error else 'text-body-secondary' }}">{{ diagnostics.yt_dlp.last_error or "brak" }}</dd>
+      </dl>
+    </div>
+  </section>
+
   <section class="card app-card diagnostics-panel mb-4">
     <div class="card-body">
       <div class="section-heading">

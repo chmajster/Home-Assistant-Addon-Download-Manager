@@ -6,6 +6,9 @@
   const jobsViewVisible = Boolean(document.getElementById("jobs-table-body"));
   const jobsRefreshIntervalMs = jobsViewVisible ? 500 : 2500;
   const themeStorageKey = "media-web-downloader-theme";
+  const historyMobileViewStorageKey = "media-web-downloader-history-mobile-view";
+  const playerSettingsStorageKey = "media-web-downloader-player-settings";
+  const playerPositionsStorageKey = "media-web-downloader-player-positions";
   const restorePathStorageKey = "media-web-downloader-restore-path";
   let intentionalNavigation = false;
   let allowedHosts = new Set();
@@ -103,6 +106,64 @@
     applyTheme(currentTheme === "dark" ? "light" : "dark", true);
   });
 
+  const navbarMenu = document.getElementById("app-navbar-menu");
+  navbarMenu?.addEventListener("click", (event) => {
+    if (!event.target.closest(".nav-link") || !navbarMenu.classList.contains("show")) return;
+    window.bootstrap?.Collapse.getOrCreateInstance(navbarMenu, { toggle: false }).hide();
+  });
+
+  const toastContainer = () => {
+    let container = document.querySelector(".app-toast-container");
+    if (container) return container;
+    container = document.createElement("div");
+    container.className = "toast-container app-toast-container position-fixed top-0 end-0 p-3";
+    document.querySelector("main")?.prepend(container);
+    return container;
+  };
+
+  const showAppToast = (message, { type = "info", actionHref = "", actionLabel = "" } = {}) => {
+    const toast = document.createElement("div");
+    const color = {
+      success: "text-bg-success",
+      warning: "text-bg-warning",
+      danger: "text-bg-danger",
+      info: "text-bg-info",
+    }[type] || "text-bg-primary";
+    toast.className = `toast app-toast ${color}`;
+    toast.setAttribute("role", type === "danger" ? "alert" : "status");
+    toast.setAttribute("aria-live", type === "danger" ? "assertive" : "polite");
+    toast.setAttribute("aria-atomic", "true");
+    toast.dataset.bsDelay = "6500";
+    const wrapper = document.createElement("div");
+    wrapper.className = "d-flex";
+    const body = document.createElement("div");
+    body.className = "toast-body";
+    const label = document.createElement("span");
+    label.textContent = message;
+    body.append(label);
+    if (actionHref && actionLabel) {
+      const action = document.createElement("a");
+      action.className = "toast-action-link";
+      action.href = actionHref;
+      action.textContent = actionLabel;
+      body.append(action);
+    }
+    const close = document.createElement("button");
+    close.className = `btn-close${["success", "danger"].includes(type) ? " btn-close-white" : ""} me-2 m-auto`;
+    close.type = "button";
+    close.dataset.bsDismiss = "toast";
+    close.setAttribute("aria-label", "Zamknij");
+    wrapper.append(body, close);
+    toast.append(wrapper);
+    toastContainer().append(toast);
+    window.bootstrap?.Toast?.getOrCreateInstance(toast)?.show();
+    toast.addEventListener("hidden.bs.toast", () => toast.remove());
+  };
+
+  document.querySelectorAll("[data-app-toast]").forEach((toastNode) => {
+    window.bootstrap?.Toast?.getOrCreateInstance(toastNode)?.show();
+  });
+
   const text = (tag, value, className = "") => {
     const node = document.createElement(tag);
     node.textContent = value ?? "";
@@ -141,18 +202,145 @@
     return urls;
   };
 
+  const historyMobileViewRoot = document.querySelector("[data-history-mobile-view-root]");
+  const historyMobileViewButtons = Array.from(document.querySelectorAll("[data-history-mobile-view]"));
+  if (historyMobileViewRoot && historyMobileViewButtons.length) {
+    const storedHistoryMobileView = () => {
+      try {
+        return localStorage.getItem(historyMobileViewStorageKey) === "compact" ? "compact" : "cards";
+      } catch {
+        return "cards";
+      }
+    };
+
+    const setHistoryMobileView = (view, persist = false) => {
+      const normalizedView = view === "compact" ? "compact" : "cards";
+      historyMobileViewRoot.classList.toggle("history-mobile-compact", normalizedView === "compact");
+      historyMobileViewButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.historyMobileView === normalizedView));
+      });
+      if (persist) {
+        try {
+          localStorage.setItem(historyMobileViewStorageKey, normalizedView);
+        } catch {
+          // Browser storage can be unavailable in hardened WebViews.
+        }
+      }
+    };
+
+    historyMobileViewButtons.forEach((button) => {
+      button.addEventListener("click", () => setHistoryMobileView(button.dataset.historyMobileView, true));
+    });
+    setHistoryMobileView(storedHistoryMobileView());
+  }
+
   document.querySelectorAll(".url-form").forEach((form) => {
     const input = form.querySelector(".media-url");
     const feedback = form.querySelector(".invalid-feedback");
+    const bulkReview = form.querySelector("[data-bulk-url-review]");
+    const bulkList = form.querySelector("[data-bulk-url-list]");
+    const bulkSummary = form.querySelector("[data-bulk-url-summary]");
+    const copyInvalidUrls = form.querySelector("[data-bulk-url-copy-invalid]");
+    const removeInvalidUrls = form.querySelector("[data-bulk-url-remove-invalid]");
     const syncTextareaHeight = () => {
       if (!(input instanceof HTMLTextAreaElement)) return;
       input.style.height = "auto";
       input.style.height = `${Math.max(input.scrollHeight, 54)}px`;
     };
-    input?.addEventListener("input", syncTextareaHeight);
-    input?.addEventListener("paste", () => setTimeout(syncTextareaHeight, 0));
-    form.addEventListener("submit", (event) => {
+    const selectedBulkUrls = () => Array.from(
+      bulkList?.querySelectorAll(".bulk-url-select:checked") || []
+    ).map((checkbox) => checkbox.value);
+    const syncBulkSummary = () => {
+      if (!bulkSummary || !bulkList) return;
+      const total = bulkList.querySelectorAll(".bulk-url-select").length;
+      const selected = selectedBulkUrls().length;
+      const invalid = bulkList.querySelectorAll(".bulk-url-item-invalid").length;
+      bulkSummary.textContent = total > 1 ? `Wybrano ${selected} z ${total} linków.` : "";
+      if (copyInvalidUrls instanceof HTMLButtonElement) copyInvalidUrls.disabled = invalid === 0;
+      if (removeInvalidUrls instanceof HTMLButtonElement) removeInvalidUrls.disabled = invalid === 0;
+    };
+    const setBulkUrls = (urls) => {
+      if (!(input instanceof HTMLTextAreaElement)) return;
+      input.value = urls.join("\n");
+      syncTextareaHeight();
+      renderBulkUrlReview();
+    };
+    const renderBulkUrlReview = () => {
+      if (!bulkReview || !bulkList) return;
       const urls = pastedUrls(input?.value || "");
+      bulkReview.classList.toggle("d-none", urls.length <= 1);
+      bulkList.replaceChildren();
+      urls.forEach((url, index) => {
+        const valid = isValidMediaUrl(url);
+        const label = document.createElement("label");
+        label.className = `bulk-url-item${valid ? "" : " bulk-url-item-invalid"}`;
+        const checkbox = document.createElement("input");
+        checkbox.className = "form-check-input bulk-url-select";
+        checkbox.type = "checkbox";
+        checkbox.value = url;
+        checkbox.checked = valid;
+        checkbox.disabled = !valid;
+        checkbox.addEventListener("change", syncBulkSummary);
+        const body = document.createElement("span");
+        body.className = "bulk-url-text";
+        body.textContent = url;
+        const status = document.createElement("span");
+        status.className = "bulk-url-status";
+        status.textContent = valid ? `Link ${index + 1}` : "Nieobsługiwany lub niepoprawny URL";
+        const remove = document.createElement("button");
+        remove.className = "bulk-url-remove";
+        remove.type = "button";
+        remove.setAttribute("aria-label", `Usuń link ${index + 1}`);
+        remove.title = "Usuń link";
+        remove.textContent = "×";
+        remove.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const nextUrls = pastedUrls(input?.value || "").filter((item) => item !== url);
+          setBulkUrls(nextUrls);
+        });
+        body.append(status);
+        label.append(checkbox, body, remove);
+        bulkList.append(label);
+      });
+      syncBulkSummary();
+    };
+    form.querySelectorAll("[data-bulk-url-select]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const shouldSelect = button.dataset.bulkUrlSelect === "all";
+        bulkList?.querySelectorAll(".bulk-url-select:not(:disabled)").forEach((checkbox) => {
+          checkbox.checked = shouldSelect;
+        });
+        syncBulkSummary();
+      });
+    });
+    copyInvalidUrls?.addEventListener("click", async () => {
+      const invalidUrls = pastedUrls(input?.value || "").filter((url) => !isValidMediaUrl(url));
+      if (!invalidUrls.length) return;
+      try {
+        await copyTextToClipboard(invalidUrls.join("\n"));
+        copyInvalidUrls.textContent = "Skopiowano";
+        window.setTimeout(() => {
+          copyInvalidUrls.textContent = "Kopiuj błędne";
+        }, 1400);
+      } catch (error) {
+        console.error("Nie można skopiować błędnych URL-i:", error);
+      }
+    });
+    removeInvalidUrls?.addEventListener("click", () => {
+      setBulkUrls(pastedUrls(input?.value || "").filter(isValidMediaUrl));
+    });
+    input?.addEventListener("input", () => {
+      syncTextareaHeight();
+      renderBulkUrlReview();
+    });
+    input?.addEventListener("paste", () => setTimeout(() => {
+      syncTextareaHeight();
+      renderBulkUrlReview();
+    }, 0));
+    form.addEventListener("submit", (event) => {
+      const detectedUrls = pastedUrls(input?.value || "");
+      const urls = detectedUrls.length > 1 ? selectedBulkUrls() : detectedUrls;
       const invalidUrls = urls.filter((url) => !isValidMediaUrl(url));
       if (!urls.length || invalidUrls.length) {
         event.preventDefault();
@@ -165,6 +353,7 @@
         }
         return;
       }
+      if (input instanceof HTMLTextAreaElement) input.value = urls.join("\n");
       if (feedback) {
         feedback.textContent = "Wklej poprawny adres HTTP lub HTTPS z obsługiwanej domeny YouTube, Instagram, Kick albo Twitch.";
       }
@@ -180,6 +369,289 @@
       form.querySelector(".analyze-loading")?.classList.remove("d-none");
     });
   });
+
+  const formatMediaTime = (seconds) => {
+    const value = Number(seconds);
+    if (!Number.isFinite(value) || value < 0) return "0:00";
+    const rounded = Math.floor(value);
+    const hours = Math.floor(rounded / 3600);
+    const minutes = Math.floor((rounded % 3600) / 60);
+    const rest = rounded % 60;
+    return hours
+      ? `${hours}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`
+      : `${minutes}:${String(rest).padStart(2, "0")}`;
+  };
+
+  const customPlayerButton = (label, icon, className = "") => {
+    const button = document.createElement("button");
+    button.className = `custom-player-button ${className}`.trim();
+    button.type = "button";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.textContent = icon;
+    return button;
+  };
+
+  const readJsonStorage = (key, fallback) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      const value = JSON.parse(raw);
+      return value && typeof value === "object" ? value : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const writeJsonStorage = (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // Browser storage can be unavailable in hardened WebViews.
+    }
+  };
+
+  const readPlayerSettings = () => ({
+    volume: 1,
+    muted: false,
+    playbackRate: 1,
+    ...readJsonStorage(playerSettingsStorageKey, {}),
+  });
+
+  const writePlayerSettings = (settings) => {
+    const normalized = {
+      volume: Math.min(1, Math.max(0, Number(settings.volume) || 0)),
+      muted: Boolean(settings.muted),
+      playbackRate: Number(settings.playbackRate) || 1,
+    };
+    writeJsonStorage(playerSettingsStorageKey, normalized);
+  };
+
+  const playerPositionKey = (media) => media.currentSrc || media.src || "";
+
+  const readPlayerPositions = () => readJsonStorage(playerPositionsStorageKey, {});
+
+  const writePlayerPosition = (media) => {
+    const key = playerPositionKey(media);
+    if (!key || !Number.isFinite(media.duration) || media.duration < 30) return;
+    const positions = readPlayerPositions();
+    if (media.currentTime > 3 && media.currentTime < media.duration - 3) {
+      positions[key] = Math.floor(media.currentTime);
+    } else {
+      delete positions[key];
+    }
+    writeJsonStorage(playerPositionsStorageKey, positions);
+  };
+
+  const enhanceCustomPlayer = (player) => {
+    const media = player.querySelector(".custom-player-media");
+    if (!(media instanceof HTMLMediaElement) || player.dataset.customPlayerReady) return;
+    player.dataset.customPlayerReady = "true";
+    const storedSettings = readPlayerSettings();
+    const speedOptions = [0.75, 1, 1.25, 1.5, 2];
+    const storedVolume = Number(storedSettings.volume);
+    media.volume = Number.isFinite(storedVolume) ? Math.min(1, Math.max(0, storedVolume)) : 1;
+    media.muted = Boolean(storedSettings.muted);
+    media.playbackRate = speedOptions.includes(Number(storedSettings.playbackRate))
+      ? Number(storedSettings.playbackRate)
+      : 1;
+
+    const progress = document.createElement("input");
+    progress.className = "custom-player-range custom-player-progress";
+    progress.type = "range";
+    progress.min = "0";
+    progress.max = "1000";
+    progress.value = "0";
+    progress.step = "1";
+    progress.setAttribute("aria-label", "Postęp odtwarzania");
+
+    const play = customPlayerButton("Odtwórz", "▶", "custom-player-play");
+    const stop = customPlayerButton("Stop", "■");
+    const rewind30 = customPlayerButton("Cofnij 30 sekund", "-30");
+    const rewind = customPlayerButton("Cofnij 10 sekund", "↶");
+    const forward = customPlayerButton("Przewiń 10 sekund", "↷");
+    const forward30 = customPlayerButton("Przewiń 30 sekund", "+30");
+    const loop = customPlayerButton("Pętla", "∞", "custom-player-loop");
+    loop.setAttribute("aria-pressed", "false");
+    const mute = customPlayerButton("Wycisz", "🔊", "custom-player-mute");
+    const fullscreen = customPlayerButton("Pełny ekran", "⛶");
+    const pip = customPlayerButton("Picture-in-Picture", "PiP", "custom-player-pip");
+    const time = text("span", "0:00 / 0:00", "custom-player-time");
+    const speed = document.createElement("select");
+    speed.className = "custom-player-speed";
+    speed.setAttribute("aria-label", "Prędkość odtwarzania");
+    speedOptions.forEach((option) => {
+      const speedOption = document.createElement("option");
+      speedOption.value = String(option);
+      speedOption.textContent = `${option}x`;
+      speedOption.selected = media.playbackRate === option;
+      speed.append(speedOption);
+    });
+    const volume = document.createElement("input");
+    volume.className = "custom-player-range custom-player-volume";
+    volume.type = "range";
+    volume.min = "0";
+    volume.max = "1";
+    volume.step = "0.01";
+    volume.value = String(media.volume || 1);
+    volume.setAttribute("aria-label", "Głośność");
+
+    const controls = document.createElement("div");
+    controls.className = "custom-player-controls";
+    const progressRow = document.createElement("div");
+    progressRow.className = "custom-player-row";
+    progressRow.append(progress);
+    const mainRow = document.createElement("div");
+    mainRow.className = "custom-player-row custom-player-main-row";
+    const transport = document.createElement("div");
+    transport.className = "custom-player-row";
+    transport.append(play, stop, rewind30, rewind, forward, forward30, loop, time);
+    const audio = document.createElement("div");
+    audio.className = "custom-player-row custom-player-volume-row";
+    audio.append(speed, mute, volume);
+    if (media instanceof HTMLVideoElement && document.pictureInPictureEnabled) audio.append(pip);
+    audio.append(fullscreen);
+    mainRow.append(transport, audio);
+    controls.append(progressRow, mainRow);
+    player.append(controls);
+
+    let overlayTime = null;
+    let overlayIcon = null;
+    if (media instanceof HTMLVideoElement) {
+      const overlay = document.createElement("button");
+      overlay.className = "custom-player-overlay";
+      overlay.type = "button";
+      overlay.setAttribute("aria-label", "Odtwórz lub pauzuj");
+      overlayIcon = text("span", "▶", "custom-player-overlay-icon");
+      overlayTime = text("span", "0:00 / 0:00", "custom-player-overlay-time");
+      overlay.append(overlayIcon, overlayTime);
+      overlay.addEventListener("click", () => play.click());
+      player.append(overlay);
+    }
+
+    let seeking = false;
+    const syncPlay = () => {
+      const paused = media.paused;
+      play.textContent = paused ? "▶" : "Ⅱ";
+      play.setAttribute("aria-label", paused ? "Odtwórz" : "Pauza");
+      play.title = paused ? "Odtwórz" : "Pauza";
+      player.classList.toggle("custom-player-playing", !paused);
+      if (overlayIcon) overlayIcon.textContent = paused ? "▶" : "Ⅱ";
+    };
+    const syncMute = () => {
+      const muted = media.muted || media.volume === 0;
+      mute.textContent = muted ? "🔇" : "🔊";
+      mute.setAttribute("aria-label", muted ? "Włącz dźwięk" : "Wycisz");
+      mute.title = muted ? "Włącz dźwięk" : "Wycisz";
+      volume.value = String(media.muted ? 0 : media.volume);
+    };
+    const persistSettings = () => writePlayerSettings({
+      volume: media.volume,
+      muted: media.muted,
+      playbackRate: media.playbackRate,
+    });
+    const restorePosition = () => {
+      const key = playerPositionKey(media);
+      const saved = Number(readPlayerPositions()[key] || 0);
+      if (key && saved > 3 && Number.isFinite(media.duration) && saved < media.duration - 3) {
+        media.currentTime = saved;
+      }
+    };
+    const syncTime = () => {
+      const duration = Number.isFinite(media.duration) ? media.duration : 0;
+      if (!seeking) progress.value = duration ? String((media.currentTime / duration) * 1000) : "0";
+      time.textContent = `${formatMediaTime(media.currentTime)} / ${formatMediaTime(duration)}`;
+      if (overlayTime) overlayTime.textContent = time.textContent;
+    };
+    const seekBy = (seconds) => {
+      const duration = Number.isFinite(media.duration) ? media.duration : 0;
+      const target = Math.max(0, media.currentTime + seconds);
+      media.currentTime = duration ? Math.min(duration, target) : target;
+    };
+
+    play.addEventListener("click", () => {
+      if (media.paused) media.play().catch(() => {});
+      else media.pause();
+    });
+    stop.addEventListener("click", () => {
+      media.pause();
+      media.currentTime = 0;
+    });
+    rewind30.addEventListener("click", () => seekBy(-30));
+    rewind.addEventListener("click", () => seekBy(-10));
+    forward.addEventListener("click", () => seekBy(10));
+    forward30.addEventListener("click", () => seekBy(30));
+    loop.addEventListener("click", () => {
+      media.loop = !media.loop;
+      loop.classList.toggle("custom-player-button-active", media.loop);
+      loop.setAttribute("aria-pressed", String(media.loop));
+    });
+    mute.addEventListener("click", () => {
+      media.muted = !media.muted;
+      syncMute();
+      persistSettings();
+    });
+    volume.addEventListener("input", () => {
+      media.volume = Number(volume.value);
+      media.muted = media.volume === 0;
+      syncMute();
+      persistSettings();
+    });
+    speed.addEventListener("change", () => {
+      media.playbackRate = Number(speed.value) || 1;
+      persistSettings();
+    });
+    progress.addEventListener("input", () => {
+      seeking = true;
+      const duration = Number.isFinite(media.duration) ? media.duration : 0;
+      time.textContent = `${formatMediaTime((Number(progress.value) / 1000) * duration)} / ${formatMediaTime(duration)}`;
+    });
+    progress.addEventListener("change", () => {
+      const duration = Number.isFinite(media.duration) ? media.duration : 0;
+      media.currentTime = duration ? (Number(progress.value) / 1000) * duration : 0;
+      seeking = false;
+      syncTime();
+    });
+    fullscreen.addEventListener("click", () => {
+      if (document.fullscreenElement) document.exitFullscreen?.();
+      else player.requestFullscreen?.();
+    });
+    pip.addEventListener("click", async () => {
+      if (!(media instanceof HTMLVideoElement) || !document.pictureInPictureEnabled) return;
+      try {
+        if (document.pictureInPictureElement === media) await document.exitPictureInPicture();
+        else await media.requestPictureInPicture();
+      } catch (error) {
+        console.error("Nie można uruchomić Picture-in-Picture:", error);
+      }
+    });
+    media.addEventListener("click", () => play.click());
+    media.addEventListener("play", syncPlay);
+    media.addEventListener("pause", syncPlay);
+    media.addEventListener("loadedmetadata", () => {
+      restorePosition();
+      syncTime();
+    });
+    media.addEventListener("timeupdate", () => {
+      syncTime();
+      writePlayerPosition(media);
+    });
+    media.addEventListener("volumechange", () => {
+      syncMute();
+      persistSettings();
+    });
+    media.addEventListener("ratechange", () => {
+      speed.value = String(media.playbackRate);
+      persistSettings();
+    });
+    media.addEventListener("ended", () => writePlayerPosition(media));
+    syncPlay();
+    syncMute();
+    syncTime();
+    if (media.hasAttribute("autoplay")) media.play().catch(() => {});
+  };
+
+  document.querySelectorAll("[data-custom-player]").forEach(enhanceCustomPlayer);
 
   document.querySelectorAll(".delete-form").forEach((form) => {
     form.addEventListener("submit", (event) => {
@@ -428,7 +900,17 @@
         .filter((button) => button.dataset.target === panel.id)
         .forEach((button) => {
           button.setAttribute("aria-expanded", String(open));
-          button.textContent = open ? "Zamknij" : "Odtwórz tutaj";
+          const label = open
+            ? button.dataset.openLabel || "Zamknij"
+            : button.dataset.closedLabel || "Odtwórz tutaj";
+          if (button.classList.contains("history-icon-action")) {
+            button.setAttribute("aria-label", label);
+            button.setAttribute("title", label);
+            const hiddenLabel = button.querySelector(".visually-hidden");
+            if (hiddenLabel) hiddenLabel.textContent = label;
+            return;
+          }
+          button.textContent = label;
         });
     };
 
@@ -961,6 +1443,22 @@
 
   let lastSuccessfulJobs = null;
   let jobsRefreshInProgress = false;
+  let knownJobStatuses = new Map();
+
+  const notifyNewJobErrors = (jobs) => {
+    const hadSnapshot = knownJobStatuses.size > 0;
+    jobs.forEach((job) => {
+      const previousStatus = knownJobStatuses.get(job.job_id);
+      if (hadSnapshot && job.status === "error" && previousStatus !== "error") {
+        showAppToast(`Zadanie zakończyło się błędem: ${job.title || job.job_id}`, {
+          type: "danger",
+          actionHref: route(`/jobs/log/${encodeURIComponent(job.job_id)}`),
+          actionLabel: "Otwórz log",
+        });
+      }
+    });
+    knownJobStatuses = new Map(jobs.map((job) => [job.job_id, job.status]));
+  };
 
   const refreshJobs = async () => {
     if (!document.getElementById("active-jobs-badge") || jobsRefreshInProgress) return;
@@ -973,6 +1471,7 @@
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       if (!payload || !Array.isArray(payload.jobs)) throw new Error("Niepoprawna odpowiedź API");
+      notifyNewJobErrors(payload.jobs);
       lastSuccessfulJobs = payload.jobs;
       setJobsRefreshError(false);
       updateJobsView(lastSuccessfulJobs);

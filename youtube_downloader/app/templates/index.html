@@ -5,8 +5,8 @@
   <section class="hero-card card mb-4">
     <div class="card-body p-4 p-lg-5">
       <div class="hero-content">
-        <span class="eyebrow">Prywatny panel pobierania</span>
-        <h1 class="display-6 fw-bold mb-3">Twoje media.<br><span class="hero-highlight">Jedno miejsce.</span></h1>
+        <span class="eyebrow hero-eyebrow">Prywatny panel pobierania</span>
+        <h1 class="hero-title display-6 fw-bold mb-3">Twoje media.<br><span class="hero-highlight">Jedno miejsce.</span></h1>
         <p class="hero-copy mb-3">Analizuj i zapisuj publiczne materiały, do których masz prawa. Wklej link, wybierz format i obserwuj postęp bez opuszczania Home Assistant.</p>
         <div class="platform-list mb-4" aria-label="Obsługiwane serwisy">
           <span class="platform-chip platform-youtube">YouTube</span>
@@ -26,6 +26,22 @@
             <span class="analyze-submit-label">Analizuj</span>
           </button>
           <div class="invalid-feedback">Wklej poprawny adres HTTP lub HTTPS z obsługiwanej domeny YouTube, Instagram, Kick albo Twitch.</div>
+        </div>
+        <div class="bulk-url-review d-none mt-3" data-bulk-url-review>
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div>
+              <strong>Wykryte linki</strong>
+              <small class="d-block text-body-secondary">Odznacz pozycje, których nie chcesz uruchamiać.</small>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-select="all">Wszystkie</button>
+              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-select="none">Żadne</button>
+              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-copy-invalid disabled>Kopiuj błędne</button>
+              <button class="btn btn-sm btn-outline-danger" type="button" data-bulk-url-remove-invalid disabled>Usuń błędne</button>
+            </div>
+          </div>
+          <div class="bulk-url-list" data-bulk-url-list></div>
+          <small class="bulk-url-summary text-body-secondary mt-2 d-block" data-bulk-url-summary></small>
         </div>
         <div class="analyze-loading alert alert-info d-none mt-3 mb-0" role="status" aria-live="polite">
           <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
