@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -68,6 +69,7 @@ class Job:
     output_file: str | None = None
     output_files: list[str] = field(default_factory=list)
     thumbnail_filename: str | None = None
+    tags: list[str] = field(default_factory=list)
     is_live: bool = False
     live_from_start: bool = True
     duration: int | None = None
@@ -119,6 +121,7 @@ class JobManager:
             max_workers=max_concurrent_jobs, thread_name_prefix="download"
         )
         self.state_store.migrate_jobs_json(self.jobs_file)
+        self._migrate_history_records_into_jobs()
         self._load_jobs()
         self._restore_auto_retries()
 
@@ -460,6 +463,80 @@ class JobManager:
             job_ids = list(self._jobs)
         return self.delete_jobs(job_ids)
 
+    def _migrate_history_records_into_jobs(self) -> None:
+        """Fold legacy download history into the durable job list."""
+
+        history = self.state_store.history_all()
+        if not history:
+            return
+        jobs = self.state_store.jobs_all()
+        existing_keys = {
+            self._history_identity(
+                record.get("url"),
+                record.get("output_file") or (record.get("output_files") or [None])[0],
+                record.get("finished_at") or record.get("created_at"),
+            )
+            for record in jobs
+        }
+        migrated: list[dict[str, Any]] = []
+        for record in history:
+            identity = self._history_identity(
+                record.get("url"),
+                record.get("filename"),
+                record.get("downloaded_at"),
+            )
+            if identity in existing_keys:
+                continue
+            title = str(record.get("title") or record.get("filename") or "Bez tytułu")
+            filename = str(record.get("filename") or "")
+            status = str(record.get("status") or "completed")
+            if status not in {"completed", "error", "stopped", "interrupted"}:
+                status = "completed"
+            downloaded_at = str(record.get("downloaded_at") or now_iso())
+            file_exists = bool(record.get("file_exists", True))
+            migrated.append(
+                {
+                    "job_id": f"history-{identity[:24]}",
+                    "url": str(record.get("url") or ""),
+                    "title": title[:300],
+                    "status": status,
+                    "download_type": str(record.get("type") or "best"),
+                    "format_id": record.get("format_id"),
+                    "progress": 100.0 if status == "completed" else 0.0,
+                    "downloaded_bytes": record.get("size"),
+                    "total_bytes": record.get("size"),
+                    "created_at": downloaded_at,
+                    "started_at": None,
+                    "finished_at": downloaded_at,
+                    "error_message": None,
+                    "warning_message": record.get("warning_message"),
+                    "output_file": filename if file_exists else None,
+                    "output_files": [filename] if filename and file_exists else [],
+                    "thumbnail_filename": record.get("thumbnail_filename"),
+                    "is_live": False,
+                    "live_from_start": True,
+                    "duration": record.get("duration"),
+                    "log_lines": ["[history] Przeniesiono z historii pobrań do zadań."],
+                    "tags": record.get("tags") if isinstance(record.get("tags"), list) else [],
+                    "auto_retry_attempts": 0,
+                    "auto_retry_max_attempts": AUTO_RETRY_MAX_ATTEMPTS,
+                    "next_retry_at": None,
+                }
+            )
+            existing_keys.add(identity)
+        if migrated:
+            self.state_store.jobs_replace(jobs + migrated, replace_logs=True)
+            LOGGER.info(
+                "Przeniesiono %s wpisow historii pobran do widoku zadan.",
+                len(migrated),
+            )
+        self.state_store.history_clear()
+
+    @staticmethod
+    def _history_identity(url: object, filename: object, timestamp: object) -> str:
+        raw = "\n".join(str(value or "") for value in (url, filename, timestamp))
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
     def job_dict(self, job: Job, include_full_log: bool = False) -> dict[str, Any]:
         """Serialize a job with labels consumed by JSON clients."""
 
@@ -756,6 +833,9 @@ class JobManager:
                     collect_path(data)
                     with self._lock:
                         active = self._jobs[job_id]
+                        metadata_title = self._metadata_title(data)
+                        if metadata_title:
+                            active.title = metadata_title
                         log_line = self._progress_log_line(data)
                         if log_line:
                             self._append_log_line(active, log_line)
@@ -777,6 +857,9 @@ class JobManager:
                     collect_path(data)
                     with self._lock:
                         active = self._jobs[job_id]
+                        metadata_title = self._metadata_title(data)
+                        if metadata_title:
+                            active.title = metadata_title
                         log_line = self._postprocessor_log_line(data)
                         if log_line:
                             self._append_log_line(active, log_line)
@@ -975,17 +1058,6 @@ class JobManager:
                         job.thumbnail_filename = thumbnail.filename
                     if thumbnail.warning_message and not job.warning_message:
                         job.warning_message = thumbnail.warning_message
-                    self.file_service.record_download(
-                        job.title,
-                        job.url,
-                        job.download_type,
-                        path.name,
-                        status,
-                        thumbnail.filename,
-                        job.format_id,
-                        thumbnail.warning_message,
-                        job.duration,
-                    )
                 except (FileNotFoundError, ValueError):
                     LOGGER.warning("Pominięto wynik poza katalogiem pobrań: %s", path)
         return files
@@ -1015,6 +1087,16 @@ class JobManager:
     @staticmethod
     def _byte_count(value: Any) -> int | None:
         return int(value) if isinstance(value, (int, float)) and value >= 0 else None
+
+    @staticmethod
+    def _metadata_title(data: dict[str, Any]) -> str | None:
+        info = data.get("info_dict") or {}
+        if not isinstance(info, dict):
+            return None
+        title = str(info.get("fulltitle") or info.get("title") or "").strip()
+        if not title or title.startswith(("http://", "https://")):
+            return None
+        return title[:300]
 
     def _output_size(self, filenames: list[str]) -> int | None:
         size = 0

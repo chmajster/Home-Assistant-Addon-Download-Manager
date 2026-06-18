@@ -693,22 +693,13 @@ def _duplicate_download_warnings(url: str, title: str = "") -> list[dict[str, st
             }
         )
 
-    for record in _file_service().history():
-        record_url = _duplicate_url_key(record.get("url"))
-        record_title = str(record.get("title") or "")
-        filename = str(record.get("filename") or "")
-        if record_url == normalized_url:
-            add("url", "history", record_title, filename)
-        elif title_key and record.get("file_exists") and _duplicate_key(record_title) == title_key:
-            add("file", "history", record_title, filename)
-
     for job in _job_manager().list_jobs():
-        if job.status not in JobManager.ACTIVE_STATUSES:
-            continue
+        source = "queue" if job.status in JobManager.ACTIVE_STATUSES else "jobs"
+        detail = job.output_file or job.job_id[:8]
         if _duplicate_url_key(job.url) == normalized_url:
-            add("url", "queue", job.title, job.job_id[:8])
+            add("url", source, job.title, detail)
         elif title_key and _duplicate_key(job.title) == title_key:
-            add("file", "queue", job.title, job.job_id[:8])
+            add("file", source, job.title, detail)
     return warnings[:5]
 
 
@@ -738,12 +729,12 @@ def _valid_form() -> bool:
 
 @web_bp.get("/")
 def index():
-    """Main panel with URL form and persistent history."""
+    """Main panel with URL form and recent completed jobs."""
 
     file_service = _file_service()
     return render_template(
         "index.html",
-        history=file_service.history(),
+        history=_completed_job_records(limit=10),
         files=file_service.list_files(),
         storage=file_service.storage_usage(),
         options=current_app.config["APP_SETTINGS"],
@@ -752,25 +743,55 @@ def index():
 
 @web_bp.get("/history")
 def history():
-    """Searchable full download history."""
+    """Redirect legacy history links to the unified jobs view."""
 
-    query = request.args.get("q", "").strip()
-    sort = _history_sort_key(request.args.get("sort"))
-    order = _history_sort_order(request.args.get("order"))
-    view = _history_view(request.args.get("view"))
-    records = _history_records(_file_service().history())
-    filtered = _sort_history(_filter_history(records, query), sort, order)
-    return render_template(
-        "history.html",
-        history=filtered,
-        query=query,
-        sort=sort,
-        order=order,
-        view=view,
-        sort_labels=HISTORY_SORT_LABELS,
-        view_labels=HISTORY_VIEW_LABELS,
-        total_history=len(records),
-    )
+    return redirect(ingress_url("web.jobs"))
+
+
+def _completed_job_records(limit: int | None = None) -> list[dict[str, Any]]:
+    """Return completed jobs in the shape used by legacy media views."""
+
+    file_service = _file_service()
+    records: list[dict[str, Any]] = []
+    for job in _job_manager().list_jobs():
+        if job.status != "completed" or not job.output_file:
+            continue
+        filename = job.output_file
+        try:
+            file_service.resolve_download(filename)
+            file_exists = True
+        except (FileNotFoundError, UnsafeFilenameError):
+            file_exists = False
+        thumbnail_exists = False
+        if job.thumbnail_filename:
+            try:
+                thumbnail_exists = file_service.resolve_thumbnail(
+                    job.thumbnail_filename
+                ).is_file()
+            except (FileNotFoundError, UnsafeFilenameError):
+                thumbnail_exists = False
+        records.append(
+            {
+                "job_id": job.job_id,
+                "title": job.title,
+                "url": job.url,
+                "type": job.download_type,
+                "filename": filename,
+                "size": job.downloaded_bytes,
+                "downloaded_at": job.finished_at or job.created_at,
+                "status": job.status,
+                "file_exists": file_exists,
+                "thumbnail_filename": job.thumbnail_filename,
+                "thumbnail_exists": thumbnail_exists,
+                "format_id": job.format_id,
+                "warning_message": job.warning_message,
+                "duration": job.duration,
+                "tags": job.tags,
+            }
+        )
+        if limit is not None and len(records) >= limit:
+            break
+    return _history_records(records)
 
 
 @web_bp.get("/diagnostics")
@@ -960,14 +981,7 @@ def _selected_history_records(
 
 
 def _history_redirect():
-    query = str(request.form.get("return_q") or "").strip()
-    sort = _history_sort_key(request.form.get("return_sort"))
-    order = _history_sort_order(request.form.get("return_order"))
-    view = _history_view(request.form.get("return_view"))
-    values = {"sort": sort, "order": order, "view": view}
-    if query:
-        values["q"] = query
-    return redirect(ingress_url("web.history", **values))
+    return redirect(ingress_url("web.jobs"))
 
 
 def _history_record_can_repeat(record: dict[str, Any]) -> bool:
@@ -1494,7 +1508,7 @@ def preview(filename: str):
             "error.html", message="Nie znaleziono pobranego pliku."
         ), 404
 
-    history_records = _file_service().history()
+    history_records = _completed_job_records()
     current_index = next(
         (
             index

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.67
+
+- Przeniesiono `Historia pobrań` do widoku `Zadania`: stare wpisy historii są migrowane do zakończonych zadań przy starcie aplikacji.
+- Wyłączono osobną stronę historii w głównej nawigacji; stare linki `/history` przekierowują do `Zadania`.
+- Startowy panel ostatnich pobrań i podgląd pliku czytają metadane z zadań, dzięki czemu istnieje jedno źródło prawdy.
+- Dodano akcję `Pobierz ponownie` przy ukończonych zadaniach.
+
 ## 1.3.66
 
 - Dodano filtry statusu w widoku `Zadania`: `W toku`, `Ukończone`, `Błędy`, `Zatrzymane` i `Przerwane`.
@@ -7,6 +14,9 @@
 - Dodano widok szczegółów zadania z timeline, pełnymi parametrami pobierania, ostatnim błędem i historią ponowień.
 - Rozszerzono powiadomienia Home Assistant o linki-akcje do ponowienia, logu i usunięcia zadania.
 - Dodano w diagnostyce przycisk szybkiego testu `yt-dlp`, `ffmpeg`, zapisu katalogu i sieci.
+- Zmieniono wybór prędkości odtwarzania w playerze na suwak do `3x`.
+- Uzupełniono `Statystyki dla nerdów` o bieżącą datę/czas oraz stabilniejsze wartości `Connection Speed`, `Network Activity` i `Buffer Health`.
+- Naprawiono ponowne pobieranie, aby tytuł zadania i historii był aktualizowany z metadanych `yt-dlp`, zamiast zostawać adresem URL.
 
 ## 1.3.65
 

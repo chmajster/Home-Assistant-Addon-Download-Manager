@@ -500,7 +500,7 @@
     const normalized = {
       volume: Math.min(1, Math.max(0, Number(settings.volume) || 0)),
       muted: Boolean(settings.muted),
-      playbackRate: Number(settings.playbackRate) || 1,
+      playbackRate: clampPlaybackRate(settings.playbackRate),
       loop: Boolean(settings.loop),
       autoplayNext: Boolean(settings.autoplayNext),
       fitMode,
@@ -591,7 +591,70 @@
     4: "enough data",
   }[state] || "N/A");
 
-  const getVideoDebugStats = (player, media) => {
+  const clampPlaybackRate = (value) => Math.min(3, Math.max(0.25, Number(value) || 1));
+
+  const playbackRateLabel = (value) => {
+    const rounded = Math.round(clampPlaybackRate(value) * 100) / 100;
+    return `${String(rounded).replace(/\.?0+$/, "")}x`;
+  };
+
+  const formatPlayerBytes = (value) => {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes) || bytes <= 0) return "brak danych";
+    const units = ["B", "KB", "MB", "GB"];
+    let size = bytes;
+    for (const unit of units) {
+      if (size < 1024 || unit === units[units.length - 1]) return `${size.toFixed(1)} ${unit}`;
+      size /= 1024;
+    }
+    return "brak danych";
+  };
+
+  const mediaResourceTiming = (media) => {
+    const source = media.currentSrc || media.querySelector("source")?.src || "";
+    if (!source || !window.performance?.getEntriesByName) return null;
+    const entries = window.performance.getEntriesByName(source).filter((entry) => entry.entryType === "resource");
+    return entries.length ? entries[entries.length - 1] : null;
+  };
+
+  const connectionSpeedLabel = (media) => {
+    const timing = mediaResourceTiming(media);
+    const bytes = Number(timing?.transferSize || timing?.encodedBodySize || 0);
+    const durationMs = Number(timing?.duration || 0);
+    if (bytes > 0 && durationMs > 0) {
+      return `${((bytes * 8) / durationMs / 1000).toFixed(2)} Mbps`;
+    }
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (connection?.downlink) {
+      const type = connection.effectiveType ? ` (${connection.effectiveType})` : "";
+      return `${connection.downlink} Mbps${type}`;
+    }
+    return "brak danych w API przeglądarki";
+  };
+
+  const networkActivityLabel = (media, activity) => {
+    const timing = mediaResourceTiming(media);
+    const bytes = Number(timing?.transferSize || timing?.encodedBodySize || activity?.loadedBytes || 0);
+    const eventAge = activity?.lastAt ? `${Math.max(0, ((Date.now() - activity.lastAt) / 1000)).toFixed(1)} s temu` : "brak";
+    return [
+      `${mediaNetworkStateLabel(media.networkState)} / ${mediaReadyStateLabel(media.readyState)}`,
+      `event=${activity?.lastEvent || "init"} (${eventAge})`,
+      `dane=${formatPlayerBytes(bytes)}`,
+    ].join("; ");
+  };
+
+  const bufferHealthLabel = (media) => {
+    const bufferedEnd = bufferEndForMedia(media);
+    if (Number.isFinite(bufferedEnd)) {
+      return `${Math.max(0, bufferedEnd - media.currentTime).toFixed(2)} s`;
+    }
+    if (media.readyState >= 4 && Number.isFinite(media.duration)) {
+      return `${Math.max(0, media.duration - media.currentTime).toFixed(2)} s`;
+    }
+    return `${mediaReadyStateLabel(media.readyState)} / ${mediaNetworkStateLabel(media.networkState)}`;
+  };
+
+  const getVideoDebugStats = (player, media, activity = null) => {
     const playbackQuality = typeof media.getVideoPlaybackQuality === "function"
       ? media.getVideoPlaybackQuality()
       : null;
@@ -609,32 +672,26 @@
       : "N/A";
     const source = media.querySelector("source");
     const mimeType = source?.type || "";
-    const bufferedEnd = bufferEndForMedia(media);
-    const bufferHealth = Number.isFinite(bufferedEnd)
-      ? `${Math.max(0, bufferedEnd - media.currentTime).toFixed(2)} s`
-      : "N/A";
-    const connection = navigator.connection?.downlink
-      ? `${navigator.connection.downlink} Mbps`
-      : "N/A";
     const duration = Number.isFinite(media.duration) ? formatMediaTime(media.duration) : "N/A";
     const current = Number.isFinite(media.currentTime) ? formatMediaTime(media.currentTime) : "N/A";
     const rows = [
+      ["Date", new Date().toLocaleString()],
       ["Video ID / Name", player.dataset.videoId || player.dataset.videoTitle || sourceLabelFromMedia(media)],
       ["Viewport / Frames", `${viewport} / ${frames}`],
       ["Current / Optimal Res", `${resolution} / N/A`],
       ["Volume / Normalized", `${media.muted ? "muted" : `${Math.round(media.volume * 100)}%`} / N/A`],
       ["Codecs", mimeType || "N/A"],
       ["Color", "N/A"],
-      ["Connection Speed", connection],
-      ["Network Activity", `${mediaNetworkStateLabel(media.networkState)} / ${mediaReadyStateLabel(media.readyState)}`],
-      ["Buffer Health", bufferHealth],
+      ["Connection Speed", connectionSpeedLabel(media)],
+      ["Network Activity", networkActivityLabel(media, activity)],
+      ["Buffer Health", bufferHealthLabel(media)],
       ["Mystery Text", `current=${current}; duration=${duration}; src=${sourceLabelFromMedia(media)}`],
     ];
     return rows;
   };
 
-  const formatVideoDebugStats = (player, media) => (
-    getVideoDebugStats(player, media)
+  const formatVideoDebugStats = (player, media, activity = null) => (
+    getVideoDebugStats(player, media, activity)
       .map(([label, value]) => `${label}: ${value || "N/A"}`)
       .join("\n")
   );
@@ -644,13 +701,10 @@
     if (!(media instanceof HTMLMediaElement) || player.dataset.customPlayerReady) return;
     player.dataset.customPlayerReady = "true";
     const storedSettings = readPlayerSettings();
-    const speedOptions = [0.75, 1, 1.25, 1.5, 2];
     const storedVolume = Number(storedSettings.volume);
     media.volume = Number.isFinite(storedVolume) ? Math.min(1, Math.max(0, storedVolume)) : 1;
     media.muted = Boolean(storedSettings.muted);
-    media.playbackRate = speedOptions.includes(Number(storedSettings.playbackRate))
-      ? Number(storedSettings.playbackRate)
-      : 1;
+    media.playbackRate = clampPlaybackRate(storedSettings.playbackRate);
     media.loop = Boolean(storedSettings.loop);
     player.classList.toggle("custom-player-fit-cover", storedSettings.fitMode === "cover");
     const isVideo = media instanceof HTMLVideoElement;
@@ -715,9 +769,17 @@
         <strong>${qualityLabel}</strong>
       </div>
       <div class="custom-player-settings-group" data-setting-group="speed">
-        <span>Prędkość</span>
-        <div class="custom-player-settings-options">
-          ${speedOptions.map((option) => `<button type="button" data-speed="${option}">${option}x</button>`).join("")}
+        <div class="custom-player-settings-row">
+          <span>Prędkość</span>
+          <strong data-speed-value>${playbackRateLabel(media.playbackRate)}</strong>
+        </div>
+        <div class="custom-player-speed-control">
+          <input class="custom-player-range custom-player-speed-slider" type="range" min="0.25" max="3" step="0.05" value="${media.playbackRate}" data-speed-slider aria-label="Prędkość odtwarzania">
+          <div class="custom-player-speed-scale" aria-hidden="true">
+            <span>0.25x</span>
+            <span>1x</span>
+            <span>3x</span>
+          </div>
         </div>
       </div>
       <label class="custom-player-settings-toggle">
@@ -737,16 +799,14 @@
       </div>
     `;
     const time = text("span", "0:00 / 0:00", "custom-player-time");
-    const speed = document.createElement("select");
+    const speed = document.createElement("input");
     speed.className = "custom-player-speed";
+    speed.type = "range";
+    speed.min = "0.25";
+    speed.max = "3";
+    speed.step = "0.05";
+    speed.value = String(media.playbackRate);
     speed.setAttribute("aria-label", "Prędkość odtwarzania");
-    speedOptions.forEach((option) => {
-      const speedOption = document.createElement("option");
-      speedOption.value = String(option);
-      speedOption.textContent = `${option}x`;
-      speedOption.selected = media.playbackRate === option;
-      speed.append(speedOption);
-    });
     const volume = document.createElement("input");
     volume.className = "custom-player-range custom-player-volume";
     volume.type = "range";
@@ -777,7 +837,8 @@
     const nextUrl = player.dataset.nextUrl || "";
     const settingLoop = settingsPanel.querySelector("[data-setting-loop]");
     const settingAutoplayNext = settingsPanel.querySelector("[data-setting-autoplay-next]");
-    const speedButtons = Array.from(settingsPanel.querySelectorAll("[data-speed]"));
+    const speedSlider = settingsPanel.querySelector("[data-speed-slider]");
+    const speedValue = settingsPanel.querySelector("[data-speed-value]");
     const fitButtons = Array.from(settingsPanel.querySelectorAll("[data-fit]"));
     if (settingAutoplayNext instanceof HTMLInputElement) settingAutoplayNext.checked = Boolean(storedSettings.autoplayNext);
 
@@ -836,6 +897,20 @@
     let statsContent = null;
     let statsTimer = null;
     let loopContextItem = null;
+    const networkActivity = {
+      lastEvent: "init",
+      lastAt: Date.now(),
+      progressEvents: 0,
+      loadedBytes: 0,
+    };
+    const updateNetworkActivity = (eventName) => {
+      networkActivity.lastEvent = eventName;
+      networkActivity.lastAt = Date.now();
+      if (eventName === "progress") networkActivity.progressEvents += 1;
+      const timing = mediaResourceTiming(media);
+      const bytes = Number(timing?.transferSize || timing?.encodedBodySize || 0);
+      if (bytes > 0) networkActivity.loadedBytes = bytes;
+    };
     if (isVideo) {
       contextMenu = document.createElement("div");
       contextMenu.className = "custom-player-context-menu";
@@ -889,7 +964,7 @@
       };
       const updateStatsOverlay = () => {
         if (!statsOverlay || !statsContent || statsOverlay.hidden) return;
-        statsContent.textContent = formatVideoDebugStats(player, media);
+        statsContent.textContent = formatVideoDebugStats(player, media, networkActivity);
       };
       const setStatsOverlayVisible = (visible) => {
         if (!statsOverlay) return;
@@ -973,7 +1048,7 @@
         }),
         createPlayerContextMenuItem("Kopiuj informacje debugowania", "debug", () => {
           hideContextMenu();
-          copyPlayerValue(formatVideoDebugStats(player, media), "Skopiowano informacje debugowania");
+          copyPlayerValue(formatVideoDebugStats(player, media, networkActivity), "Skopiowano informacje debugowania");
         }),
         createPlayerContextMenuItem("Rozwiąż problem z odtwarzaniem", "flag", () => {
           hideContextMenu();
@@ -1015,8 +1090,12 @@
       media.addEventListener("timeupdate", updateStatsOverlay);
       media.addEventListener("volumechange", updateStatsOverlay);
       media.addEventListener("loadedmetadata", updateStatsOverlay);
-      media.addEventListener("progress", updateStatsOverlay);
-      media.addEventListener("emptied", updateStatsOverlay);
+      ["loadstart", "loadedmetadata", "progress", "canplay", "canplaythrough", "waiting", "stalled", "suspend", "playing", "emptied"].forEach((eventName) => {
+        media.addEventListener(eventName, () => {
+          updateNetworkActivity(eventName);
+          updateStatsOverlay();
+        });
+      });
     }
 
     let controlsTimer = null;
@@ -1078,12 +1157,22 @@
       fitMode: player.classList.contains("custom-player-fit-cover") ? "cover" : "contain",
     });
     const syncSpeedButton = () => {
-      settings.title = `Prędkość: ${media.playbackRate}x`;
+      const label = playbackRateLabel(media.playbackRate);
+      settings.title = `Prędkość: ${label}`;
+      if (speedValue) speedValue.textContent = label;
+      if (speedSlider instanceof HTMLInputElement && document.activeElement !== speedSlider) {
+        speedSlider.value = String(clampPlaybackRate(media.playbackRate));
+      }
+      if (speedSlider instanceof HTMLInputElement) {
+        updateRangeFill(
+          speedSlider,
+          ((clampPlaybackRate(media.playbackRate) - 0.25) / 2.75) * 100,
+          "--speed-fill"
+        );
+      }
     };
     const syncSettingsPanel = () => {
-      speedButtons.forEach((button) => {
-        button.classList.toggle("custom-player-settings-active", Number(button.dataset.speed) === media.playbackRate);
-      });
+      syncSpeedButton();
       fitButtons.forEach((button) => {
         const activeFit = player.classList.contains("custom-player-fit-cover") ? "cover" : "contain";
         button.classList.toggle("custom-player-settings-active", button.dataset.fit === activeFit);
@@ -1213,11 +1302,15 @@
       syncSettingsPanel();
       showControls();
     });
-    speedButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        speed.value = String(button.dataset.speed || "1");
-        speed.dispatchEvent(new Event("change", { bubbles: true }));
-      });
+    speedSlider?.addEventListener("input", () => {
+      if (!(speedSlider instanceof HTMLInputElement)) return;
+      speed.value = String(clampPlaybackRate(speedSlider.value));
+      media.playbackRate = clampPlaybackRate(speed.value);
+      syncSpeedButton();
+    });
+    speedSlider?.addEventListener("change", () => {
+      persistSettings();
+      syncSettingsPanel();
     });
     fitButtons.forEach((button) => {
       button.addEventListener("click", () => setFitMode(button.dataset.fit === "cover" ? "cover" : "contain"));
@@ -1243,7 +1336,7 @@
       persistSettings();
     });
     speed.addEventListener("change", () => {
-      media.playbackRate = Number(speed.value) || 1;
+      media.playbackRate = clampPlaybackRate(speed.value);
       syncSpeedButton();
       persistSettings();
     });
@@ -1350,6 +1443,11 @@
       persistSettings();
     });
     media.addEventListener("ratechange", () => {
+      const normalizedRate = clampPlaybackRate(media.playbackRate);
+      if (normalizedRate !== media.playbackRate) {
+        media.playbackRate = normalizedRate;
+        return;
+      }
       speed.value = String(media.playbackRate);
       syncSpeedButton();
       syncSettingsPanel();
@@ -1906,6 +2004,34 @@
     return form;
   };
 
+  const repeatJobForm = (job) => {
+    if (
+      !job.url ||
+      job.is_live ||
+      job.status !== "completed" ||
+      (job.download_type === "format" && !job.format_id)
+    ) {
+      return document.createDocumentFragment();
+    }
+    const form = actionForm(route("/download"), "Pobierz ponownie", "btn btn-sm btn-outline-primary");
+    const fields = {
+      url: job.url,
+      title: job.title,
+      download_type: job.download_type || "best",
+      allow_duplicate: "1",
+    };
+    if (job.format_id) fields.format_id = job.format_id;
+    if (job.duration) fields.duration = job.duration;
+    Object.entries(fields).forEach(([name, value]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = String(value);
+      form.append(input);
+    });
+    return form;
+  };
+
   const syncJobSelectionControls = () => {
     document.querySelectorAll(".job-select").forEach((checkbox) => {
       checkbox.checked = selectedJobIds.has(checkbox.value);
@@ -2046,6 +2172,7 @@
         "btn btn-sm btn-outline-primary"
       ));
     }
+    actions.append(repeatJobForm(job));
     if (isRemovableJob(job)) {
       actions.append(actionForm(
         route(`/jobs/delete/${encodeURIComponent(job.job_id)}`),

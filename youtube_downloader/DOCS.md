@@ -27,13 +27,13 @@ Jeżeli `allow_external_port` ma wartość `true`, skrypt startowy uruchamia dod
 
 Standardowe przełączniki `Start on boot`, `Watchdog`, `Auto update` oraz `Show in sidebar` są renderowane i tłumaczone przez frontend Home Assistant. Dodatek może ustawić wartości wspierające te funkcje, takie jak `boot`, `watchdog`, `ingress`, `panel_title` i `panel_icon`, ale nie może nadpisać tekstów systemowego interfejsu. Polskie objaśnienia znajdują się w `README.md`.
 
-## Zadania i historia
+## Zadania i migracja historii
 
 Zwykłe pobrania wykonują się w workerach tła. Liczba równoległych zadań jest ograniczona przez `max_concurrent_jobs`. Stan kolejki jest zapisywany w bazie SQLite `/data/jobs/state.sqlite3`. Po restarcie dodatku lista zostaje odtworzona, a zadania, które były aktywne, otrzymują status `przerwane`. Dodatek nie uruchamia ich automatycznie ponownie.
 
-Na stronie **Zadania** zwykłe pobieranie można zatrzymać i wznowić. Zatrzymanie zachowuje pliki częściowe `yt-dlp`, a wznowienie uruchamia ten sam URL i wariant formatu z aktywną obsługą kontynuacji pobierania. Przy zadaniu można rozwinąć podgląd ostatnich linii logu `yt-dlp`, jeśli zadanie zdążyło je zapisać. Filtr **Błędy** pokazuje tylko nieudane zadania, a panel błędów podpowiada najczęstsze przyczyny. Błędne zadania są automatycznie ponawiane do 3 razy z opóźnieniem 5 minut, a termin następnej próby jest widoczny przy wpisie. Przy pojedynczym błędnym zadaniu można kliknąć **Ponów**, a przycisk **Ponów nieudane** uruchamia ponownie wszystkie zadania ze statusem `błąd`. Po analizie URL aplikacja ostrzega, jeśli ten sam URL albo podobny tytuł/plik jest już w historii lub aktywnej kolejce; ostrzeżenie nie blokuje świadomego ponownego pobrania.
+Na stronie **Zadania** zwykłe pobieranie można zatrzymać i wznowić. Zatrzymanie zachowuje pliki częściowe `yt-dlp`, a wznowienie uruchamia ten sam URL i wariant formatu z aktywną obsługą kontynuacji pobierania. Przy zadaniu można rozwinąć podgląd ostatnich linii logu `yt-dlp`, jeśli zadanie zdążyło je zapisać. Filtr **Błędy** pokazuje tylko nieudane zadania, a panel błędów podpowiada najczęstsze przyczyny. Błędne zadania są automatycznie ponawiane do 3 razy z opóźnieniem 5 minut, a termin następnej próby jest widoczny przy wpisie. Przy pojedynczym błędnym zadaniu można kliknąć **Ponów**, a przycisk **Ponów nieudane** uruchamia ponownie wszystkie zadania ze statusem `błąd`. Po analizie URL aplikacja ostrzega, jeśli ten sam URL albo podobny tytuł/plik jest już w aktywnej kolejce albo w ukończonych zadaniach; ostrzeżenie nie blokuje świadomego ponownego pobrania.
 
-Po zakończeniu operacji wynik jest zapisywany w historii w SQLite:
+Po zakończeniu operacji wynik jest zapisywany jako zadanie w SQLite:
 
 ```text
 /data/jobs/state.sqlite3
@@ -41,9 +41,9 @@ Po zakończeniu operacji wynik jest zapisywany w historii w SQLite:
 
 Schemat bazy ma jawnie zapisaną wersję w `schema_meta`. Migracje uruchamiają się przy starcie aplikacji, dodając nowe kolumny, indeksy i tabele bez kasowania istniejącej historii. Najważniejsze pola historii i kolejki są trzymane także w osobnych kolumnach, a pełne logi zadań są zapisywane w tabeli `job_log_lines`; rekord zadania przechowuje tylko krótki podgląd ostatnich linii.
 
-Historia przetrwa restart kontenera. Przy pierwszym uruchomieniu po aktualizacji stare pliki `/data/jobs/history.json` i `/data/jobs/queue.json` są importowane do bazy SQLite, a dalsze zapisy korzystają już z bazy. Po skasowaniu materiału rekord pozostaje widoczny, ale panel oznacza brak pliku. Przycisk **Pobierz ponownie** uruchamia nowe zadanie z zapisanym URL i wariantem jakości również wtedy, gdy lokalny plik został już usunięty.
+Zadania przetrwają restart kontenera. Przy pierwszym uruchomieniu po aktualizacji stare pliki `/data/jobs/history.json` i `/data/jobs/queue.json` są importowane do bazy SQLite, a następnie wpisy dawnej historii są składane do zakończonych zadań. Od tego momentu aplikacja zapisuje aktywne, nieudane i ukończone pobrania w jednym miejscu: widoku **Zadania**. Stary adres `/history` pozostaje tylko linkiem zgodnościowym i przekierowuje do `/jobs`.
 
-Osobna strona `/history` pokazuje pełną historię z wyszukiwarką po tytule, nazwie pliku, tagu, serwisie, URL, dacie, rozmiarze i długości. Wyniki można sortować po dacie, rozmiarze, długości, tytule i serwisie, rosnąco albo malejąco oraz przełączać między tabelą i galerią miniaturek. Dla lokalnych plików audio/wideo można rozwinąć mini odtwarzacz bez przechodzenia do osobnego podglądu. Wpisy można ręcznie tagować, na przykład jako `muzyka`, `tutoriale`, `live` albo `archiwum`. Aplikacja dodaje też automatyczne tagi, między innymi `youtube`, `twitch`, `kick`, `audio`, `video`, `live` i `1080p`; kliknięcie tagu od razu filtruje Historię po tej wartości. Zaznaczone wpisy można masowo usunąć z historii, usunąć ich pliki albo uruchomić ponowne pobieranie. Długość jest zapisywana dla nowych pobrań, jeśli `yt-dlp` zwrócił ją podczas analizy.
+Widok **Zadania** pokazuje statusy na żywo, pozwala filtrować zadania aktywne, ukończone, błędne, zatrzymane i przerwane oraz otworzyć szczegóły z timeline, parametrami i logiem. Przycisk **Pobierz ponownie** przy ukończonym zadaniu uruchamia nowe pobranie z zapisanym URL i wariantem jakości również wtedy, gdy lokalny plik został już usunięty. Podgląd lokalnego pliku także korzysta z metadanych zapisanych w zadaniu.
 
 Po zakończeniu pobierania albo błędzie zadania dodatek wysyła trwałe powiadomienie Home Assistant przez usługę `persistent_notification.create`. Treść zawiera tytuł materiału, typ pobrania i nazwę pliku albo komunikat błędu. Dostęp do API Home Assistant Core jest deklarowany w `config.yaml` przez `homeassistant_api: true`.
 
@@ -115,7 +115,7 @@ Panel rozpoznaje najczęstsze problemy operacyjne i pokazuje prostą wskazówkę
 - brak wolnego miejsca w katalogu pobrań,
 - błąd przetwarzania pliku przez `ffmpeg`.
 
-Jeżeli `ffmpeg` nie wygeneruje samej miniatury, gotowy film pozostaje dostępny. Historia i widok zadań pokazują wtedy ostrzeżenie, a szczegóły techniczne pozostają w logach dodatku.
+Jeżeli `ffmpeg` nie wygeneruje samej miniatury, gotowy film pozostaje dostępny. Widok zadań pokazuje wtedy ostrzeżenie, a szczegóły techniczne pozostają w logach dodatku.
 
 Strona **Diagnostyka** (`/diagnostics`) pokazuje wersję `yt-dlp`, datę ostatniej aktualizacji extractora, wersję `ffmpeg`, wolne miejsce, katalog pobrań, status połączenia z Home Assistant API oraz ostatni błąd diagnostyczny.
 

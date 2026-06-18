@@ -63,10 +63,10 @@
           <div class="section-heading">
             <div>
               <span class="eyebrow">Biblioteka</span>
-              <h2 class="h4 mb-1">Historia pobrań</h2>
-              <p class="section-copy mb-0">Ostatnie pliki zapisane przez dodatek.</p>
+              <h2 class="h4 mb-1">Ostatnie zadania</h2>
+              <p class="section-copy mb-0">Ostatnie zapisane pliki z kolejki zadań.</p>
             </div>
-            <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.history') }}">Historia</a>
+            <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
           </div>
           {% if history %}
             <div class="row g-2 mb-3 history-controls">
@@ -138,11 +138,9 @@
                           {% if item.file_exists %}
                             <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
                           {% endif %}
-                          <form action="{{ ingress_url('web.delete_history_record') }}" method="post" class="history-delete-form" data-title="{{ item.title }}">
+                          <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form" data-title="{{ item.title }}">
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="filename" value="{{ item.filename }}">
-                            <input type="hidden" name="downloaded_at" value="{{ item.downloaded_at }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Usuń wpis</button>
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Usuń zadanie</button>
                           </form>
                           {% if item.file_exists %}
                             <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
@@ -190,11 +188,9 @@
                         <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
                       </form>
                     {% endif %}
-                    <form action="{{ ingress_url('web.delete_history_record') }}" method="post" class="history-delete-form d-inline" data-title="{{ item.title }}">
+                    <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form d-inline" data-title="{{ item.title }}">
                       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                      <input type="hidden" name="filename" value="{{ item.filename }}">
-                      <input type="hidden" name="downloaded_at" value="{{ item.downloaded_at }}">
-                      <button class="btn btn-sm btn-outline-danger" type="submit">Usuń wpis</button>
+                      <button class="btn btn-sm btn-outline-danger" type="submit">Usuń zadanie</button>
                     </form>
                     {% if item.file_exists %}
                       <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
@@ -220,7 +216,7 @@
           {% else %}
             <div class="empty-state">
               <span class="empty-state-mark" aria-hidden="true">+</span>
-              <strong>Historia jest jeszcze pusta</strong>
+              <strong>Nie ma jeszcze zakończonych zadań</strong>
               <small>Przeanalizuj pierwszy link, aby rozpocząć.</small>
             </div>
           {% endif %}

@@ -87,6 +87,12 @@ class SQLiteStateStore:
                 ],
             )
 
+    def history_clear(self) -> None:
+        """Delete legacy history records after they have been folded into jobs."""
+
+        with self._lock, self._connection() as connection:
+            connection.execute("DELETE FROM history_records")
+
     def jobs_all(self) -> list[dict[str, Any]]:
         """Return persisted job snapshots."""
 

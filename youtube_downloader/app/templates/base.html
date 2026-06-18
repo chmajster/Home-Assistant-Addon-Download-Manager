@@ -27,7 +27,6 @@
   <body>
     {% set active_endpoint = request.endpoint or "" %}
     {% set start_active = active_endpoint in ["web.index", "web.analyze"] %}
-    {% set history_active = active_endpoint in ["web.history", "web.preview"] %}
     {% set jobs_active = active_endpoint in ["web.jobs", "web.job_details", "web.job_log"] %}
     <nav class="navbar navbar-expand-md sticky-top app-navbar">
       <div class="container-fluid app-container">
@@ -44,7 +43,6 @@
         <div class="collapse navbar-collapse app-navbar-menu" id="app-navbar-menu">
           <div class="navbar-nav app-nav ms-md-auto">
             <a class="nav-link{% if start_active %} active{% endif %}" href="{{ ingress_url('web.index') }}"{% if start_active %} aria-current="page"{% endif %}>Start</a>
-            <a class="nav-link{% if history_active %} active{% endif %}" href="{{ ingress_url('web.history') }}"{% if history_active %} aria-current="page"{% endif %}>Historia</a>
             <a class="nav-link{% if active_endpoint == 'web.diagnostics' %} active{% endif %}" href="{{ ingress_url('web.diagnostics') }}"{% if active_endpoint == 'web.diagnostics' %} aria-current="page"{% endif %}>Diagnostyka</a>
             <a class="nav-link{% if jobs_active %} active{% endif %}" href="{{ ingress_url('web.jobs') }}"{% if jobs_active %} aria-current="page"{% endif %}>
               Zadania <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="Aktywne zadania">0</span>

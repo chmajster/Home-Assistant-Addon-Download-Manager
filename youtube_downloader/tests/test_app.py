@@ -246,6 +246,42 @@ class ApplicationTestCase(unittest.TestCase):
         with self.client.session_transaction() as session:
             return session["_csrf_token"]
 
+    def _completed_job(
+        self,
+        filename: str = "example.mp4",
+        title: str = "Example video",
+        url: str = "https://youtu.be/example",
+        download_type: str = "best",
+        format_id: str | None = None,
+        duration: int | None = None,
+        tags: list[str] | None = None,
+        thumbnail_filename: str | None = None,
+    ):
+        manager = self.app.extensions["job_manager"]
+        job = manager._new_job(
+            url,
+            title,
+            download_type,
+            is_live=False,
+            format_id=format_id,
+            duration=duration,
+        )
+        with manager._lock:
+            active = manager._jobs[job.job_id]
+            active.status = "completed"
+            active.progress = 100.0
+            active.output_file = filename
+            active.output_files = [filename]
+            active.downloaded_bytes = (
+                self.app.extensions["file_service"].download_dir / filename
+            ).stat().st_size
+            active.total_bytes = active.downloaded_bytes
+            active.finished_at = now_iso()
+            active.tags = tags or []
+            active.thumbnail_filename = thumbnail_filename
+            manager._persist_jobs()
+        return manager.get_job(job.job_id)
+
     def test_healthcheck(self) -> None:
         response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
@@ -544,16 +580,12 @@ class ApplicationTestCase(unittest.TestCase):
         files = self.app.extensions["file_service"]
         expected = files.download_dir / "example.mp4"
         expected.write_bytes(b"media")
-        files.record_download(
-            "Example video",
-            "https://youtu.be/example",
-            "best",
-            expected.name,
-            "completed",
-        )
-        record = files.history()[0]
-        files.update_history_tags(
-            record["filename"], record["downloaded_at"], "muzyka, tutoriale"
+        self._completed_job(
+            filename=expected.name,
+            title="Example video",
+            url="https://youtu.be/example",
+            download_type="best",
+            tags=["muzyka", "tutoriale"],
         )
         body = self.client.get("/view/example.mp4").get_data(as_text=True)
         self.assertIn("Example video", body)
@@ -573,10 +605,11 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Typ pobrania", body)
         self.assertIn("najlepsza", body)
         self.assertIn("Tagi", body)
-        self.assertIn('href="/history?q=muzyka"', body)
-        self.assertIn('href="/history?q=tutoriale"', body)
-        self.assertIn('href="/history?q=youtube"', body)
-        self.assertIn('href="/history?q=video"', body)
+        self.assertIn(">muzyka</span>", body)
+        self.assertIn(">tutoriale</span>", body)
+        self.assertIn(">youtube</span>", body)
+        self.assertIn(">video</span>", body)
+        self.assertNotIn('href="/history', body)
         self.assertIn("Format pliku", body)
         self.assertIn("video/mp4", body)
         self.assertIn("Status", body)
@@ -766,12 +799,11 @@ class ApplicationTestCase(unittest.TestCase):
         files = self.app.extensions["file_service"]
         target = files.download_dir / "example.mp4"
         target.write_text("media", encoding="utf-8")
-        files.record_download(
-            "Existing video",
-            "https://youtu.be/example",
-            "best",
-            target.name,
-            "completed",
+        self._completed_job(
+            filename=target.name,
+            title="Existing video",
+            url="https://youtu.be/example",
+            download_type="best",
         )
         self.app.extensions["ytdlp_updater"] = FakeUpdater()
         media = {
@@ -809,12 +841,11 @@ class ApplicationTestCase(unittest.TestCase):
         files = self.app.extensions["file_service"]
         target = files.download_dir / "example.mp4"
         target.write_text("media", encoding="utf-8")
-        files.record_download(
-            "Same title",
-            "https://youtu.be/old",
-            "best",
-            target.name,
-            "completed",
+        self._completed_job(
+            filename=target.name,
+            title="Same title",
+            url="https://youtu.be/old",
+            download_type="best",
         )
         self.app.extensions["ytdlp_updater"] = FakeUpdater()
         media = {
@@ -850,12 +881,11 @@ class ApplicationTestCase(unittest.TestCase):
         files = self.app.extensions["file_service"]
         target = files.download_dir / "example.mp4"
         target.write_text("media", encoding="utf-8")
-        files.record_download(
-            "Existing video",
-            "https://youtu.be/example",
-            "best",
-            target.name,
-            "completed",
+        self._completed_job(
+            filename=target.name,
+            title="Existing video",
+            url="https://youtu.be/example",
+            download_type="best",
         )
         self.app.extensions["ytdlp_updater"] = FakeUpdater()
         manager = self.app.extensions["job_manager"]
@@ -1062,7 +1092,8 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertNotIn('id="bulk-media-urls"', body)
         self.assertNotIn("Import listy URL", body)
         self.assertNotIn("Utwórz zadania", body)
-        self.assertIn('href="/history"', body)
+        self.assertIn('href="/jobs"', body)
+        self.assertNotIn('href="/history"', body)
         self.assertIn('class="col-12 history-panel"', body)
         self.assertNotIn('class="col-lg-7"', body)
 
@@ -1081,13 +1112,12 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("☾", body)
 
     def test_navbar_marks_current_page(self) -> None:
-        history_body = self.client.get("/history").get_data(as_text=True)
+        history_response = self.client.get("/history", follow_redirects=False)
         jobs_body = self.client.get("/jobs").get_data(as_text=True)
 
-        self.assertIn(
-            '<a class="nav-link active" href="/history" aria-current="page">Historia</a>',
-            history_body,
-        )
+        self.assertEqual(history_response.status_code, 302)
+        self.assertEqual(history_response.headers["Location"], "/jobs")
+        self.assertNotIn('href="/history"', jobs_body)
         self.assertIn(
             '<a class="nav-link active" href="/jobs" aria-current="page">',
             jobs_body,
@@ -1176,12 +1206,11 @@ class ApplicationTestCase(unittest.TestCase):
         files = self.app.extensions["file_service"]
         target = files.download_dir / "example video.mp4"
         target.write_text("media", encoding="utf-8")
-        files.record_download(
-            "Example video",
-            "https://youtu.be/example",
-            "best",
-            target.name,
-            "completed",
+        job = self._completed_job(
+            filename=target.name,
+            title="Example video",
+            url="https://youtu.be/example",
+            download_type="best",
         )
         body = self.client.get("/").get_data(as_text=True)
         self.assertIn('data-filename="example video.mp4"', body)
@@ -1193,9 +1222,11 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('data-history-status="completed"', body)
         self.assertIn('class="repeat-download-form"', body)
         self.assertIn('class="history-delete-form"', body)
+        self.assertIn(f'action="/jobs/delete/{job.job_id}"', body)
+        self.assertNotIn('action="/history/delete"', body)
         self.assertNotIn("<th>Plik</th>", body)
         self.assertIn(">Pobierz ponownie</button>", body)
-        self.assertIn(">Usuń wpis</button>", body)
+        self.assertIn(">Usuń zadanie</button>", body)
         self.assertIn(">Usuń plik</button>", body)
         self.assertIn('name="url" value="https://youtu.be/example"', body)
         self.assertIn('name="download_type" value="best"', body)
@@ -1453,6 +1484,9 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("media-web-downloader-player-settings", script)
         self.assertIn("media-web-downloader-player-positions", script)
         self.assertIn("playbackRate", script)
+        self.assertIn("clampPlaybackRate", script)
+        self.assertIn('max="3"', script)
+        self.assertIn("custom-player-speed-slider", script)
         self.assertIn("custom-player-overlay", script)
         self.assertIn("custom-player-captions", script)
         self.assertIn("custom-player-settings", script)
@@ -1463,6 +1497,11 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("custom-player-stats", script)
         self.assertIn("custom-player-copy-feedback", script)
         self.assertIn("formatVideoDebugStats", script)
+        self.assertIn("Connection Speed", script)
+        self.assertIn("Network Activity", script)
+        self.assertIn("Buffer Health", script)
+        self.assertIn('["Date"', script)
+        self.assertIn("networkActivityLabel", script)
         self.assertIn("contextmenu", script)
         self.assertIn("preventDefault", script)
         self.assertIn("W tym filmie >", script)
@@ -2134,6 +2173,41 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertNotIn("Oczekuj na live", body)
 
 
+_OBSOLETE_HISTORY_PAGE_TESTS = [
+    "test_history_page_searches_metadata_fields",
+    "test_history_single_delete_file_returns_to_history_view",
+    "test_history_page_sorts_by_supported_fields",
+    "test_history_page_exposes_bulk_actions",
+    "test_history_page_exposes_mini_player_for_local_media",
+    "test_history_gallery_view_exposes_mini_player",
+    "test_history_bulk_delete_records_keeps_files",
+    "test_history_bulk_delete_files_keeps_records",
+    "test_history_bulk_repeat_downloads_selected_records",
+    "test_history_tags_can_be_saved_and_searched",
+    "test_history_page_exposes_tag_editors",
+    "test_history_adds_automatic_tags",
+    "test_history_tag_links_filter_by_tag",
+    "test_history_gallery_view_displays_thumbnail_grid",
+    "test_history_title_and_thumbnail_open_preview",
+    "test_history_record_can_be_deleted_without_removing_file",
+    "test_history_repeat_download_is_available_after_file_deletion",
+    "test_full_history_repeat_download_is_available_after_file_deletion",
+    "test_full_history_record_delete_returns_to_history_view",
+    "test_history_repeat_download_keeps_explicit_format_id",
+    "test_history_repeat_download_is_hidden_for_legacy_format_without_id",
+    "test_history_displays_thumbnail_warning",
+]
+
+for _test_name in _OBSOLETE_HISTORY_PAGE_TESTS:
+    setattr(
+        ApplicationTestCase,
+        _test_name,
+        unittest.skip("Historia pobrań została scalona z widokiem Zadania.")(
+            getattr(ApplicationTestCase, _test_name)
+        ),
+    )
+
+
 class MediaUrlTestCase(unittest.TestCase):
     """Keep extractor input limited to known public YouTube hosts."""
 
@@ -2722,6 +2796,27 @@ class FakeMediaService:
         return command
 
 
+class TitleReportingMediaService(FakeMediaService):
+    """Report a real extractor title through yt-dlp hook payloads."""
+
+    def download(self, **kwargs):
+        target = self.download_dir / "real-title.mp4"
+        target.write_text("media", encoding="utf-8")
+        info = {"title": "Real extracted title"}
+        kwargs["progress_hook"](
+            {
+                "status": "downloading",
+                "downloaded_bytes": 50,
+                "total_bytes": 100,
+                "info_dict": info,
+            }
+        )
+        kwargs["progress_hook"](
+            {"status": "finished", "filename": str(target), "info_dict": info}
+        )
+        return [target]
+
+
 class BlockingMediaService(FakeMediaService):
     """Pause the first transfer so stopping can be exercised deterministically."""
 
@@ -2819,9 +2914,9 @@ class JobManagerTestCase(unittest.TestCase):
         self.assertIn('"url": "https://youtu.be/abc"', full_log)
         self.assertIn('"download_type": "best"', full_log)
         self.assertIn('"format": "bestvideo*+bestaudio/best"', full_log)
-        self.assertEqual(self.files.history()[0]["title"], "Example")
-        self.assertEqual(self.files.history()[0]["size"], 5)
-        self.assertEqual(self.files.history()[0]["duration"], 125)
+        self.assertEqual(self.files.history(), [])
+        self.assertEqual(completed.title, "Example")
+        self.assertEqual(completed.duration, 125)
         self.thumbnail_generator.assert_called_once_with("example.mp4")
         self.assertEqual(len(self.notifier.jobs), 1)
         self.assertEqual(self.notifier.jobs[0].status, "completed")
@@ -2831,6 +2926,26 @@ class JobManagerTestCase(unittest.TestCase):
         )
         self.assertEqual(restored.get_job(job.job_id).status, "completed")
         self.assertTrue(restored.get_job(job.job_id).log_lines)
+
+    def test_download_updates_url_fallback_title_from_extractor_metadata(self) -> None:
+        manager = JobManager(
+            TitleReportingMediaService(self.download_dir),
+            self.files,
+            max_concurrent_jobs=1,
+        )
+        try:
+            job = manager.start_download(
+                "https://youtu.be/abc",
+                "https://youtu.be/abc",
+                "best",
+            )
+
+            completed = self._wait_for_status(job.job_id, "completed", manager)
+
+            self.assertEqual(completed.title, "Real extracted title")
+            self.assertEqual(self.files.history(), [])
+        finally:
+            manager._executor.shutdown()
 
     def test_pending_job_is_restored_as_interrupted(self) -> None:
         job = self.manager._new_job(
@@ -2870,14 +2985,45 @@ class JobManagerTestCase(unittest.TestCase):
         self.assertEqual(restored.get_job("legacy-job").status, "interrupted")
         self.assertTrue((self.files.history_file.parent / "state.sqlite3").is_file())
 
-    def test_explicit_format_id_is_recorded_in_history(self) -> None:
+    def test_legacy_history_records_are_migrated_to_jobs(self) -> None:
+        target = self.download_dir / "old.mp4"
+        target.write_text("legacy", encoding="utf-8")
+        self.files.record_download(
+            "Old clip",
+            "https://youtu.be/old",
+            "format",
+            target.name,
+            "completed",
+            format_id="137",
+            duration=98,
+        )
+
+        restored = JobManager(
+            FakeMediaService(self.download_dir), self.files, max_concurrent_jobs=1
+        )
+        try:
+            migrated = [
+                job for job in restored.list_jobs() if job.job_id.startswith("history-")
+            ]
+            self.assertEqual(len(migrated), 1)
+            self.assertEqual(migrated[0].title, "Old clip")
+            self.assertEqual(migrated[0].url, "https://youtu.be/old")
+            self.assertEqual(migrated[0].download_type, "format")
+            self.assertEqual(migrated[0].format_id, "137")
+            self.assertEqual(migrated[0].duration, 98)
+            self.assertEqual(migrated[0].output_file, "old.mp4")
+            self.assertEqual(migrated[0].status, "completed")
+            self.assertEqual(self.files.history(), [])
+        finally:
+            restored._executor.shutdown()
+
+    def test_explicit_format_id_is_recorded_on_job(self) -> None:
         job = self.manager.start_download(
             "https://youtu.be/abc", "Example", "format", format_id="137"
         )
-        self._wait_for_status(job.job_id, "completed")
-        record = self.files.history()[0]
-        self.assertEqual(record["type"], "format")
-        self.assertEqual(record["format_id"], "137")
+        completed = self._wait_for_status(job.job_id, "completed")
+        self.assertEqual(completed.download_type, "format")
+        self.assertEqual(completed.format_id, "137")
 
     def test_corrupted_persistent_queue_does_not_break_startup(self) -> None:
         self.manager.jobs_file.write_text("{", encoding="utf-8")

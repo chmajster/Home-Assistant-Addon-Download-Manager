@@ -106,15 +106,13 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 | Metoda | Ścieżka | Opis |
 | --- | --- | --- |
 | `GET` | `/` | Panel główny |
-| `GET` | `/history` | Pełna historia pobrań z wyszukiwarką, sortowaniem, widokiem tabeli lub galerii, tagami, mini odtwarzaczem oraz masowymi akcjami |
-| `POST` | `/history/bulk` | Masowe usuwanie wpisów, usuwanie plików i ponowne pobieranie z Historii |
-| `POST` | `/history/tags` | Zapis ręcznych tagów dla wpisu historii |
+| `GET` | `/history` | Stary link zgodnościowy przekierowujący do `/jobs` |
 | `POST` | `/analyze` | Analiza pojedynczego URL albo import wielu URL-i do kolejki |
 | `POST` | `/download` | Uruchomienie pobrania |
 | `POST` | `/live/start` | Uruchomienie zapisu aktywnego live |
 | `POST` | `/live/watch` | Oczekiwanie na start transmisji i automatyczny zapis |
 | `POST` | `/live/stop/<job_id>` | Zatrzymanie zapisu live |
-| `GET` | `/jobs` | Lista zadań |
+| `GET` | `/jobs` | Jedna lista zadań aktywnych i ukończonych, także po migracji dawnej historii pobrań |
 | `GET` | `/diagnostics` | Panel diagnostyczny z wersjami narzędzi, ostatnią aktualizacją, wolnym miejscem, katalogiem pobrań, statusem Home Assistant API i ostatnim błędem |
 | `POST` | `/jobs/retry/<job_id>` | Ponowienie jednego nieudanego zadania |
 | `POST` | `/jobs/retry-failed` | Ponowienie wszystkich nieudanych zadań |
@@ -150,7 +148,7 @@ W Home Assistant otwórz kartę dodatku:
 3. Karta **Konfiguracja** pokazuje opcje zapisane przez Supervisor.
 4. Jeśli analiza przestaje działać po zmianach serwisu, sprawdź log startowy aktualizacji `yt-dlp`.
 
-Panel pokazuje uproszczone komunikaty dla najczęstszych problemów: braku połączenia z internetem lub serwisem źródłowym, braku miejsca w katalogu pobrań oraz błędów `ffmpeg`. Nieudana miniatura nie blokuje gotowego filmu; w takim przypadku historia pokazuje ostrzeżenie.
+Panel pokazuje uproszczone komunikaty dla najczęstszych problemów: braku połączenia z internetem lub serwisem źródłowym, braku miejsca w katalogu pobrań oraz błędów `ffmpeg`. Nieudana miniatura nie blokuje gotowego filmu; w takim przypadku zadanie pokazuje ostrzeżenie.
 
 Build obrazu nie pobiera już pakietów z serwerów Alpine ani PyPI wewnątrz kroków `RUN`. Statyczne binaria `ffmpeg` i `ffprobe` są kopiowane z wieloarchitekturowego obrazu, a zależności Python instalowane z lokalnego katalogu `wheels/`. Jeśli Docker nadal zgłasza błąd DNS podczas pobierania obrazu bazowego, sprawdź połączenie sieciowe i DNS hosta Home Assistant.
 

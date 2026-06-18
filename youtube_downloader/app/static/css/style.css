@@ -845,6 +845,61 @@ audio.history-mini-player-media {
   color: #fff;
 }
 
+.custom-player-speed-control {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.custom-player-speed-slider {
+  --speed-fill: 36.36%;
+  height: 1rem;
+  width: 100%;
+}
+
+.custom-player-speed-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, #fff var(--speed-fill), rgba(255, 255, 255, 0.28) var(--speed-fill));
+  border-radius: 999px;
+  height: 0.25rem;
+}
+
+.custom-player-speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #fff;
+  border: 0;
+  border-radius: 50%;
+  height: 0.9rem;
+  margin-top: -0.32rem;
+  width: 0.9rem;
+}
+
+.custom-player-speed-slider::-moz-range-track {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  height: 0.25rem;
+}
+
+.custom-player-speed-slider::-moz-range-progress {
+  background: #fff;
+  border-radius: 999px;
+  height: 0.25rem;
+}
+
+.custom-player-speed-slider::-moz-range-thumb {
+  background: #fff;
+  border: 0;
+  border-radius: 50%;
+  height: 0.9rem;
+  width: 0.9rem;
+}
+
+.custom-player-speed-scale {
+  color: rgba(255, 255, 255, 0.62);
+  display: flex;
+  font-size: 0.65rem;
+  justify-content: space-between;
+}
+
 .custom-player-settings-toggle input {
   accent-color: #fff;
 }

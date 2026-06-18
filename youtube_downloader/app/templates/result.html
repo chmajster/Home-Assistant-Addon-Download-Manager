@@ -30,9 +30,9 @@
         {% for warning in media.duplicate_warnings %}
           <li>
             {% if warning.kind == "url" %}
-              Ten URL jest już {% if warning.source == "queue" %}w kolejce{% else %}w historii{% endif %}: {{ warning.title }}{% if warning.detail %} ({{ warning.detail }}){% endif %}.
+              Ten URL jest już {% if warning.source == "queue" %}w kolejce{% else %}w zadaniach{% endif %}: {{ warning.title }}{% if warning.detail %} ({{ warning.detail }}){% endif %}.
             {% else %}
-              Podobny tytuł lub plik jest już {% if warning.source == "queue" %}w kolejce{% else %}w historii{% endif %}: {{ warning.title }}{% if warning.detail %} ({{ warning.detail }}){% endif %}.
+              Podobny tytuł lub plik jest już {% if warning.source == "queue" %}w kolejce{% else %}w zadaniach{% endif %}: {{ warning.title }}{% if warning.detail %} ({{ warning.detail }}){% endif %}.
             {% endif %}
           </li>
         {% endfor %}
