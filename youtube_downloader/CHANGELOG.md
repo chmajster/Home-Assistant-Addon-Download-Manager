@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.69
+
+- Wydanie porządkowe po naprawie migracji historii do zadań.
+
 ## 1.3.68
 
 - Naprawiono start aplikacji po migracji historii, gdy istniejące zadania historyczne miały już wygenerowany identyfikator.
