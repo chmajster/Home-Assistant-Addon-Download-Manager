@@ -3017,6 +3017,57 @@ class JobManagerTestCase(unittest.TestCase):
         finally:
             restored._executor.shutdown()
 
+    def test_legacy_history_migration_skips_existing_history_job_id(self) -> None:
+        downloaded_at = "2026-01-01T10:00:00+00:00"
+        filename = "old.mp4"
+        url = "https://youtu.be/old"
+        identity = JobManager._history_identity(url, filename, downloaded_at)
+        existing_job_id = f"history-{identity[:24]}"
+        self.manager.state_store.jobs_replace(
+            [
+                {
+                    "job_id": existing_job_id,
+                    "url": url,
+                    "title": "Already migrated",
+                    "status": "completed",
+                    "download_type": "best",
+                    "created_at": downloaded_at,
+                    "finished_at": downloaded_at,
+                    "is_live": False,
+                    "output_file": None,
+                    "output_files": [],
+                    "log_lines": [],
+                }
+            ],
+            replace_logs=True,
+        )
+        self.manager.state_store.history_replace(
+            [
+                {
+                    "title": "Old clip",
+                    "url": url,
+                    "type": "best",
+                    "filename": filename,
+                    "status": "completed",
+                    "downloaded_at": downloaded_at,
+                    "file_exists": True,
+                }
+            ]
+        )
+
+        restored = JobManager(
+            FakeMediaService(self.download_dir), self.files, max_concurrent_jobs=1
+        )
+        try:
+            migrated = [
+                job for job in restored.list_jobs() if job.job_id == existing_job_id
+            ]
+            self.assertEqual(len(migrated), 1)
+            self.assertEqual(migrated[0].title, "Already migrated")
+            self.assertEqual(self.files.history(), [])
+        finally:
+            restored._executor.shutdown()
+
     def test_explicit_format_id_is_recorded_on_job(self) -> None:
         job = self.manager.start_download(
             "https://youtu.be/abc", "Example", "format", format_id="137"

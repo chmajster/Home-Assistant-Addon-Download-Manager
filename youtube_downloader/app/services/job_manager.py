@@ -470,6 +470,9 @@ class JobManager:
         if not history:
             return
         jobs = self.state_store.jobs_all()
+        existing_job_ids = {
+            str(record.get("job_id") or record.get("id") or "") for record in jobs
+        }
         existing_keys = {
             self._history_identity(
                 record.get("url"),
@@ -487,6 +490,10 @@ class JobManager:
             )
             if identity in existing_keys:
                 continue
+            job_id = f"history-{identity[:24]}"
+            if job_id in existing_job_ids:
+                existing_keys.add(identity)
+                continue
             title = str(record.get("title") or record.get("filename") or "Bez tytułu")
             filename = str(record.get("filename") or "")
             status = str(record.get("status") or "completed")
@@ -496,7 +503,7 @@ class JobManager:
             file_exists = bool(record.get("file_exists", True))
             migrated.append(
                 {
-                    "job_id": f"history-{identity[:24]}",
+                    "job_id": job_id,
                     "url": str(record.get("url") or ""),
                     "title": title[:300],
                     "status": status,
@@ -524,6 +531,7 @@ class JobManager:
                 }
             )
             existing_keys.add(identity)
+            existing_job_ids.add(job_id)
         if migrated:
             self.state_store.jobs_replace(jobs + migrated, replace_logs=True)
             LOGGER.info(
