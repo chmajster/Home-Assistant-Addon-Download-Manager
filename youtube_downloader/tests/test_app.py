@@ -479,6 +479,17 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertEqual(manager.list_jobs(), [])
         self.assertIn("Zadanie zostało usunięte.", response.get_data(as_text=True))
 
+    def test_pending_job_can_be_deleted_from_jobs_page(self) -> None:
+        manager = self.app.extensions["job_manager"]
+        job = manager._new_job("https://youtu.be/abc", "Example", "best", is_live=False)
+        response = self.client.post(
+            f"/jobs/delete/{job.job_id}",
+            data={"_csrf_token": self._csrf_token()},
+            follow_redirects=True,
+        )
+        self.assertEqual(manager.list_jobs(), [])
+        self.assertIn("Zadanie", response.get_data(as_text=True))
+
     def test_selected_jobs_can_be_deleted_from_jobs_page(self) -> None:
         manager = self.app.extensions["job_manager"]
         jobs = [
@@ -3084,16 +3095,33 @@ class JobManagerTestCase(unittest.TestCase):
         self.assertEqual(restored.list_jobs(), [])
 
     def test_active_job_cannot_be_deleted(self) -> None:
-        job = self.manager._new_job(
-            "https://youtu.be/abc", "Example", "best", is_live=False
-        )
-        with self.assertRaises(MediaServiceError):
+        media = BlockingMediaService(self.download_dir)
+        manager = JobManager(media, self.files, max_concurrent_jobs=1)
+        job = manager.start_download("https://youtu.be/abc", "Example", "best")
+        try:
+            self.assertTrue(media.started.wait(timeout=2))
+            with self.assertRaises(MediaServiceError):
+                manager.delete_job(job.job_id)
+        finally:
+            media.release.set()
+            manager._executor.shutdown()
+
+    def test_queued_job_can_be_deleted(self) -> None:
+        self.manager._slots.acquire()
+        try:
+            job = self.manager.start_download("https://youtu.be/abc", "Example", "best")
             self.manager.delete_job(job.job_id)
+            self.assertEqual(self.manager.list_jobs(), [])
+        finally:
+            self.manager._slots.release()
 
     def test_delete_jobs_removes_inactive_and_preserves_active_records(self) -> None:
         active = self.manager._new_job(
             "https://youtu.be/active", "Active", "best", is_live=False
         )
+        with self.manager._lock:
+            self.manager._jobs[active.job_id].status = "downloading"
+            self.manager._persist_jobs()
         inactive = self.manager._new_job(
             "https://youtu.be/done", "Done", "best", is_live=False
         )

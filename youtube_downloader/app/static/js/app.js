@@ -1756,7 +1756,7 @@
     console.error("Nie można odczytać listy aktywnych statusów:", error);
   }
   const isActiveJob = (job) => activeJobStatuses.has(job.status);
-  const removableJobStatuses = new Set(["completed", "error", "stopped", "interrupted"]);
+  const removableJobStatuses = new Set(["pending", "waiting", "completed", "error", "stopped", "interrupted"]);
   const isRemovableJob = (job) => removableJobStatuses.has(job.status);
   const selectedJobIds = new Set();
   const openJobLogIds = new Set();

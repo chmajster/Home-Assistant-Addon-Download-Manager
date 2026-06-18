@@ -1466,7 +1466,7 @@ def job_details(job_id: str):
         ),
         timeline=_job_timeline(payload),
         retry_history=_job_retry_history(payload),
-        removable_statuses=JobManager.REMOVABLE_STATUSES,
+        removable_statuses=JobManager.DELETABLE_STATUSES,
     )
 
 

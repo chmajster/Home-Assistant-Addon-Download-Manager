@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.70
+
+- Dodano usuwanie oczekujacych wpisow z kolejki zadan.
+
 ## 1.3.69
 
 - Wydanie porządkowe po naprawie migracji historii do zadań.

@@ -86,6 +86,8 @@ class JobManager:
     STOPPABLE_STATUSES = {"pending", "downloading", "waiting"}
     RESUMABLE_STATUSES = {"stopped", "interrupted"}
     REMOVABLE_STATUSES = {"completed", "error", "stopped", "interrupted"}
+    QUEUED_REMOVABLE_STATUSES = {"pending", "waiting"}
+    DELETABLE_STATUSES = REMOVABLE_STATUSES | QUEUED_REMOVABLE_STATUSES
     STATUS_LABELS = {
         "pending": "oczekuje",
         "downloading": "pobieranie",
@@ -420,23 +422,27 @@ class JobManager:
         return sorted(jobs, key=lambda item: item.created_at, reverse=True)
 
     def delete_job(self, job_id: str) -> None:
-        """Delete one inactive job from the persistent queue."""
+        """Delete one completed or still-queued job from the persistent queue."""
 
         with self._lock:
             job = self._jobs.get(job_id)
             if not job:
                 raise KeyError(job_id)
-            if job.status not in self.REMOVABLE_STATUSES:
+            if job.status not in self.DELETABLE_STATUSES:
                 raise MediaServiceError(
                     "Aktywnego zadania nie można usunąć. Najpierw je zatrzymaj."
                 )
+            if job.status in self.QUEUED_REMOVABLE_STATUSES:
+                event = self._stop_events.get(job_id)
+                if event:
+                    event.set()
             self._cancel_retry_timer(job_id)
             del self._jobs[job_id]
             self._persist_jobs()
         LOGGER.info("Usunięto zadanie %s", job_id)
 
     def delete_jobs(self, job_ids: list[str]) -> tuple[int, int]:
-        """Delete selected inactive jobs and report skipped active records."""
+        """Delete selected completed or still-queued jobs."""
 
         removed = 0
         skipped = 0
@@ -445,9 +451,13 @@ class JobManager:
                 job = self._jobs.get(job_id)
                 if not job:
                     continue
-                if job.status not in self.REMOVABLE_STATUSES:
+                if job.status not in self.DELETABLE_STATUSES:
                     skipped += 1
                     continue
+                if job.status in self.QUEUED_REMOVABLE_STATUSES:
+                    event = self._stop_events.get(job_id)
+                    if event:
+                        event.set()
                 self._cancel_retry_timer(job_id)
                 del self._jobs[job_id]
                 removed += 1
@@ -460,8 +470,14 @@ class JobManager:
         """Delete every inactive job while preserving active operations."""
 
         with self._lock:
-            job_ids = list(self._jobs)
-        return self.delete_jobs(job_ids)
+            job_ids = [
+                job_id
+                for job_id, job in self._jobs.items()
+                if job.status in self.REMOVABLE_STATUSES
+            ]
+            skipped = len(self._jobs) - len(job_ids)
+        removed, _ = self.delete_jobs(job_ids)
+        return removed, skipped
 
     def _migrate_history_records_into_jobs(self) -> None:
         """Fold legacy download history into the durable job list."""
