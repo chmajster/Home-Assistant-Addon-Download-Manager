@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.68
+
+- Naprawiono start aplikacji po migracji historii, gdy istniejące zadania historyczne miały już wygenerowany identyfikator.
+
 ## 1.3.67
 
 - Przeniesiono `Historia pobrań` do widoku `Zadania`: stare wpisy historii są migrowane do zakończonych zadań przy starcie aplikacji.
