@@ -566,6 +566,18 @@ class JobManager:
 
         payload = asdict(job)
         payload["status_label"] = self.STATUS_LABELS.get(job.status, job.status)
+        payload["can_delete"] = job.status in self.DELETABLE_STATUSES
+        payload["can_retry"] = job.status == "error"
+        payload["can_stop"] = job.status in self.STOPPABLE_STATUSES
+        payload["can_resume"] = (
+            not job.is_live and job.status in self.RESUMABLE_STATUSES
+        )
+        payload["can_repeat"] = (
+            bool(job.url)
+            and not job.is_live
+            and job.status == "completed"
+            and (job.download_type != "format" or bool(job.format_id))
+        )
         recent_log_lines = payload["log_lines"][-JOB_LOG_PREVIEW_LINE_LIMIT:]
         payload["recent_log_lines"] = recent_log_lines
         if include_full_log:

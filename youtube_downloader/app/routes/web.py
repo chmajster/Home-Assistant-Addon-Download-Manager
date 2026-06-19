@@ -752,10 +752,12 @@ def _completed_job_records(limit: int | None = None) -> list[dict[str, Any]]:
     """Return completed jobs in the shape used by legacy media views."""
 
     file_service = _file_service()
+    manager = _job_manager()
     records: list[dict[str, Any]] = []
-    for job in _job_manager().list_jobs():
+    for job in manager.list_jobs():
         if job.status != "completed" or not job.output_file:
             continue
+        payload = manager.job_dict(job)
         filename = job.output_file
         try:
             file_service.resolve_download(filename)
@@ -787,6 +789,12 @@ def _completed_job_records(limit: int | None = None) -> list[dict[str, Any]]:
                 "warning_message": job.warning_message,
                 "duration": job.duration,
                 "tags": job.tags,
+                "status_label": payload["status_label"],
+                "can_delete": payload["can_delete"],
+                "can_repeat": payload["can_repeat"],
+                "can_retry": payload["can_retry"],
+                "can_stop": payload["can_stop"],
+                "can_resume": payload["can_resume"],
             }
         )
         if limit is not None and len(records) >= limit:
@@ -826,7 +834,15 @@ def _history_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         item["inline_media_type"] = mime_type
         item["inline_media_kind"] = media_kind
         item["can_inline_play"] = bool(item.get("file_exists") and media_kind)
-        item["can_repeat"] = _history_record_can_repeat(item)
+        item["can_repeat"] = bool(
+            item.get("can_repeat")
+            if "can_repeat" in item
+            else _history_record_can_repeat(item)
+        )
+        item["can_delete"] = bool(item.get("can_delete", item.get("job_id")))
+        item["can_download_file"] = bool(item.get("file_exists") and item.get("filename"))
+        item["can_delete_file"] = item["can_download_file"]
+        item["can_view_details"] = bool(item.get("job_id"))
         enriched.append(item)
     return enriched
 

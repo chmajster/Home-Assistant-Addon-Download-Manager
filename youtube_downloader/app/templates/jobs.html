@@ -12,7 +12,7 @@
   <section class="card app-card">
     <div class="card-body">
       <div id="jobs-filter-state" data-initial-filter="{{ job_filter }}"></div>
-      <div id="jobs-toolbar" class="d-flex flex-wrap gap-2 align-items-center mb-3{% if not jobs %} d-none{% endif %}">
+      <div id="jobs-toolbar" class="table-toolbar d-flex flex-wrap gap-2 align-items-center mb-3{% if not jobs %} d-none{% endif %}">
         <div class="btn-group btn-group-sm jobs-filter-group" role="group" aria-label="Filtr zadań">
           <button id="jobs-filter-all" class="btn btn-soft" type="button" data-jobs-filter="all" aria-pressed="false">
             Wszystkie (<span id="jobs-total-count">0</span>)
@@ -62,7 +62,7 @@
           <button id="jobs-select-errors" class="btn btn-sm btn-soft" type="button">Zaznacz błędy</button>
         </div>
       </div>
-      <div id="jobs-empty" class="empty-state{% if jobs %} d-none{% endif %}">
+      <div id="jobs-empty" class="empty-state table-empty-state{% if jobs %} d-none{% endif %}">
         <span class="empty-state-mark" aria-hidden="true">+</span>
         <strong>Kolejka jest pusta</strong>
         <small>Wklej link na stronie startowej, a postęp pobierania pojawi się tutaj automatycznie.</small>
@@ -73,7 +73,7 @@
       </div>
         {% endif %}
       </div>
-      <div id="jobs-filter-empty" class="empty-state d-none">
+      <div id="jobs-filter-empty" class="empty-state table-empty-state d-none">
         <span class="empty-state-mark empty-state-mark-ok" aria-hidden="true">✓</span>
         <strong id="jobs-filter-empty-title">Nie ma zadań w tym filtrze</strong>
         <small id="jobs-filter-empty-copy">Wróć do pełnej kolejki, aby zobaczyć aktywne i zakończone pobrania.</small>

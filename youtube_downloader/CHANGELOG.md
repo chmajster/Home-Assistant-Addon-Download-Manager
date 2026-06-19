@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.72
+
+- Ujednolicono akcje i kolumny tabeli zadan oraz ostatnich pobran na Starcie.
+- Dodano flagi can_delete, can_retry, can_stop, can_resume i can_repeat w API zadan, aby frontend nie wyliczal akcji po statusach.
+
+## 1.3.71
+
+- Ujednolicono statusy usuwalne miedzy backendem i widokiem Zadania oraz doprecyzowano akcje usuwania pojedynczego zadania.
+
 ## 1.3.70
 
 - Dodano usuwanie oczekujacych wpisow z kolejki zadan.

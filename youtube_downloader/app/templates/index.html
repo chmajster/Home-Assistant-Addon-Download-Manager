@@ -69,7 +69,7 @@
             <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
           </div>
           {% if history %}
-            <div class="row g-2 mb-3 history-controls">
+            <div class="table-toolbar row g-2 mb-3 history-controls">
               <div class="col-sm-4">
                 <label class="form-label small mb-1" for="history-type-filter">Typ</label>
                 <select class="form-select form-select-sm" id="history-type-filter">
@@ -92,7 +92,7 @@
             </div>
             <div class="desktop-only table-responsive history-list">
               <table class="table align-middle mb-0">
-                <thead><tr><th>Miniatura</th><th>Tytuł</th><th>Typ</th><th>Data</th><th>Rozmiar</th><th></th></tr></thead>
+                <thead><tr><th>Miniatura</th><th>Tytuł</th><th>Typ</th><th>Status</th><th>Rozmiar</th><th>Wynik</th><th></th></tr></thead>
                 <tbody class="history-items">
                   {% for item in history %}
                     {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
@@ -119,11 +119,21 @@
                         {% if item.warning_message is defined and item.warning_message %}<small class="d-block text-warning">{{ item.warning_message }}</small>{% endif %}
                       </td>
                       <td>{{ download_type_labels.get(item.type, item.type) }}</td>
-                      <td>{{ item.downloaded_at|replace("T", " ")|truncate(19, True, "") }}</td>
+                      <td>{{ item.status_label or item.status }}</td>
                       <td>{{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</td>
                       <td>
-                        <div class="d-flex gap-2 align-items-center">
-                          {% if item.type != "live" and (item.type != "format" or (item.format_id is defined and item.format_id)) %}
+                        {% if item.can_download_file %}
+                          <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                        {% else %}
+                          <span class="badge text-bg-secondary">plik usunięty</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                          {% if item.can_view_details %}
+                            <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.job_details', job_id=item.job_id) }}">Szczegóły</a>
+                          {% endif %}
+                          {% if item.can_repeat %}
                             <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
                               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                               <input type="hidden" name="url" value="{{ item.url }}">
@@ -135,14 +145,13 @@
                               <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
                             </form>
                           {% endif %}
-                          {% if item.file_exists %}
-                            <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                          {% if item.can_delete %}
+                            <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form" data-title="{{ item.title }}">
+                              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                              <button class="btn btn-sm btn-outline-danger" type="submit">Usuń zadanie</button>
+                            </form>
                           {% endif %}
-                          <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form" data-title="{{ item.title }}">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Usuń zadanie</button>
-                          </form>
-                          {% if item.file_exists %}
+                          {% if item.can_delete_file %}
                             <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
                               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                               <button class="btn btn-sm btn-outline-danger" type="submit">Usuń plik</button>
@@ -174,9 +183,12 @@
                     <strong class="d-block">{{ item.title }}</strong>
                   {% endif %}
                   {% if item.warning_message is defined and item.warning_message %}<small class="d-block text-warning">{{ item.warning_message }}</small>{% endif %}
-                  <small class="text-body-secondary">{{ download_type_labels.get(item.type, item.type) }} | {{ item.downloaded_at|replace("T", " ")|truncate(19, True, "") }} | {{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</small>
-                  <div class="mt-2">
-                    {% if item.type != "live" and (item.type != "format" or (item.format_id is defined and item.format_id)) %}
+                  <small class="text-body-secondary">{{ download_type_labels.get(item.type, item.type) }} | {{ item.status_label or item.status }} | {{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</small>
+                  <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+                    {% if item.can_view_details %}
+                      <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.job_details', job_id=item.job_id) }}">Szczegóły</a>
+                    {% endif %}
+                    {% if item.can_repeat %}
                       <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form d-inline">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="url" value="{{ item.url }}">
@@ -188,24 +200,28 @@
                         <button class="btn btn-sm btn-soft" type="submit">Pobierz ponownie</button>
                       </form>
                     {% endif %}
-                    <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form d-inline" data-title="{{ item.title }}">
-                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                      <button class="btn btn-sm btn-outline-danger" type="submit">Usuń zadanie</button>
-                    </form>
-                    {% if item.file_exists %}
+                    {% if item.can_delete %}
+                      <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form d-inline" data-title="{{ item.title }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Usuń zadanie</button>
+                      </form>
+                    {% endif %}
+                    {% if item.can_download_file %}
                       <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">Pobierz plik</a>
+                    {% else %}
+                      <span class="badge text-bg-secondary">plik usunięty</span>
+                    {% endif %}
+                    {% if item.can_delete_file %}
                       <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form d-inline" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <button class="btn btn-sm btn-outline-danger" type="submit">Usuń plik</button>
                       </form>
-                    {% else %}
-                      <span class="badge text-bg-secondary">plik usunięty</span>
                     {% endif %}
                   </div>
                 </article>
               {% endfor %}
             </div>
-            <div id="history-filter-empty" class="empty-state d-none">
+            <div id="history-filter-empty" class="empty-state table-empty-state d-none">
               <strong>Brak wyników dla wybranych filtrów</strong>
             </div>
             <div id="history-pagination" class="d-flex justify-content-between align-items-center gap-2 mt-3">
@@ -214,7 +230,7 @@
               <button class="btn btn-sm btn-soft" id="history-next" type="button">Następna strona</button>
             </div>
           {% else %}
-            <div class="empty-state">
+            <div class="empty-state table-empty-state">
               <span class="empty-state-mark" aria-hidden="true">+</span>
               <strong>Nie ma jeszcze zakończonych zadań</strong>
               <small>Przeanalizuj pierwszy link, aby rozpocząć.</small>

@@ -1489,7 +1489,7 @@
   document.querySelectorAll(".history-delete-form").forEach((form) => {
     form.addEventListener("submit", (event) => {
       const title = form.dataset.title || "brak danych";
-      if (!window.confirm(`Czy na pewno usunąć wpis z historii?\n\nTytuł: ${title}`)) {
+      if (!window.confirm(`Czy na pewno usunąć zadanie?\n\nTytuł: ${title}`)) {
         event.preventDefault();
       }
     });
@@ -1756,8 +1756,7 @@
     console.error("Nie można odczytać listy aktywnych statusów:", error);
   }
   const isActiveJob = (job) => activeJobStatuses.has(job.status);
-  const removableJobStatuses = new Set(["pending", "waiting", "completed", "error", "stopped", "interrupted"]);
-  const isRemovableJob = (job) => removableJobStatuses.has(job.status);
+  const isRemovableJob = (job) => job.can_delete === true;
   const selectedJobIds = new Set();
   const openJobLogIds = new Set();
   const jobLogScrollTops = new Map();
@@ -2005,12 +2004,7 @@
   };
 
   const repeatJobForm = (job) => {
-    if (
-      !job.url ||
-      job.is_live ||
-      job.status !== "completed" ||
-      (job.download_type === "format" && !job.format_id)
-    ) {
+    if (!job.can_repeat) {
       return document.createDocumentFragment();
     }
     const form = actionForm(route("/download"), "Pobierz ponownie", "btn btn-sm btn-outline-primary");
@@ -2089,7 +2083,7 @@
       if (!job || !isRemovableJob(job)) selectedJobIds.delete(jobId);
     });
     const visibleRemovableJobs = filteredJobs(jobs).filter(isRemovableJob);
-    const failedJobs = jobs.filter((job) => job.status === "error");
+    const failedJobs = jobs.filter((job) => job.can_retry === true);
     document.getElementById("jobs-toolbar")?.classList.toggle("d-none", jobs.length === 0);
     const totalCount = document.getElementById("jobs-total-count");
     if (totalCount) totalCount.textContent = String(jobs.length);
@@ -2146,26 +2140,20 @@
     const detailsLink = text("a", "Szczegóły", "btn btn-sm btn-soft");
     detailsLink.href = route(`/jobs/${encodeURIComponent(job.job_id)}`);
     actions.append(detailsLink);
-    if (job.is_live && ["pending", "downloading", "waiting"].includes(job.status)) {
+    if (job.can_stop) {
       actions.append(actionForm(
-        route(`/live/stop/${encodeURIComponent(job.job_id)}`),
+        route(`/${job.is_live ? "live" : "download"}/stop/${encodeURIComponent(job.job_id)}`),
         "Zatrzymaj",
         "btn btn-sm btn-outline-danger"
       ));
-    } else if (!job.is_live && ["pending", "downloading"].includes(job.status)) {
-      actions.append(actionForm(
-        route(`/download/stop/${encodeURIComponent(job.job_id)}`),
-        "Zatrzymaj",
-        "btn btn-sm btn-outline-danger"
-      ));
-    } else if (!job.is_live && ["stopped", "interrupted"].includes(job.status)) {
+    } else if (job.can_resume) {
       actions.append(actionForm(
         route(`/download/resume/${encodeURIComponent(job.job_id)}`),
         "Wznów",
         "btn btn-sm btn-outline-primary"
       ));
     }
-    if (job.status === "error") {
+    if (job.can_retry) {
       actions.append(actionForm(
         route(`/jobs/retry/${encodeURIComponent(job.job_id)}`),
         "Ponów",
@@ -2176,7 +2164,7 @@
     if (isRemovableJob(job)) {
       actions.append(actionForm(
         route(`/jobs/delete/${encodeURIComponent(job.job_id)}`),
-        "Usuń",
+        "Usuń zadanie",
         "btn btn-sm btn-outline-danger",
         `Czy na pewno usunąć zadanie „${job.title}” z listy?`
       ));
@@ -2283,7 +2271,7 @@
 
   document.getElementById("jobs-select-errors")?.addEventListener("click", () => {
     (lastSuccessfulJobs || [])
-      .filter((job) => job.status === "error")
+      .filter((job) => job.can_retry === true)
       .forEach((job) => selectedJobIds.add(job.job_id));
     setJobsFilter("errors");
     updateJobsView(lastSuccessfulJobs || []);
@@ -2302,7 +2290,7 @@
   });
 
   document.getElementById("jobs-retry-failed-form")?.addEventListener("submit", (event) => {
-    const failedCount = (lastSuccessfulJobs || []).filter((job) => job.status === "error").length;
+    const failedCount = (lastSuccessfulJobs || []).filter((job) => job.can_retry === true).length;
     if (!failedCount || !window.confirm(`Ponowić wszystkie nieudane zadania (${failedCount})?`)) {
       event.preventDefault();
     }
