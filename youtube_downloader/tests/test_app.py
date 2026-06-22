@@ -1259,6 +1259,32 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('name="url" value="https://youtu.be/example"', body)
         self.assertIn('name="download_type" value="best"', body)
 
+    def test_index_allows_repeat_for_migrated_history_with_deleted_file(self) -> None:
+        manager = self.app.extensions["job_manager"]
+        manager.state_store.history_replace(
+            [
+                {
+                    "title": "Deleted legacy clip",
+                    "url": "https://youtu.be/deleted",
+                    "type": "video-720",
+                    "filename": "deleted.mp4",
+                    "status": "completed",
+                    "downloaded_at": "2026-06-19T10:00:00+00:00",
+                    "file_exists": False,
+                }
+            ]
+        )
+        manager._migrate_history_records_into_jobs()
+        manager._load_jobs()
+
+        body = self.client.get("/").get_data(as_text=True)
+
+        self.assertIn("Deleted legacy clip", body)
+        self.assertIn(">Pobierz ponownie</button>", body)
+        self.assertIn('name="url" value="https://youtu.be/deleted"', body)
+        self.assertIn('name="download_type" value="video-720"', body)
+        self.assertIn("plik usuni", body)
+
     def test_history_page_searches_metadata_fields(self) -> None:
         files = self.app.extensions["file_service"]
         target = files.download_dir / "example video.mp4"

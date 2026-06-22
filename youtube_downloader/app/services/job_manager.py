@@ -516,7 +516,6 @@ class JobManager:
             if status not in {"completed", "error", "stopped", "interrupted"}:
                 status = "completed"
             downloaded_at = str(record.get("downloaded_at") or now_iso())
-            file_exists = bool(record.get("file_exists", True))
             migrated.append(
                 {
                     "job_id": job_id,
@@ -533,8 +532,8 @@ class JobManager:
                     "finished_at": downloaded_at,
                     "error_message": None,
                     "warning_message": record.get("warning_message"),
-                    "output_file": filename if file_exists else None,
-                    "output_files": [filename] if filename and file_exists else [],
+                    "output_file": filename or None,
+                    "output_files": [filename] if filename else [],
                     "thumbnail_filename": record.get("thumbnail_filename"),
                     "is_live": False,
                     "live_from_start": True,
