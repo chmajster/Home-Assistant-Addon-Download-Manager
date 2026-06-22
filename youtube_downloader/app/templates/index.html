@@ -64,7 +64,7 @@
             <div>
               <span class="eyebrow">Biblioteka</span>
               <h2 class="h4 mb-1">Ostatnie zadania</h2>
-              <p class="section-copy mb-0">Ostatnie zapisane pliki z kolejki zadań.</p>
+              <p class="section-copy mb-0">10 ostatnich zapisanych plików z kolejki. Pełna lista jest w karcie Zadania.</p>
             </div>
             <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
           </div>
@@ -133,7 +133,7 @@
                           {% if item.can_view_details %}
                             <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.job_details', job_id=item.job_id) }}">Szczegóły</a>
                           {% endif %}
-                          {% if item.can_repeat %}
+                          {% if item.can_repeat and not item.file_exists %}
                             <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
                               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                               <input type="hidden" name="url" value="{{ item.url }}">
@@ -188,7 +188,7 @@
                     {% if item.can_view_details %}
                       <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.job_details', job_id=item.job_id) }}">Szczegóły</a>
                     {% endif %}
-                    {% if item.can_repeat %}
+                    {% if item.can_repeat and not item.file_exists %}
                       <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form d-inline">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="url" value="{{ item.url }}">

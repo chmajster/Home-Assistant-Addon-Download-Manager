@@ -1244,7 +1244,6 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('id="history-pagination"', body)
         self.assertIn('data-history-type="best"', body)
         self.assertIn('data-history-status="completed"', body)
-        self.assertIn('class="repeat-download-form"', body)
         self.assertIn('class="history-delete-form"', body)
         self.assertIn(f'action="/jobs/delete/{job.job_id}"', body)
         self.assertIn(f'href="/jobs/{job.job_id}"', body)
@@ -1253,11 +1252,36 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("<th>Status</th>", body)
         self.assertIn("<th>Wynik</th>", body)
         self.assertIn(">Szczeg", body)
-        self.assertIn(">Pobierz ponownie</button>", body)
+        self.assertNotIn('class="repeat-download-form"', body)
+        self.assertNotIn(">Pobierz ponownie</button>", body)
         self.assertIn(">Usuń zadanie</button>", body)
         self.assertIn(">Usuń plik</button>", body)
-        self.assertIn('name="url" value="https://youtu.be/example"', body)
-        self.assertIn('name="download_type" value="best"', body)
+
+    def test_index_limits_recent_jobs_to_ten_items(self) -> None:
+        manager = self.app.extensions["job_manager"]
+        files = self.app.extensions["file_service"]
+        for index in range(12):
+            target = files.download_dir / f"clip-{index:02d}.mp4"
+            target.write_text("media", encoding="utf-8")
+            job = self._completed_job(
+                filename=target.name,
+                title=f"Clip {index:02d}",
+                url=f"https://youtu.be/clip-{index:02d}",
+            )
+            with manager._lock:
+                active = manager._jobs[job.job_id]
+                timestamp = f"2026-06-{index + 1:02d}T10:00:00+00:00"
+                active.created_at = timestamp
+                active.finished_at = timestamp
+                manager._persist_jobs()
+
+        body = self.client.get("/").get_data(as_text=True)
+
+        self.assertIn("10 ostatnich", body)
+        self.assertIn("Clip 11", body)
+        self.assertIn("Clip 02", body)
+        self.assertNotIn("Clip 01", body)
+        self.assertNotIn("Clip 00", body)
 
     def test_index_allows_repeat_for_migrated_history_with_deleted_file(self) -> None:
         manager = self.app.extensions["job_manager"]

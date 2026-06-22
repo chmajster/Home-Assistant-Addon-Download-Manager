@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.73
+
+- Ograniczono panel Start / Ostatnie zadania do 10 najnowszych pozycji i ukryto akcje `Pobierz ponownie` dla wpisow z istniejacym plikiem.
+
 ## 1.3.72
 
 - Ujednolicono akcje i kolumny tabeli zadan oraz ostatnich pobran na Starcie.
