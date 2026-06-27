@@ -33,6 +33,12 @@ Dodatek korzysta z natywnego Home Assistant Ingress. Panel **Media Web Downloade
 
 Port `8099/tcp` jest domyślnie niewystawiony na hosta. W typowej instalacji wystarcza bezpieczny dostęp przez Ingress.
 
+## Audio i playlisty
+
+Panel obsługuje pobieranie samego audio w formatach `mp3`, `m4a` i `opus`. Dla plików audio można osadzić miniaturę jako okładkę oraz zapisać metadane z `yt-dlp`: tytuł, autora/kanał, datę publikacji i URL źródłowy.
+
+Po analizie playlisty można wybrać zakres pozycji, ustawić limit elementów, pominąć już pobrane materiały po ID oraz uruchomić tryb **Pobierz tylko nowe**. Elementy playlisty mogą być zapisywane w osobnym podfolderze wewnątrz katalogu pobrań.
+
 ## Przykładowe adresy
 
 ```text

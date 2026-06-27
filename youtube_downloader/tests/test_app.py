@@ -744,6 +744,12 @@ class ApplicationTestCase(unittest.TestCase):
             download_type="audio",
             format_id=None,
             duration=None,
+            source_id=None,
+            download_options={
+                "audio_format": "mp3",
+                "embed_thumbnail": True,
+                "add_metadata": True,
+            },
         )
 
     def test_start_download_rejects_twitch_profile_for_other_platforms(self) -> None:
@@ -2414,6 +2420,36 @@ class MediaFormatSelectionTestCase(unittest.TestCase):
         with self.assertRaises(MediaServiceError):
             MediaService.format_selection("format", "sb0")
 
+    def test_audio_format_metadata_and_thumbnail_postprocessors_are_configured(self) -> None:
+        selection, postprocessors = MediaService.format_selection(
+            "audio", audio_format="opus"
+        )
+
+        self.assertEqual(selection, "bestaudio/best")
+        self.assertEqual(
+            [postprocessor["key"] for postprocessor in postprocessors],
+            ["FFmpegExtractAudio", "FFmpegMetadata", "EmbedThumbnail"],
+        )
+        self.assertEqual(postprocessors[0]["preferredcodec"], "opus")
+
+    def test_download_options_can_target_playlist_subfolder(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = MediaService(Path(temp_dir))
+
+            options = service.download_options(
+                "audio",
+                download_options={
+                    "audio_format": "m4a",
+                    "output_subdir": "My / Playlist: 01",
+                    "embed_thumbnail": True,
+                    "add_metadata": True,
+                },
+            )
+
+            self.assertEqual(options["postprocessors"][0]["preferredcodec"], "m4a")
+            self.assertTrue(options["writethumbnail"])
+            self.assertIn("My _ Playlist_ 01", options["outtmpl"])
+
     def test_storyboard_formats_are_hidden_from_analysis(self) -> None:
         media = MediaService(Path.cwd())._normalize_info(
             {
@@ -2747,6 +2783,24 @@ class FileServiceThumbnailTestCase(unittest.TestCase):
         self.assertIsNone(result.warning_message)
         ffmpeg.assert_not_called()
 
+    def test_playlist_subfolder_file_is_managed_safely(self) -> None:
+        playlist_dir = self.files.download_dir / "Playlist"
+        playlist_dir.mkdir()
+        audio = playlist_dir / "example.mp3"
+        audio.write_bytes(b"audio")
+
+        self.assertTrue(self.files.is_managed_file(audio))
+        self.assertEqual(
+            self.files.resolve_download("Playlist/example.mp3"),
+            audio.resolve(),
+        )
+        self.assertEqual(
+            [item["filename"] for item in self.files.list_files()],
+            ["Playlist/example.mp3"],
+        )
+        with self.assertRaises(UnsafeFilenameError):
+            self.files.resolve_download("../example.mp3")
+
     def test_timeline_thumbnails_are_generated_and_deleted(self) -> None:
         video = self.files.download_dir / "example.mp4"
         video.write_bytes(b"video")
@@ -2839,17 +2893,35 @@ class FakeMediaService:
     validate_url = staticmethod(MediaService.validate_url)
     format_selection = staticmethod(MediaService.format_selection)
 
-    def effective_download_options(
-        self, url: str, download_type: str, format_id: str | None = None
-    ) -> tuple[str, dict[str, object]]:
-        validated_url = self.validate_url(url)
-        selection, postprocessors = self.format_selection(download_type, format_id)
-        return validated_url, {
+    def download_options(
+        self,
+        download_type: str,
+        format_id: str | None = None,
+        download_options: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        selection, postprocessors = self.format_selection(
+            download_type,
+            format_id,
+            audio_format=MediaService.audio_format(download_options),
+        )
+        return {
             "format": selection,
             "outtmpl": str(self.download_dir / "%(title).180B [%(id)s].%(ext)s"),
             "postprocessors": postprocessors,
             "retries": 5,
         }
+
+    def effective_download_options(
+        self,
+        url: str,
+        download_type: str,
+        format_id: str | None = None,
+        download_options: dict[str, object] | None = None,
+    ) -> tuple[str, dict[str, object]]:
+        validated_url = self.validate_url(url)
+        return validated_url, self.download_options(
+            download_type, format_id, download_options
+        )
 
     def download(self, **kwargs):
         target = self.download_dir / "example.mp4"
@@ -3153,6 +3225,23 @@ class JobManagerTestCase(unittest.TestCase):
         completed = self._wait_for_status(job.job_id, "completed")
         self.assertEqual(completed.download_type, "format")
         self.assertEqual(completed.format_id, "137")
+
+    def test_audio_options_and_source_id_are_recorded_on_job(self) -> None:
+        job = self.manager.start_download(
+            "https://youtu.be/abc",
+            "Example",
+            "audio",
+            source_id="abc",
+            download_options={"audio_format": "opus", "embed_thumbnail": True},
+        )
+
+        completed = self._wait_for_status(job.job_id, "completed")
+
+        self.assertEqual(completed.source_id, "abc")
+        self.assertEqual(completed.download_options["audio_format"], "opus")
+        full_log = "\n".join(self.manager.state_store.job_logs(job.job_id))
+        self.assertIn('"source_id": "abc"', full_log)
+        self.assertIn('"audio_format": "opus"', full_log)
 
     def test_corrupted_persistent_queue_does_not_break_startup(self) -> None:
         self.manager.jobs_file.write_text("{", encoding="utf-8")

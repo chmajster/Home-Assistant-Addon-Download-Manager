@@ -36,7 +36,7 @@ class SQLiteStateStore:
                 return
             self.history_replace(records)
             LOGGER.info(
-                "Przeniesiono %s wpisow historii z %s do %s",
+                "Przeniesiono %s wpisów historii z %s do %s",
                 len(records),
                 history_file,
                 self.db_path,
@@ -48,12 +48,12 @@ class SQLiteStateStore:
         with self._lock:
             if self._table_count("jobs") > 0:
                 return
-            records = self._read_legacy_json_list(jobs_file, "kolejki zadan")
+            records = self._read_legacy_json_list(jobs_file, "kolejki zadań")
             if not records:
                 return
             self.jobs_replace(records, replace_logs=True)
             LOGGER.info(
-                "Przeniesiono %s zadan z %s do %s",
+                "Przeniesiono %s zadań z %s do %s",
                 len(records),
                 jobs_file,
                 self.db_path,
@@ -100,7 +100,7 @@ class SQLiteStateStore:
             rows = connection.execute(
                 "SELECT payload FROM jobs ORDER BY created_at DESC, job_id ASC"
             ).fetchall()
-        return [self._decode_payload(row["payload"], "kolejki zadan") for row in rows]
+        return [self._decode_payload(row["payload"], "kolejki zadań") for row in rows]
 
     def jobs_replace(
         self, records: list[dict[str, Any]], replace_logs: bool = False
@@ -374,7 +374,7 @@ class SQLiteStateStore:
                 ),
             )
         for row in connection.execute("SELECT job_id, payload FROM jobs").fetchall():
-            record = self._decode_payload(row["payload"], "kolejki zadan")
+            record = self._decode_payload(row["payload"], "kolejki zadań")
             connection.execute(
                 """
                 UPDATE jobs
@@ -403,7 +403,7 @@ class SQLiteStateStore:
         if existing and int(existing["total"]) > 0:
             return
         for row in connection.execute("SELECT job_id, payload FROM jobs").fetchall():
-            record = self._decode_payload(row["payload"], "kolejki zadan")
+            record = self._decode_payload(row["payload"], "kolejki zadań")
             self._replace_job_logs_connection(
                 connection, str(row["job_id"]), record.get("log_lines")
             )
@@ -431,7 +431,7 @@ class SQLiteStateStore:
             with path.open("r", encoding="utf-8") as file_handle:
                 payload = json.load(file_handle)
         except (OSError, json.JSONDecodeError) as error:
-            LOGGER.error("Nie mozna odczytac starego pliku %s: %s", label, error)
+            LOGGER.error("Nie można odczytać starego pliku %s: %s", label, error)
             return []
         if not isinstance(payload, list):
             LOGGER.error("Stary plik %s nie zawiera listy rekordow.", label)
@@ -443,7 +443,7 @@ class SQLiteStateStore:
         try:
             record = json.loads(payload)
         except json.JSONDecodeError as error:
-            LOGGER.error("Nie mozna odczytac rekordu %s z SQLite: %s", label, error)
+            LOGGER.error("Nie można odczytać rekordu %s z SQLite: %s", label, error)
             return {}
         return record if isinstance(record, dict) else {}
 
@@ -470,7 +470,7 @@ class SQLiteStateStore:
         if not job_id:
             job_id = SQLiteStateStore._text_or_none(record.get("id")) or ""
         if not job_id:
-            LOGGER.warning("Pominieto rekord kolejki bez identyfikatora zadania.")
+            LOGGER.warning("Pominięto rekord kolejki bez identyfikatora zadania.")
             return None
         payload = dict(record)
         payload["log_lines"] = SQLiteStateStore._recent_log_lines(

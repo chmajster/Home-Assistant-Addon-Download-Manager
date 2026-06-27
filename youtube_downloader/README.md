@@ -101,6 +101,12 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 - `/media/<nazwa>` zawiera magazyny sieciowe typu **Media** dodane w Home Assistant.
 - `<katalog pobrań>/.thumbnails` zawiera generowane przez `ffmpeg` podglądy JPG pobranych filmów.
 
+## Audio i playlisty
+
+Tryb **Tylko audio** korzysta z `yt-dlp` oraz `ffmpeg` i pozwala wybrać format wynikowy: `mp3`, `m4a` albo `opus`. Dla pobrań audio dodatek może zapisać miniaturę materiału jako okładkę oraz dodać metadane: tytuł, autora/kanał, datę publikacji i URL źródłowy.
+
+Po analizie playlisty można zawęzić zakres elementów polami **Od** i **Do**, ustawić limit liczby pozycji oraz zaznaczyć, aby dodatek pomijał elementy już pobrane po ID materiału. Tryb **Pobierz tylko nowe** korzysta z tego samego mechanizmu pomijania. Domyślnie elementy playlisty są zapisywane w osobnym podfolderze nazwanym od playlisty, wewnątrz skonfigurowanego katalogu pobrań.
+
 ## Endpointy
 
 | Metoda | Ścieżka | Opis |
@@ -118,9 +124,9 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 | `POST` | `/jobs/retry-failed` | Ponowienie wszystkich nieudanych zadań |
 | `GET` | `/api/jobs` | Lista zadań JSON |
 | `GET` | `/api/jobs/<job_id>` | Stan zadania JSON |
-| `GET` | `/downloaded/<filename>` | Pobranie gotowego pliku |
+| `GET` | `/downloaded/<path:filename>` | Pobranie gotowego pliku, także z podfolderu playlisty |
 | `GET` | `/thumbnails/<filename>` | Podgląd wygenerowanej miniatury filmu |
-| `POST` | `/delete/<filename>` | Usunięcie pliku |
+| `POST` | `/delete/<path:filename>` | Usunięcie pliku, także z podfolderu playlisty |
 | `GET` | `/health` | Healthcheck watchdoga |
 
 ## Podbijanie wersji

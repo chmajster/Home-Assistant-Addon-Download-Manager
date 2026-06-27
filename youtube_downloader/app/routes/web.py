@@ -524,6 +524,34 @@ def _duration_value(value: object) -> int | None:
     return seconds if seconds >= 0 else None
 
 
+def _positive_int(value: object) -> int | None:
+    try:
+        number = int(str(value or "").strip())
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
+def _form_bool(name: str, default: bool = False) -> bool:
+    values = request.form.getlist(name)
+    if not values:
+        return default
+    return values[-1].casefold() in {"1", "true", "yes", "on"}
+
+
+def _download_options_from_form(playlist_title: str | None = None) -> dict[str, Any]:
+    options = {
+        "audio_format": MediaService.audio_format(
+            {"audio_format": request.form.get("audio_format") or "mp3"}
+        ),
+        "embed_thumbnail": _form_bool("embed_thumbnail", True),
+        "add_metadata": _form_bool("add_metadata", True),
+    }
+    if playlist_title and _form_bool("playlist_folder"):
+        options["output_subdir"] = playlist_title
+    return options
+
+
 def _selected_download_profile(value: object) -> dict[str, Any]:
     key = str(value or "manual")
     return DOWNLOAD_PROFILES.get(key, DOWNLOAD_PROFILES["manual"])
@@ -565,11 +593,30 @@ def _automatic_download_type(
     return download_type, None
 
 
-def _selected_playlist_entries() -> list[dict[str, Any]]:
+def _known_source_ids() -> set[str]:
+    return {
+        str(job.source_id)
+        for job in _job_manager().list_jobs()
+        if job.source_id and job.status != "error"
+    }
+
+
+def _selected_playlist_entries() -> tuple[list[dict[str, Any]], int]:
     entries: list[dict[str, Any]] = []
     seen: set[str] = set()
+    seen_ids = _known_source_ids()
+    start = _positive_int(request.form.get("playlist_start"))
+    end = _positive_int(request.form.get("playlist_end"))
+    limit = _positive_int(request.form.get("playlist_limit"))
+    skip_existing = _form_bool("skip_existing_ids") or _form_bool("download_only_new")
+    skipped_existing = 0
     for raw_index in request.form.getlist("playlist_entries"):
         if not raw_index.isdigit():
+            continue
+        entry_index = int(raw_index) + 1
+        if start and entry_index < start:
+            continue
+        if end and entry_index > end:
             continue
         entry_url = str(request.form.get(f"playlist_entry_url_{raw_index}") or "").strip()
         if not entry_url:
@@ -577,10 +624,15 @@ def _selected_playlist_entries() -> list[dict[str, Any]]:
         validated_url = MediaService.validate_url(entry_url)
         if validated_url in seen:
             continue
+        source_id = str(request.form.get(f"playlist_entry_id_{raw_index}") or "").strip()
+        if skip_existing and source_id and source_id in seen_ids:
+            skipped_existing += 1
+            continue
         seen.add(validated_url)
         entries.append(
             {
                 "url": validated_url,
+                "source_id": source_id or None,
                 "title": str(
                     request.form.get(f"playlist_entry_title_{raw_index}")
                     or request.form.get("title")
@@ -591,7 +643,9 @@ def _selected_playlist_entries() -> list[dict[str, Any]]:
                 ),
             }
         )
-    return entries
+        if limit and len(entries) >= limit:
+            break
+    return entries, skipped_existing
 
 
 def _bulk_url_candidates(value: object) -> list[str]:
@@ -1136,8 +1190,17 @@ def start_download():
         format_id = request.form.get("format_id") or None
         if download_type != "format":
             format_id = None
-        playlist_entries = _selected_playlist_entries()
+        download_options = _download_options_from_form(
+            title if request.form.get("playlist_picker") else None
+        )
+        playlist_entries, skipped_existing = _selected_playlist_entries()
         if request.form.get("playlist_picker") and not playlist_entries:
+            if skipped_existing:
+                flash(
+                    f"Pominięto istniejące elementy playlisty: {skipped_existing}.",
+                    "warning",
+                )
+                return redirect(ingress_url("web.jobs"))
             raise MediaServiceError("Zaznacz co najmniej jeden element playlisty.")
         if playlist_entries and download_type == "format":
             raise MediaServiceError(
@@ -1162,8 +1225,15 @@ def start_download():
                     title=entry["title"],
                     download_type=entry_download_type,
                     duration=entry["duration"],
+                    source_id=entry["source_id"],
+                    download_options=download_options,
                 )
             flash(f"Uruchomiono zadania z playlisty: {len(playlist_entries)}.", "success")
+            if skipped_existing:
+                flash(
+                    f"Pominięto istniejące elementy po ID: {skipped_existing}.",
+                    "info",
+                )
             if automatic_rule:
                 flash(f"Zastosowano regułę automatyczną: {automatic_rule}", "info")
             return redirect(ingress_url("web.jobs"))
@@ -1173,6 +1243,8 @@ def start_download():
             download_type=download_type,
             format_id=format_id,
             duration=_duration_value(request.form.get("duration")),
+            source_id=str(request.form.get("source_id") or "").strip() or None,
+            download_options=download_options,
         )
         flash(f"Uruchomiono zadanie {job.job_id[:8]}.", "success")
         if automatic_rule:
@@ -1500,7 +1572,7 @@ def job_log(job_id: str):
     )
 
 
-@web_bp.get("/downloaded/<filename>")
+@web_bp.get("/downloaded/<path:filename>")
 def downloaded(filename: str):
     """Serve one managed downloaded file."""
 
@@ -1513,7 +1585,7 @@ def downloaded(filename: str):
         ), 404
 
 
-@web_bp.get("/view/<filename>")
+@web_bp.get("/view/<path:filename>")
 def preview(filename: str):
     """Open one managed downloaded file in an inline browser preview."""
 
@@ -1529,7 +1601,7 @@ def preview(filename: str):
         (
             index
             for index, item in enumerate(history_records)
-            if item.get("filename") == path.name
+            if item.get("filename") == filename
         ),
         -1,
     )
@@ -1538,12 +1610,12 @@ def preview(filename: str):
     next_preview_url = ""
     if current_index >= 0:
         for item in history_records[current_index + 1 :]:
-            filename = str(item.get("filename") or "")
-            if not item.get("file_exists") or not filename:
+            next_filename = str(item.get("filename") or "")
+            if not item.get("file_exists") or not next_filename:
                 continue
-            next_mime_type = mimetypes.guess_type(filename)[0] or ""
+            next_mime_type = mimetypes.guess_type(next_filename)[0] or ""
             if next_mime_type.startswith(("video/", "audio/")):
-                next_preview_url = ingress_url("web.preview", filename=filename)
+                next_preview_url = ingress_url("web.preview", filename=next_filename)
                 break
     mime_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     media_kind = "video" if mime_type.startswith("video/") else "audio"
@@ -1561,12 +1633,12 @@ def preview(filename: str):
                 "time": frame["time"],
                 "url": ingress_url("web.thumbnail", filename=str(frame["filename"])),
             }
-            for frame in _file_service().generate_timeline_thumbnails(path.name, duration)
+            for frame in _file_service().generate_timeline_thumbnails(filename, duration)
         ]
     return render_template(
         "preview.html",
         title=enriched_record.get("title") or path.name,
-        filename=path.name,
+        filename=filename,
         mime_type=mime_type,
         media_kind=media_kind,
         next_preview_url=next_preview_url,
@@ -1588,7 +1660,7 @@ def preview(filename: str):
     )
 
 
-@web_bp.get("/media/<filename>")
+@web_bp.get("/media/<path:filename>")
 def media(filename: str):
     """Serve one managed downloaded file inline for the preview player."""
 
@@ -1617,7 +1689,7 @@ def thumbnail(filename: str):
         return render_template("error.html", message="Nie znaleziono miniatury."), 404
 
 
-@web_bp.post("/delete/<filename>")
+@web_bp.post("/delete/<path:filename>")
 def delete(filename: str):
     """Delete one managed file."""
 

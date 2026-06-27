@@ -86,12 +86,23 @@ class FileService:
         self.state_store.migrate_history_json(self.history_file)
 
     def resolve_download(self, filename: str, require_exists: bool = True) -> Path:
-        """Resolve a basename inside download_dir and reject traversal."""
+        """Resolve a relative path inside download_dir and reject traversal."""
 
-        if not filename or filename in {".", ".."} or Path(filename).name != filename:
+        relative = Path(filename)
+        if (
+            not filename
+            or filename in {".", ".."}
+            or relative.is_absolute()
+            or any(part in {"", ".", ".."} for part in relative.parts)
+            or relative.parts[:1] == (THUMBNAIL_DIRNAME,)
+        ):
             raise UnsafeFilenameError("Niepoprawna nazwa pliku.")
-        candidate = (self.download_dir / filename).resolve()
-        if candidate.parent != self.download_dir:
+        candidate = (self.download_dir / relative).resolve()
+        try:
+            candidate.relative_to(self.download_dir)
+        except ValueError as error:
+            raise UnsafeFilenameError("Niepoprawna ścieżka pliku.") from error
+        if candidate == self.download_dir:
             raise UnsafeFilenameError("Niepoprawna ścieżka pliku.")
         if require_exists and not candidate.is_file():
             raise FileNotFoundError(filename)
@@ -104,34 +115,44 @@ class FileService:
             raise UnsafeFilenameError("Niepoprawna nazwa miniatury.")
         candidate = (self.thumbnail_dir / filename).resolve()
         if candidate.parent != self.thumbnail_dir:
-            raise UnsafeFilenameError("Niepoprawna sciezka miniatury.")
+            raise UnsafeFilenameError("Niepoprawna ścieżka miniatury.")
         if require_exists and not candidate.is_file():
             raise FileNotFoundError(filename)
         return candidate
 
     def is_managed_file(self, path: str | Path) -> bool:
-        """Return true for files located directly in the configured download folder."""
+        """Return true for files located inside the configured download folder."""
 
         try:
             resolved = Path(path).resolve()
         except OSError:
             return False
-        return resolved.parent == self.download_dir
+        try:
+            resolved.relative_to(self.download_dir)
+        except ValueError:
+            return False
+        return resolved != self.download_dir
 
     def list_files(self) -> list[dict[str, Any]]:
         """List downloadable files from persistent storage."""
 
         files: list[dict[str, Any]] = []
         for path in sorted(
-            self.download_dir.iterdir(),
-            key=lambda item: item.stat().st_mtime,
+            self.download_dir.rglob("*"),
+            key=lambda item: item.stat().st_mtime if item.is_file() else 0,
             reverse=True,
         ):
-            if path.is_file() and not path.name.endswith((".part", ".ytdl")):
+            if (
+                path.is_file()
+                and self.is_managed_file(path)
+                and THUMBNAIL_DIRNAME not in path.relative_to(self.download_dir).parts
+                and not path.name.endswith((".part", ".ytdl"))
+            ):
                 stat = path.stat()
+                filename = path.relative_to(self.download_dir).as_posix()
                 files.append(
                     {
-                        "filename": path.name,
+                        "filename": filename,
                         "size": stat.st_size,
                         "modified_at": datetime.fromtimestamp(
                             stat.st_mtime, UTC
@@ -165,6 +186,7 @@ class FileService:
         path.unlink()
         self.delete_thumbnail(filename)
         self.mark_file_deleted(filename)
+        self._remove_empty_parent_dirs(path.parent)
         LOGGER.info("Usunięto plik %s", filename)
 
     def generate_thumbnail(self, filename: str) -> ThumbnailResult:
@@ -173,9 +195,10 @@ class FileService:
         source = self.resolve_download(filename)
         if source.suffix.lower() not in VIDEO_EXTENSIONS:
             return ThumbnailResult()
-        thumbnail = self.resolve_thumbnail(f"{source.name}.jpg", require_exists=False)
+        thumbnail_key = self._thumbnail_key(filename)
+        thumbnail = self.resolve_thumbnail(f"{thumbnail_key}.jpg", require_exists=False)
         temporary = self.resolve_thumbnail(
-            f"{source.name}.{os.getpid()}.{threading.get_ident()}.tmp.jpg",
+            f"{thumbnail_key}.{os.getpid()}.{threading.get_ident()}.tmp.jpg",
             require_exists=False,
         )
         try:
@@ -210,7 +233,7 @@ class FileService:
                     return ThumbnailResult(filename=thumbnail.name)
                 error_message = result.stderr.strip()
             LOGGER.warning(
-                "Nie mozna wygenerowac miniatury dla %s: %s",
+                "Nie można wygenerować miniatury dla %s: %s",
                 filename,
                 error_message,
             )
@@ -219,7 +242,7 @@ class FileService:
             )
         except (OSError, subprocess.TimeoutExpired) as error:
             LOGGER.warning(
-                "Nie mozna wygenerowac miniatury dla %s: %s", filename, error
+                "Nie można wygenerować miniatury dla %s: %s", filename, error
             )
             return ThumbnailResult(
                 warning_message=thumbnail_warning_message(str(error))
@@ -243,14 +266,15 @@ class FileService:
         frame_count = min(max_frames, max(1, int(duration // interval) + 1))
         timestamps = [min(max(1, index * interval), max(1, duration - 1)) for index in range(frame_count)]
         frames: list[dict[str, int | str]] = []
+        thumbnail_key = self._thumbnail_key(filename)
         for timestamp in timestamps:
             thumbnail = self.resolve_thumbnail(
-                f"{source.name}.timeline-{timestamp:05d}.jpg",
+                f"{thumbnail_key}.timeline-{timestamp:05d}.jpg",
                 require_exists=False,
             )
             if not thumbnail.is_file():
                 temporary = self.resolve_thumbnail(
-                    f"{source.name}.timeline-{timestamp:05d}.{os.getpid()}.{threading.get_ident()}.tmp.jpg",
+                    f"{thumbnail_key}.timeline-{timestamp:05d}.{os.getpid()}.{threading.get_ident()}.tmp.jpg",
                     require_exists=False,
                 )
                 try:
@@ -304,12 +328,25 @@ class FileService:
     def delete_thumbnail(self, filename: str) -> None:
         """Remove a generated thumbnail associated with a managed download."""
 
-        thumbnail = self.resolve_thumbnail(f"{filename}.jpg", require_exists=False)
+        thumbnail_key = self._thumbnail_key(filename)
+        thumbnail = self.resolve_thumbnail(f"{thumbnail_key}.jpg", require_exists=False)
         thumbnail.unlink(missing_ok=True)
-        prefix = f"{filename}.timeline-"
+        prefix = f"{thumbnail_key}.timeline-"
         for timeline_thumbnail in self.thumbnail_dir.iterdir():
             if timeline_thumbnail.is_file() and timeline_thumbnail.name.startswith(prefix):
                 timeline_thumbnail.unlink(missing_ok=True)
+
+    @staticmethod
+    def _thumbnail_key(filename: str) -> str:
+        return filename.replace("\\", "__").replace("/", "__")
+
+    def _remove_empty_parent_dirs(self, path: Path) -> None:
+        while path != self.download_dir:
+            try:
+                path.rmdir()
+            except OSError:
+                return
+            path = path.parent
 
     def history(self) -> list[dict[str, Any]]:
         """Load download history and enrich it with current file existence."""

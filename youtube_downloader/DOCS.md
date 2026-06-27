@@ -6,9 +6,11 @@ Po przesłaniu URL aplikacja sprawdza schemat i domenę, a następnie uruchamia 
 
 Przy właściwym pobieraniu aplikacja nie przyjmuje ścieżki docelowej od użytkownika. Wybiera szablon nazwy wewnątrz skonfigurowanego katalogu trwałego i ogranicza nazwy plików do bezpiecznego zestawu znaków obsługiwanego przez `yt-dlp`.
 
-Podstawowy formularz udostępnia prosty wybór jakości filmu: najlepsza dostępna, `1080p`, `720p` albo `360p`. Wybrana rozdzielczość jest limitem maksymalnym, więc przy braku dokładnego wariantu `yt-dlp` pobiera najlepszą dostępną niższą jakość. Nadal można pobrać samo audio MP3 albo wskazać konkretny format z tabeli.
+Podstawowy formularz udostępnia prosty wybór jakości filmu: najlepsza dostępna, `1080p`, `720p` albo `360p`. Wybrana rozdzielczość jest limitem maksymalnym, więc przy braku dokładnego wariantu `yt-dlp` pobiera najlepszą dostępną niższą jakość. Nadal można pobrać samo audio w formacie `mp3`, `m4a` albo `opus`, osadzić miniaturę jako okładkę, zapisać metadane lub wskazać konkretny format z tabeli.
 
 Główne pole URL pozwala wkleić jeden link albo do 50 linków naraz, rozdzielonych nowymi liniami lub przecinkami. Jeden poprawny URL uruchamia standardową analizę. Wiele poprawnych URL-i tworzy osobne zadania `najlepsza`. Aplikacja usuwa powtórzenia z tej samej paczki, a jeśli choć jeden adres jest niepoprawny, pokazuje listę błędów i nie uruchamia żadnego zadania.
+
+Dla playlist formularz pozwala zaznaczyć konkretne elementy, zawęzić zakres polami **Od** i **Do**, ustawić limit pozycji, pominąć elementy już pobrane po ID oraz uruchomić tryb **Pobierz tylko nowe**. Elementy playlisty mogą być zapisywane w osobnym podfolderze nazwanym od playlisty.
 
 ## Ingress i panel Home Assistant
 

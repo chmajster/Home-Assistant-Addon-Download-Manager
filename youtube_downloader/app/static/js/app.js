@@ -1555,6 +1555,9 @@
     });
 
     const playlistSelectAll = form.querySelector(".playlist-select-all");
+    const playlistStart = form.querySelector('[name="playlist_start"]');
+    const playlistEnd = form.querySelector('[name="playlist_end"]');
+    const playlistLimit = form.querySelector('[name="playlist_limit"]');
     const syncPlaylistSelectAllLabel = () => {
       const inputs = Array.from(form.querySelectorAll(".playlist-entry-select"));
       if (playlistSelectAll && inputs.length) {
@@ -1563,9 +1566,31 @@
           : "Zaznacz wszystkie";
       }
     };
+    const playlistNumber = (input) => {
+      const value = Number.parseInt(input?.value || "", 10);
+      return Number.isFinite(value) && value > 0 ? value : null;
+    };
+    const applyPlaylistRange = () => {
+      const inputs = Array.from(form.querySelectorAll(".playlist-entry-select"));
+      const start = playlistNumber(playlistStart);
+      const end = playlistNumber(playlistEnd);
+      const limit = playlistNumber(playlistLimit);
+      let selected = 0;
+      inputs.forEach((input) => {
+        const index = Number.parseInt(input.value || "", 10) + 1;
+        const inRange = (!start || index >= start) && (!end || index <= end);
+        const belowLimit = !limit || selected < limit;
+        input.checked = inRange && belowLimit;
+        if (input.checked) selected += 1;
+      });
+      syncPlaylistSelectAllLabel();
+    };
 
     form.querySelectorAll(".playlist-entry-select").forEach((input) => {
       input.addEventListener("change", syncPlaylistSelectAllLabel);
+    });
+    [playlistStart, playlistEnd, playlistLimit].forEach((input) => {
+      input?.addEventListener("input", applyPlaylistRange);
     });
     playlistSelectAll?.addEventListener("click", () => {
       const inputs = Array.from(form.querySelectorAll(".playlist-entry-select"));

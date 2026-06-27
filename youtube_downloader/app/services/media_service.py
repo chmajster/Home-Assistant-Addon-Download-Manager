@@ -29,6 +29,8 @@ ALLOWED_DOMAINS = {
 }
 FORMAT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
 STORYBOARD_FORMAT_RE = re.compile(r"^sb\d+$", re.IGNORECASE)
+SAFE_SUBDIR_RE = re.compile(r"[^A-Za-z0-9._ -]+")
+SUPPORTED_AUDIO_FORMATS = {"mp3", "m4a", "opus"}
 VIDEO_QUALITY_LIMITS = {
     "video-360": 360,
     "video-720": 720,
@@ -138,11 +140,12 @@ class MediaService:
         format_id: str | None,
         progress_hook: Callable[[dict[str, Any]], None],
         postprocessor_hook: Callable[[dict[str, Any]], None],
+        download_options: dict[str, Any] | None = None,
     ) -> list[Path]:
         """Download a URL synchronously. JobManager runs this method in a worker."""
 
         validated_url, options = self.effective_download_options(
-            url, download_type, format_id
+            url, download_type, format_id, download_options=download_options
         )
         options["progress_hooks"] = [progress_hook]
         options["postprocessor_hooks"] = [postprocessor_hook]
@@ -159,28 +162,47 @@ class MediaService:
                 or "Nie udało się zapisać pobieranego pliku. Sprawdź logi dodatku."
             ) from error
         if download_type == "audio":
-            paths.extend(path.with_suffix(".mp3") for path in list(paths))
+            audio_format = self.audio_format(download_options)
+            paths.extend(path.with_suffix(f".{audio_format}") for path in list(paths))
         return self._existing_managed_paths(paths)
 
     def effective_download_options(
-        self, url: str, download_type: str, format_id: str | None = None
+        self,
+        url: str,
+        download_type: str,
+        format_id: str | None = None,
+        download_options: dict[str, Any] | None = None,
     ) -> tuple[str, dict[str, Any]]:
         """Return the validated URL and final yt-dlp options used for a download."""
 
         validated_url = self.validate_url(url)
-        options = self.download_options(download_type, format_id)
+        options = self.download_options(download_type, format_id, download_options)
         self._apply_public_youtube_options(options, validated_url)
         return validated_url, options
 
     def download_options(
-        self, download_type: str, format_id: str | None = None
+        self,
+        download_type: str,
+        format_id: str | None = None,
+        download_options: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Prepare yt-dlp settings without accepting a client-provided filesystem path."""
 
-        selection, postprocessors = self.format_selection(download_type, format_id)
+        selection, postprocessors = self.format_selection(
+            download_type,
+            format_id,
+            audio_format=self.audio_format(download_options),
+            embed_thumbnail=self.boolean_option(download_options, "embed_thumbnail", True),
+            add_metadata=self.boolean_option(download_options, "add_metadata", True),
+        )
+        outtmpl_dir = self.download_dir
+        output_subdir = self.safe_output_subdir(download_options)
+        if output_subdir:
+            outtmpl_dir = outtmpl_dir / output_subdir
+            outtmpl_dir.mkdir(parents=True, exist_ok=True)
         options: dict[str, Any] = {
             "format": selection,
-            "outtmpl": str(self.download_dir / "%(title).180B [%(id)s].%(ext)s"),
+            "outtmpl": str(outtmpl_dir / "%(title).180B [%(id)s].%(ext)s"),
             "restrictfilenames": True,
             "windowsfilenames": True,
             "noplaylist": False,
@@ -192,24 +214,46 @@ class MediaService:
             "fragment_retries": 5,
             "postprocessors": postprocessors,
         }
+        if download_type == "audio" and self.boolean_option(
+            download_options, "embed_thumbnail", True
+        ):
+            options["writethumbnail"] = True
         return options
 
     @staticmethod
     def format_selection(
-        download_type: str, format_id: str | None = None
+        download_type: str,
+        format_id: str | None = None,
+        audio_format: str = "mp3",
+        embed_thumbnail: bool = True,
+        add_metadata: bool = True,
     ) -> tuple[str, list[dict[str, Any]]]:
         """Translate UI download modes into controlled yt-dlp selectors."""
 
         if download_type == "audio":
+            if audio_format not in SUPPORTED_AUDIO_FORMATS:
+                raise MediaServiceError("Nieobsługiwany format audio.")
+            postprocessors: list[dict[str, Any]] = [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": audio_format,
+                    "preferredquality": "0",
+                }
+            ]
+            if add_metadata:
+                postprocessors.append(
+                    {
+                        "key": "FFmpegMetadata",
+                        "add_chapters": True,
+                        "add_infojson": "if_exists",
+                        "add_metadata": True,
+                    }
+                )
+            if embed_thumbnail:
+                postprocessors.append({"key": "EmbedThumbnail"})
             return (
                 "bestaudio/best",
-                [
-                    {
-                        "key": "FFmpegExtractAudio",
-                        "preferredcodec": "mp3",
-                        "preferredquality": "0",
-                    }
-                ],
+                postprocessors,
             )
         if download_type in {"best", "video"}:
             return "bestvideo*+bestaudio/best", []
@@ -230,6 +274,31 @@ class MediaService:
                 )
             return format_id, []
         raise MediaServiceError("Niepoprawny typ pobierania.")
+
+    @staticmethod
+    def audio_format(download_options: dict[str, Any] | None = None) -> str:
+        audio_format = str((download_options or {}).get("audio_format") or "mp3").lower()
+        if audio_format not in SUPPORTED_AUDIO_FORMATS:
+            raise MediaServiceError("Nieobsługiwany format audio.")
+        return audio_format
+
+    @staticmethod
+    def boolean_option(
+        download_options: dict[str, Any] | None, key: str, default: bool
+    ) -> bool:
+        value = (download_options or {}).get(key, default)
+        if isinstance(value, bool):
+            return value
+        return str(value).casefold() in {"1", "true", "yes", "on"}
+
+    @staticmethod
+    def safe_output_subdir(download_options: dict[str, Any] | None = None) -> str | None:
+        raw = str((download_options or {}).get("output_subdir") or "").strip()
+        if not raw:
+            return None
+        cleaned = SAFE_SUBDIR_RE.sub("_", raw).strip(" ._")
+        cleaned = " ".join(cleaned.split())[:80].strip(" ._")
+        return cleaned or None
 
     def live_command(self, url: str, live_from_start: bool = True) -> list[str]:
         """Build a separate yt-dlp process command for live recording."""
@@ -373,6 +442,7 @@ class MediaService:
         live_status = info.get("live_status")
         return {
             "url": url,
+            "id": info.get("id"),
             "platform": self.detect_platform(url),
             "title": info.get("title") or "Bez tytułu",
             "channel": info.get("channel") or info.get("uploader") or "Brak danych",
@@ -441,10 +511,13 @@ class MediaService:
         managed: list[Path] = []
         for path in paths:
             resolved = path.resolve()
-            if (
-                resolved.parent == self.download_dir
-                and resolved.is_file()
-                and resolved not in managed
-            ):
+            if self._is_managed_path(resolved) and resolved.is_file() and resolved not in managed:
                 managed.append(resolved)
         return managed
+
+    def _is_managed_path(self, path: Path) -> bool:
+        try:
+            path.resolve().relative_to(self.download_dir)
+        except ValueError:
+            return False
+        return True

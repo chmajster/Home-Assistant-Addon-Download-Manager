@@ -56,6 +56,8 @@ class Job:
     status: str
     download_type: str
     format_id: str | None = None
+    source_id: str | None = None
+    download_options: dict[str, Any] = field(default_factory=dict)
     progress: float = 0.0
     downloaded_bytes: int | None = None
     total_bytes: int | None = None
@@ -134,11 +136,14 @@ class JobManager:
         download_type: str,
         format_id: str | None = None,
         duration: int | None = None,
+        source_id: str | None = None,
+        download_options: dict[str, Any] | None = None,
     ) -> Job:
         """Queue one regular yt-dlp download."""
 
         validated_url = self.media_service.validate_url(url)
-        self.media_service.format_selection(download_type, format_id)
+        normalized_options = dict(download_options or {})
+        self.media_service.download_options(download_type, format_id, normalized_options)
         job = self._new_job(
             validated_url,
             title,
@@ -146,6 +151,8 @@ class JobManager:
             is_live=False,
             format_id=format_id,
             duration=duration,
+            source_id=source_id,
+            download_options=normalized_options,
         )
         stop_event = threading.Event()
         with self._lock:
@@ -185,7 +192,9 @@ class JobManager:
                 raise KeyError(job_id)
             if job.status not in self.RESUMABLE_STATUSES:
                 raise MediaServiceError("To zadanie nie może zostać wznowione.")
-            self.media_service.format_selection(job.download_type, job.format_id)
+            self.media_service.download_options(
+                job.download_type, job.format_id, job.download_options
+            )
             self._cancel_retry_timer(job_id)
             job.status = "pending"
             job.finished_at = None
@@ -233,7 +242,9 @@ class JobManager:
                     retried += 1
                     continue
                 try:
-                    self.media_service.format_selection(job.download_type, job.format_id)
+                    self.media_service.download_options(
+                        job.download_type, job.format_id, job.download_options
+                    )
                 except MediaServiceError:
                     skipped += 1
                     continue
@@ -289,7 +300,9 @@ class JobManager:
                 self._persist_jobs()
                 snapshot = Job(**asdict(job))
             else:
-                self.media_service.format_selection(job.download_type, job.format_id)
+                self.media_service.download_options(
+                    job.download_type, job.format_id, job.download_options
+                )
                 self._reset_for_retry(job)
                 stop_event = threading.Event()
                 self._stop_events[job.job_id] = stop_event
@@ -550,7 +563,7 @@ class JobManager:
         if migrated:
             self.state_store.jobs_replace(jobs + migrated, replace_logs=True)
             LOGGER.info(
-                "Przeniesiono %s wpisow historii pobran do widoku zadan.",
+                "Przeniesiono %s wpisów historii pobrań do widoku zadań.",
                 len(migrated),
             )
         self.state_store.history_clear()
@@ -603,6 +616,8 @@ class JobManager:
         format_id: str | None = None,
         duration: int | None = None,
         live_from_start: bool = True,
+        source_id: str | None = None,
+        download_options: dict[str, Any] | None = None,
     ) -> Job:
         job = Job(
             job_id=uuid.uuid4().hex,
@@ -611,6 +626,8 @@ class JobManager:
             status="pending",
             download_type=download_type,
             format_id=format_id,
+            source_id=source_id,
+            download_options=dict(download_options or {}),
             is_live=is_live,
             live_from_start=live_from_start,
             duration=duration,
@@ -737,7 +754,9 @@ class JobManager:
                 self._persist_jobs()
             else:
                 try:
-                    self.media_service.format_selection(job.download_type, job.format_id)
+                    self.media_service.download_options(
+                        job.download_type, job.format_id, job.download_options
+                    )
                 except MediaServiceError as error:
                     job.next_retry_at = None
                     self._append_log_line(job, f"[retry] Nie można ponowić: {error}")
@@ -782,12 +801,14 @@ class JobManager:
 
     def _append_download_parameters(self, job: Job) -> None:
         validated_url, options = self.media_service.effective_download_options(
-            job.url, job.download_type, job.format_id
+            job.url, job.download_type, job.format_id, job.download_options
         )
         payload = {
             "url": validated_url,
             "download_type": job.download_type,
             "format_id": job.format_id,
+            "source_id": job.source_id,
+            "download_options": job.download_options,
             "yt_dlp_options": options,
         }
         self._append_log_line(job, "[yt-dlp] Parametry pobierania:", limit=None)
@@ -904,6 +925,7 @@ class JobManager:
                         url=job.url,
                         download_type=job.download_type,
                         format_id=job.format_id,
+                        download_options=job.download_options,
                         progress_hook=progress_hook,
                         postprocessor_hook=postprocessor_hook,
                     )
@@ -1086,9 +1108,9 @@ class JobManager:
                 and path.is_file()
                 and not path.name.endswith((".part", ".ytdl"))
             ):
-                files.append(path.name)
+                files.append(path.relative_to(self.file_service.download_dir).as_posix())
                 try:
-                    thumbnail = self.file_service.generate_thumbnail(path.name)
+                    thumbnail = self.file_service.generate_thumbnail(files[-1])
                     if thumbnail.filename and not job.thumbnail_filename:
                         job.thumbnail_filename = thumbnail.filename
                     if thumbnail.warning_message and not job.warning_message:
@@ -1203,7 +1225,7 @@ class JobManager:
         interrupted = False
         for record in payload:
             if not isinstance(record, dict):
-                LOGGER.warning("Pominieto niepoprawny rekord trwalej kolejki zadan")
+                LOGGER.warning("Pominięto niepoprawny rekord trwałej kolejki zadań")
                 continue
             try:
                 job = Job(
@@ -1214,19 +1236,19 @@ class JobManager:
                     }
                 )
             except TypeError as error:
-                LOGGER.warning("Pominieto niepoprawny rekord zadania: %s", error)
+                LOGGER.warning("Pominięto niepoprawny rekord zadania: %s", error)
                 continue
             if job.status in self.ACTIVE_STATUSES:
                 job.status = "interrupted"
                 job.finished_at = now_iso()
                 job.speed = None
                 job.eta = None
-                job.error_message = "Zadanie zostalo przerwane przez restart aplikacji."
+                job.error_message = "Zadanie zostało przerwane przez restart aplikacji."
                 interrupted = True
             self._jobs[job.job_id] = job
         if interrupted:
             self._persist_jobs()
-        LOGGER.info("Odtworzono %s zadan z trwalej kolejki", len(self._jobs))
+        LOGGER.info("Odtworzono %s zadań z trwałej kolejki", len(self._jobs))
 
     def _persist_jobs(self) -> None:
         """Write a consistent queue snapshot without interrupting active work."""
@@ -1236,4 +1258,4 @@ class JobManager:
                 records = [asdict(job) for job in self._jobs.values()]
             self.state_store.jobs_replace(records)
         except (OSError, TypeError, ValueError, sqlite3.Error) as error:
-            LOGGER.error("Nie mozna zapisac trwalej kolejki zadan: %s", error)
+            LOGGER.error("Nie można zapisać trwałej kolejki zadań: %s", error)
