@@ -590,18 +590,18 @@
   };
 
   const mediaNetworkStateLabel = (state) => ({
-    0: "empty",
-    1: "idle",
-    2: "loading",
-    3: "no source",
+    0: "pusto",
+    1: "bezczynne",
+    2: "ładowanie",
+    3: "brak źródła",
   }[state] || "N/A");
 
   const mediaReadyStateLabel = (state) => ({
-    0: "nothing",
-    1: "metadata",
-    2: "current data",
-    3: "future data",
-    4: "enough data",
+    0: "brak danych",
+    1: "metadane",
+    2: "dane bieżące",
+    3: "dane przyszłe",
+    4: "wystarczająco danych",
   }[state] || "N/A");
 
   const clampPlaybackRate = (value) => Math.min(3, Math.max(0.25, Number(value) || 1));
@@ -651,7 +651,7 @@
     const eventAge = activity?.lastAt ? `${Math.max(0, ((Date.now() - activity.lastAt) / 1000)).toFixed(1)} s temu` : "brak";
     return [
       `${mediaNetworkStateLabel(media.networkState)} / ${mediaReadyStateLabel(media.readyState)}`,
-      `event=${activity?.lastEvent || "init"} (${eventAge})`,
+      `zdarzenie=${activity?.lastEvent || "init"} (${eventAge})`,
       `dane=${formatPlayerBytes(bytes)}`,
     ].join("; ");
   };
@@ -665,6 +665,28 @@
       return `${Math.max(0, media.duration - media.currentTime).toFixed(2)} s`;
     }
     return `${mediaReadyStateLabel(media.readyState)} / ${mediaNetworkStateLabel(media.networkState)}`;
+  };
+
+  const bufferRangesLabel = (media) => {
+    const ranges = [];
+    for (let index = 0; index < media.buffered.length; index += 1) {
+      ranges.push(`${formatMediaTime(media.buffered.start(index))}-${formatMediaTime(media.buffered.end(index))}`);
+    }
+    return ranges.length ? ranges.join(", ") : "brak";
+  };
+
+  const estimatedBitrateLabel = (player, media) => {
+    const bytes = Number(player.dataset.fileSize || 0);
+    const duration = Number.isFinite(media.duration) ? media.duration : 0;
+    if (bytes <= 0 || duration <= 0) return "brak danych";
+    return `${((bytes * 8) / duration / 1000 / 1000).toFixed(2)} Mbps`;
+  };
+
+  const captionsStatsLabel = (player) => {
+    const status = player.dataset.captionsStatus || t("js.captions_status_off");
+    const label = player.dataset.captionsLabel || "";
+    const source = player.dataset.captionsSourceLabel || "";
+    return [status, label, source].filter(Boolean).join(" / ") || t("js.captions_status_off");
   };
 
   const getVideoDebugStats = (player, media, activity = null) => {
@@ -684,21 +706,25 @@
       ? `${media.videoWidth}x${media.videoHeight}`
       : "N/A";
     const source = media.querySelector("source");
-    const mimeType = source?.type || "";
+    const mimeType = source?.type || player.dataset.mimeType || "";
     const duration = Number.isFinite(media.duration) ? formatMediaTime(media.duration) : "N/A";
     const current = Number.isFinite(media.currentTime) ? formatMediaTime(media.currentTime) : "N/A";
     const rows = [
-      ["Date", new Date().toLocaleString()],
-      ["Video ID / Name", player.dataset.videoId || player.dataset.videoTitle || sourceLabelFromMedia(media)],
-      ["Viewport / Frames", `${viewport} / ${frames}`],
-      ["Current / Optimal Res", `${resolution} / N/A`],
-      ["Volume / Normalized", `${media.muted ? "muted" : `${Math.round(media.volume * 100)}%`} / N/A`],
-      ["Codecs", mimeType || "N/A"],
-      ["Color", "N/A"],
-      ["Connection Speed", connectionSpeedLabel(media)],
-      ["Network Activity", networkActivityLabel(media, activity)],
-      ["Buffer Health", bufferHealthLabel(media)],
-      ["Mystery Text", `current=${current}; duration=${duration}; src=${sourceLabelFromMedia(media)}`],
+      ["Data", new Date().toLocaleString()],
+      ["ID / nazwa filmu", player.dataset.videoId || player.dataset.videoTitle || sourceLabelFromMedia(media)],
+      ["Okno / klatki", `${viewport} / ${frames}`],
+      ["Plik: rozdzielczość / bitrate", `${resolution} / ${estimatedBitrateLabel(player, media)}`],
+      ["Aktualna / optymalna rozdzielczość", `${resolution} / N/A`],
+      ["Głośność / normalizacja", `${media.muted ? "wyciszone" : `${Math.round(media.volume * 100)}%`} / N/A`],
+      ["Format audio/wideo", mimeType || "N/A"],
+      ["Kolor", "N/A"],
+      ["Prędkość połączenia", connectionSpeedLabel(media)],
+      ["Aktywność sieci", networkActivityLabel(media, activity)],
+      ["Stan bufora", bufferHealthLabel(media)],
+      ["Bufor realny", bufferRangesLabel(media)],
+      ["Napisy", captionsStatsLabel(player)],
+      ["Ścieżka pliku", player.dataset.filePath || sourceLabelFromMedia(media)],
+      ["Szczegóły", `czas=${current}; długość=${duration}; źródło=${sourceLabelFromMedia(media)}`],
     ];
     return rows;
   };
@@ -743,11 +769,15 @@
     );
     const mute = customPlayerButton("Wycisz", playerIcon("volume"), "custom-player-mute");
     const captions = customPlayerButton(
-      "Napisy",
+      t("js.captions"),
       playerIcon("captions"),
       "custom-player-captions"
     );
     captions.setAttribute("aria-pressed", "false");
+    const captionsStatus = text("span", t("js.captions_status_off"), "custom-player-captions-status");
+    const captionsGroup = document.createElement("span");
+    captionsGroup.className = "custom-player-captions-group";
+    captionsGroup.append(captions, captionsStatus);
     const settings = customPlayerButton(
       "Ustawienia jakości i prędkości",
       `${playerIcon("settings")}<span class="custom-player-hd-badge">HD</span>`,
@@ -806,9 +836,19 @@
       <div class="custom-player-settings-group" data-setting-group="fit">
         <span>Dopasowanie</span>
         <div class="custom-player-settings-options">
-          <button type="button" data-fit="contain">Contain</button>
-          <button type="button" data-fit="cover">Cover</button>
+          <button type="button" data-fit="contain">Całe wideo</button>
+          <button type="button" data-fit="cover">Wypełnij ekran</button>
         </div>
+      </div>
+      <div class="custom-player-settings-group" data-setting-group="captions">
+        <span>Napisy</span>
+        <div class="custom-player-settings-options">
+          <button type="button" data-captions-mode="pl">Polskie</button>
+          <button type="button" data-captions-mode="en">Angielskie</button>
+          <button type="button" data-captions-mode="auto">Automatyczne</button>
+          <button type="button" data-captions-mode="off">Wyłącz</button>
+        </div>
+        <small class="custom-player-setting-status" data-captions-panel-status>${t("js.captions_status_off")}</small>
       </div>
     `;
     const time = text("span", "0:00 / 0:00", "custom-player-time");
@@ -841,18 +881,22 @@
     leftControls.append(play, volumeGroup, time, inThisVideo);
     const rightControls = document.createElement("div");
     rightControls.className = "custom-player-row custom-player-right-controls";
-    rightControls.append(playSecondary, captions, settings, mini, fullscreen);
+    rightControls.append(playSecondary, captionsGroup, settings, mini, fullscreen);
     mainRow.append(leftControls, rightControls);
     controls.append(progress, mainRow, speed);
     player.append(controls);
     player.append(settingsPanel);
     if (!supportsFullscreen(player) && !media.webkitEnterFullscreen) fullscreen.hidden = true;
     const nextUrl = player.dataset.nextUrl || "";
+    const captionsUrl = player.dataset.captionsUrl || "";
     const settingLoop = settingsPanel.querySelector("[data-setting-loop]");
     const settingAutoplayNext = settingsPanel.querySelector("[data-setting-autoplay-next]");
     const speedSlider = settingsPanel.querySelector("[data-speed-slider]");
     const speedValue = settingsPanel.querySelector("[data-speed-value]");
     const fitButtons = Array.from(settingsPanel.querySelectorAll("[data-fit]"));
+    const captionsModeButtons = Array.from(settingsPanel.querySelectorAll("[data-captions-mode]"));
+    const captionsPanelStatus = settingsPanel.querySelector("[data-captions-panel-status]");
+    const captionsSettingsGroup = settingsPanel.querySelector("[data-setting-group='captions']");
     if (settingAutoplayNext instanceof HTMLInputElement) settingAutoplayNext.checked = Boolean(storedSettings.autoplayNext);
 
     const previewThumbnailUrl = player.dataset.previewThumbnail || "";
@@ -909,6 +953,10 @@
     let statsOverlay = null;
     let statsContent = null;
     let statsTimer = null;
+    let captionsTrack = null;
+    let captionsLoadedMode = "";
+    let captionsLoading = false;
+    let captionsMode = "off";
     let loopContextItem = null;
     const networkActivity = {
       lastEvent: "init",
@@ -937,7 +985,7 @@
       statsOverlay.setAttribute("aria-label", t("js.stats"));
       const statsHeader = document.createElement("div");
       statsHeader.className = "custom-player-stats-header";
-      statsHeader.append(text("strong", "Statystyki dla nerdów"));
+      statsHeader.append(text("strong", t("js.stats")));
       const statsClose = document.createElement("button");
       statsClose.className = "custom-player-stats-close";
       statsClose.type = "button";
@@ -1071,7 +1119,7 @@
             actionLabel: "Diagnostyka",
           });
         }),
-        createPlayerContextMenuItem("Statystyki dla nerdów", "stats", () => {
+        createPlayerContextMenuItem(t("js.stats"), "stats", () => {
           hideContextMenu();
           toggleStatsOverlay();
         })
@@ -1153,6 +1201,110 @@
       if (overlayIcon) overlayIcon.innerHTML = icon;
       showControls();
     };
+    const syncCaptionsButton = (active) => {
+      captions.classList.toggle("custom-player-button-active", active);
+      captions.setAttribute("aria-pressed", String(active));
+    };
+    const setCaptionsStatus = (key, payload = {}) => {
+      const label = payload.label || t(key);
+      captionsStatus.textContent = label;
+      if (captionsPanelStatus) captionsPanelStatus.textContent = label;
+      player.dataset.captionsStatus = label;
+      if (payload.captionLabel !== undefined) player.dataset.captionsLabel = payload.captionLabel || "";
+      if (payload.sourceLabel !== undefined) player.dataset.captionsSourceLabel = payload.sourceLabel || "";
+      captions.title = `${t("js.captions")}: ${label}`;
+    };
+    const syncCaptionsModeButtons = () => {
+      captionsModeButtons.forEach((button) => {
+        button.classList.toggle("custom-player-settings-active", button.dataset.captionsMode === captionsMode);
+      });
+    };
+    const showTextTracks = (active) => {
+      Array.from(media.textTracks || []).forEach((track) => {
+        track.mode = active ? "showing" : "disabled";
+      });
+      syncCaptionsButton(active);
+      if (!active) {
+        captionsMode = "off";
+        setCaptionsStatus("js.captions_status_off", { captionLabel: "", sourceLabel: "" });
+        syncCaptionsModeButtons();
+      }
+    };
+    const removeDownloadedCaptions = () => {
+      if (captionsTrack) captionsTrack.remove();
+      captionsTrack = null;
+      captionsLoadedMode = "";
+      Array.from(media.querySelectorAll("track[data-downloaded-captions='true']")).forEach((track) => track.remove());
+    };
+    const attachDownloadedCaptions = (payload, mode) => {
+      removeDownloadedCaptions();
+      const track = document.createElement("track");
+      track.kind = "subtitles";
+      track.label = payload.label || t("js.captions");
+      track.srclang = String(payload.language || payload.label || mode || "pl").toLowerCase();
+      track.src = payload.url;
+      track.default = true;
+      track.dataset.downloadedCaptions = "true";
+      track.dataset.captionLabel = payload.label || "";
+      track.dataset.sourceLabel = payload.source_label || "";
+      media.append(track);
+      captionsTrack = track;
+      captionsLoadedMode = mode;
+      captionsMode = mode;
+      setCaptionsStatus("js.captions_status_on", {
+        captionLabel: payload.label || "",
+        sourceLabel: payload.source_label || "",
+      });
+      syncCaptionsModeButtons();
+      window.setTimeout(() => showTextTracks(true), 0);
+    };
+    const loadCaptions = async (mode = "pl") => {
+      if (mode === "off") {
+        showTextTracks(false);
+        return;
+      }
+      if (!captionsUrl || captionsLoading) return;
+      if (captionsLoadedMode === mode && captionsTrack) {
+        captionsMode = mode;
+        setCaptionsStatus("js.captions_status_on", {
+          captionLabel: captionsTrack.dataset.captionLabel || captionsTrack.label || "",
+          sourceLabel: captionsTrack.dataset.sourceLabel || "",
+        });
+        syncCaptionsModeButtons();
+        showTextTracks(true);
+        return;
+      }
+      captionsLoading = true;
+      captions.disabled = true;
+      setCaptionsStatus("js.captions_status_loading");
+      try {
+        const formData = new FormData();
+        formData.append("_csrf_token", csrfToken);
+        formData.append("mode", mode);
+        const response = await fetch(captionsUrl, {
+          method: "POST",
+          body: formData,
+          cache: "no-store",
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.ok === false || !payload.url) {
+          const error = new Error(payload.message || t("js.captions_unavailable"));
+          error.noCaptions = payload.reason === "unavailable";
+          throw error;
+        }
+        attachDownloadedCaptions(payload, mode);
+        showAppToast(t("js.captions_loaded"), { type: "success" });
+      } catch (error) {
+        showTextTracks(false);
+        setCaptionsStatus(error?.noCaptions ? "js.captions_status_missing" : "js.captions_status_error");
+        showAppToast(error?.message || t("js.captions_error"), { type: "warning" });
+      } finally {
+        captionsLoading = false;
+        captions.disabled = false;
+      }
+    };
+    setCaptionsStatus("js.captions_status_off", { captionLabel: "", sourceLabel: "" });
+    syncCaptionsModeButtons();
     const syncMute = () => {
       const muted = media.muted || media.volume === 0;
       mute.innerHTML = muted ? playerIcon("volumeOff") : playerIcon("volume");
@@ -1190,6 +1342,7 @@
         const activeFit = player.classList.contains("custom-player-fit-cover") ? "cover" : "contain";
         button.classList.toggle("custom-player-settings-active", button.dataset.fit === activeFit);
       });
+      syncCaptionsModeButtons();
       if (settingLoop instanceof HTMLInputElement) settingLoop.checked = media.loop;
       if (settingAutoplayNext instanceof HTMLInputElement) {
         settingAutoplayNext.disabled = !nextUrl;
@@ -1302,12 +1455,26 @@
       else media.pause();
     });
     playSecondary.addEventListener("click", () => play.click());
+    if (!isVideo || !captionsUrl) {
+      captions.hidden = true;
+      captionsStatus.hidden = true;
+      captionsSettingsGroup?.setAttribute("hidden", "hidden");
+    }
     captions.addEventListener("click", () => {
-      captions.classList.toggle("custom-player-button-active");
-      captions.setAttribute(
-        "aria-pressed",
-        String(captions.classList.contains("custom-player-button-active"))
-      );
+      if (!captionsTrack) {
+        loadCaptions("pl");
+        return;
+      }
+      const active = !captions.classList.contains("custom-player-button-active");
+      if (active && captionsTrack) {
+        captionsMode = captionsLoadedMode || "pl";
+        setCaptionsStatus("js.captions_status_on", {
+          captionLabel: captionsTrack.dataset.captionLabel || captionsTrack.label || "",
+          sourceLabel: captionsTrack.dataset.sourceLabel || "",
+        });
+        syncCaptionsModeButtons();
+      }
+      showTextTracks(active);
     });
     settings.addEventListener("click", () => {
       settingsPanel.hidden = !settingsPanel.hidden;
@@ -1327,6 +1494,9 @@
     });
     fitButtons.forEach((button) => {
       button.addEventListener("click", () => setFitMode(button.dataset.fit === "cover" ? "cover" : "contain"));
+    });
+    captionsModeButtons.forEach((button) => {
+      button.addEventListener("click", () => loadCaptions(button.dataset.captionsMode || "off"));
     });
     settingLoop?.addEventListener("change", () => {
       media.loop = settingLoop instanceof HTMLInputElement && settingLoop.checked;
@@ -1620,6 +1790,8 @@
   if (historyItems.length) {
     const typeFilter = document.getElementById("history-type-filter");
     const statusFilter = document.getElementById("history-status-filter");
+    const tagFilter = document.getElementById("history-tag-filter");
+    const sourceFilter = document.getElementById("history-source-filter");
     const sort = document.getElementById("history-sort");
     const previous = document.getElementById("history-prev");
     const next = document.getElementById("history-next");
@@ -1641,11 +1813,25 @@
 
     addOptions(typeFilter, [...new Set(records.map((item) => item.dataset.historyType).filter(Boolean))].sort(), downloadTypeLabel);
     addOptions(statusFilter, [...new Set(records.map((item) => item.dataset.historyStatus).filter(Boolean))].sort());
+    const historyTags = [
+      ...new Set(
+        records.flatMap((item) =>
+          (item.dataset.historyTags || "").split("|").map((tag) => tag.trim()).filter(Boolean)
+        )
+      ),
+    ].sort((left, right) => left.localeCompare(right));
+    addOptions(tagFilter, historyTags);
+    addOptions(sourceFilter, [...new Set(records.map((item) => item.dataset.historyPlatform).filter(Boolean))].sort());
 
     const renderHistory = () => {
       const filtered = records
         .filter((item) => !typeFilter?.value || item.dataset.historyType === typeFilter.value)
         .filter((item) => !statusFilter?.value || item.dataset.historyStatus === statusFilter.value)
+        .filter((item) => {
+          if (!tagFilter?.value) return true;
+          return (item.dataset.historyTags || "").split("|").includes(tagFilter.value);
+        })
+        .filter((item) => !sourceFilter?.value || item.dataset.historyPlatform === sourceFilter.value)
         .sort((left, right) => {
           const order = left.dataset.historyDate.localeCompare(right.dataset.historyDate);
           return sort?.value === "oldest" ? order : -order;
@@ -1677,12 +1863,13 @@
       });
       empty?.classList.toggle("d-none", filtered.length > 0);
       document.getElementById("history-pagination")?.classList.toggle("d-none", filtered.length === 0);
-    if (pageLabel) pageLabel.textContent = t("index.page_count", { current: currentPage, total: pageCount });
+      if (pageLabel) pageLabel.textContent = t("index.page_count", { current: currentPage, total: pageCount });
       if (previous) previous.disabled = currentPage <= 1;
       if (next) next.disabled = currentPage >= pageCount;
+      document.dispatchEvent(new CustomEvent("history:rendered"));
     };
 
-    [typeFilter, statusFilter, sort].forEach((control) => {
+    [typeFilter, statusFilter, tagFilter, sourceFilter, sort].forEach((control) => {
       control?.addEventListener("change", () => {
         currentPage = 1;
         renderHistory();
@@ -1702,8 +1889,16 @@
   const historyBulkForm = document.getElementById("history-bulk-form");
   if (historyBulkForm) {
     const selectedHistoryKeys = new Set();
-    const historySelectionInputs = () => Array.from(historyBulkForm.querySelectorAll(".history-bulk-select"));
+    const historySelectionInputs = () => Array.from(document.querySelectorAll(".history-bulk-select"));
     const historyUniqueKeys = () => [...new Set(historySelectionInputs().map((input) => input.value).filter(Boolean))];
+    const visibleHistoryKeys = () => [
+      ...new Set(
+        historySelectionInputs()
+          .filter((input) => !input.closest(".history-item")?.classList.contains("d-none"))
+          .map((input) => input.value)
+          .filter(Boolean)
+      ),
+    ];
     const syncHistoryBulkControls = () => {
       historySelectionInputs().forEach((input) => {
         input.checked = selectedHistoryKeys.has(input.value);
@@ -1716,8 +1911,11 @@
       if (button) button.disabled = selectedCount === 0;
       const selectAll = document.getElementById("history-bulk-select-all");
       if (selectAll) {
-        selectAll.checked = totalCount > 0 && selectedCount === totalCount;
-        selectAll.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+        const visibleKeys = visibleHistoryKeys();
+        const visibleSelectedCount = visibleKeys.filter((key) => selectedHistoryKeys.has(key)).length;
+        selectAll.checked = visibleKeys.length > 0 && visibleSelectedCount === visibleKeys.length;
+        selectAll.indeterminate = visibleSelectedCount > 0 && visibleSelectedCount < visibleKeys.length;
+        selectAll.disabled = visibleKeys.length === 0 || totalCount === 0;
       }
     };
 
@@ -1729,22 +1927,18 @@
       });
     });
     document.getElementById("history-bulk-select-all")?.addEventListener("change", (event) => {
-      if (event.target.checked) historyUniqueKeys().forEach((key) => selectedHistoryKeys.add(key));
-      else selectedHistoryKeys.clear();
+      const keys = visibleHistoryKeys();
+      if (event.target.checked) keys.forEach((key) => selectedHistoryKeys.add(key));
+      else keys.forEach((key) => selectedHistoryKeys.delete(key));
       syncHistoryBulkControls();
     });
     historyBulkForm.addEventListener("submit", (event) => {
       const selectedCount = selectedHistoryKeys.size;
-      const action = historyBulkForm.querySelector(".history-bulk-action")?.value || "";
-      const labels = {
-        delete_entries: "usunąć zaznaczone wpisy z historii",
-        delete_files: "usunąć pliki dla zaznaczonych wpisów",
-        repeat: "ponownie pobrać zaznaczone pozycje",
-      };
       if (!selectedCount || !window.confirm(t("js.history_action_confirm", { action: t("js.history_do_action"), count: selectedCount }))) {
         event.preventDefault();
       }
     });
+    document.addEventListener("history:rendered", syncHistoryBulkControls);
     syncHistoryBulkControls();
   }
 

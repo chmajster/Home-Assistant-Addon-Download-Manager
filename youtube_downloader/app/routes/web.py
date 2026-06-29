@@ -1508,6 +1508,86 @@ def delete_jobs():
     return redirect(ingress_url("web.jobs"))
 
 
+@web_bp.post("/history/jobs/bulk")
+def bulk_history_jobs():
+    """Run one bulk action for completed jobs shown in the unified history."""
+
+    if not _valid_form():
+        return redirect(ingress_url("web.index"))
+    action = str(request.form.get("action") or "")
+    job_ids = list(dict.fromkeys(request.form.getlist("job_ids")))
+    if not job_ids:
+        flash("Zaznacz wpisy, dla których chcesz wykonać akcję.", "warning")
+        return redirect(ingress_url("web.index"))
+
+    manager = _job_manager()
+    jobs_by_id = {job.job_id: job for job in manager.list_jobs()}
+    selected_jobs = [
+        jobs_by_id[job_id]
+        for job_id in job_ids
+        if job_id in jobs_by_id and jobs_by_id[job_id].status == "completed"
+    ]
+    if not selected_jobs:
+        flash("Nie znaleziono zakończonych wpisów do obsłużenia.", "warning")
+        return redirect(ingress_url("web.index"))
+
+    if action == "delete_jobs":
+        removed, skipped = manager.delete_jobs([job.job_id for job in selected_jobs])
+        _flash_deleted_jobs(removed, skipped)
+    elif action == "delete_files":
+        done = 0
+        skipped = 0
+        filenames = {
+            str(job.output_file or "")
+            for job in selected_jobs
+            if job.output_file
+        }
+        for filename in filenames:
+            try:
+                _file_service().delete_file(filename)
+                done += 1
+            except FileNotFoundError:
+                skipped += 1
+            except UnsafeFilenameError:
+                LOGGER.warning("Odrzucono próbę masowego usunięcia %s", filename)
+                skipped += 1
+        skipped += len(selected_jobs) - len(filenames)
+        _flash_bulk_history_result("delete_files", done, skipped)
+    elif action == "repeat":
+        candidates = [
+            job
+            for job in selected_jobs
+            if job.url
+            and not job.is_live
+            and (job.download_type != "format" or bool(job.format_id))
+        ]
+        if candidates:
+            try:
+                _ensure_ytdlp_recent()
+            except MediaServiceError as error:
+                flash(str(error), "danger")
+                return redirect(ingress_url("web.index"))
+        done = 0
+        skipped = len(selected_jobs) - len(candidates)
+        for job in candidates:
+            try:
+                manager.start_download(
+                    url=job.url,
+                    title=job.title,
+                    download_type=job.download_type,
+                    format_id=job.format_id,
+                    duration=job.duration,
+                )
+                done += 1
+            except MediaServiceError as error:
+                LOGGER.warning("Nie można ponowić pobierania: %s", error)
+                skipped += 1
+        _flash_bulk_history_result("repeat", done, skipped)
+    else:
+        flash("Wybierz poprawną akcję dla zaznaczonych wpisów.", "warning")
+    return redirect(ingress_url("web.index"))
+
+
 @web_bp.post("/jobs/clear")
 def clear_jobs():
     """Delete all inactive jobs from the queue."""
@@ -1739,6 +1819,96 @@ def media(filename: str):
         return render_template(
             "error.html", message="Nie znaleziono pobranego pliku."
         ), 404
+
+
+def _subtitle_label(subtitle_path, media_path) -> str:
+    subtitle_stem = subtitle_path.stem
+    media_stem = media_path.with_suffix("").name
+    language_prefix = f"{media_stem}."
+    if subtitle_stem.startswith(language_prefix):
+        language = subtitle_stem[len(language_prefix) :].strip()
+        if language:
+            return language.upper()
+    return "Napisy"
+
+
+def _subtitle_source_label(source: object) -> str:
+    return {
+        "automatic": "automatyczne",
+        "official": "z serwisu",
+        "file": "plik lokalny",
+    }.get(str(source or ""), "brak danych")
+
+
+@web_bp.post("/subtitles/<path:filename>")
+def download_subtitle(filename: str):
+    """Check, download, and expose subtitles for one managed preview video."""
+
+    if not _valid_form():
+        return {
+            "ok": False,
+            "message": "Sesja wygasła. Odśwież stronę i spróbuj ponownie.",
+        }, 400
+    try:
+        media_path = _file_service().resolve_download(filename)
+    except (FileNotFoundError, UnsafeFilenameError):
+        return {"ok": False, "message": "Nie znaleziono pliku wideo."}, 404
+    if not (mimetypes.guess_type(media_path.name)[0] or "").startswith("video/"):
+        return {"ok": False, "message": "Napisy są dostępne tylko dla plików wideo."}, 400
+
+    source_url = ""
+    for record in _completed_job_records():
+        if str(record.get("filename") or "") == filename:
+            source_url = str(record.get("url") or "")
+            break
+    if not source_url:
+        return {"ok": False, "message": "Nie znaleziono adresu źródłowego dla tego pliku."}, 404
+
+    try:
+        _ensure_ytdlp_recent()
+        subtitle_result = _media_service().download_subtitle(
+            source_url, media_path, mode=request.form.get("mode") or "pl"
+        )
+    except MediaServiceError as error:
+        message = str(error)
+        reason = "unavailable" if "napis" in message.casefold() and "udost" in message.casefold() else "error"
+        return {"ok": False, "message": message, "reason": reason}, 404 if reason == "unavailable" else 409
+
+    if isinstance(subtitle_result, dict):
+        subtitle_path = subtitle_result["path"]
+        language = str(subtitle_result.get("language") or "")
+        source = str(subtitle_result.get("source") or "")
+    else:
+        subtitle_path = subtitle_result
+        language = ""
+        source = "file"
+    subtitle_filename = subtitle_path.relative_to(_file_service().download_dir).as_posix()
+    return {
+        "ok": True,
+        "url": ingress_url("web.subtitle", filename=subtitle_filename),
+        "label": language.upper() if language else _subtitle_label(subtitle_path, media_path),
+        "language": language,
+        "source": source,
+        "source_label": _subtitle_source_label(source),
+    }
+
+
+@web_bp.get("/subtitles/<path:filename>")
+def subtitle(filename: str):
+    """Serve one downloaded VTT subtitle file for the preview player."""
+
+    try:
+        path = _file_service().resolve_download(filename)
+        if path.suffix.casefold() != ".vtt":
+            raise UnsafeFilenameError("Niepoprawny format napisów.")
+        return send_file(
+            path,
+            mimetype="text/vtt; charset=utf-8",
+            conditional=True,
+            download_name=path.name,
+        )
+    except (FileNotFoundError, UnsafeFilenameError):
+        return render_template("error.html", message="Nie znaleziono napisów."), 404
 
 
 @web_bp.get("/thumbnails/<filename>")

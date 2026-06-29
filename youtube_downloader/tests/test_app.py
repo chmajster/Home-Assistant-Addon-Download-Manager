@@ -617,6 +617,12 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('data-custom-player', body)
         self.assertIn('<video class="custom-player-media preview-player"', body)
         self.assertIn('src="/media/example.mp4"', body)
+        self.assertIn('data-captions-url="/subtitles/example.mp4"', body)
+        self.assertIn('data-file-path="example.mp4"', body)
+        self.assertIn('data-file-size="5"', body)
+        self.assertIn('data-mime-type="video/mp4"', body)
+        self.assertIn('href="/view/example.mp4" target="_blank" rel="noreferrer"', body)
+        self.assertIn("Otwórz w nowym oknie", body)
         self.assertIn('href="/downloaded/example.mp4"', body)
         self.assertIn('action="/delete/example.mp4"', body)
         self.assertIn('class="delete-form d-inline"', body)
@@ -673,6 +679,53 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertNotIn("attachment", response.headers.get("Content-Disposition", ""))
         finally:
             response.close()
+
+    def test_preview_subtitles_can_be_downloaded_and_served(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        files = self.app.extensions["file_service"]
+        media = self.app.extensions["media_service"]
+        expected = files.download_dir / "example.mp4"
+        expected.write_bytes(b"media")
+        subtitles = files.download_dir / "example.pl.vtt"
+        subtitles.write_text("WEBVTT\n\n00:00.000 --> 00:01.000\nCześć\n", encoding="utf-8")
+        self._completed_job(
+            filename=expected.name,
+            title="Example video",
+            url="https://youtu.be/example",
+            download_type="best",
+        )
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+
+        with patch.object(media, "download_subtitle", return_value=subtitles) as download_subtitle:
+            response = self.client.post(
+                "/subtitles/example.mp4",
+                data={"_csrf_token": self._csrf_token()},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get_json(),
+            {
+                "ok": True,
+                "url": "/subtitles/example.pl.vtt",
+                "label": "PL",
+                "language": "",
+                "source": "file",
+                "source_label": "plik lokalny",
+            },
+        )
+        download_subtitle.assert_called_once_with("https://youtu.be/example", expected, mode="pl")
+
+        subtitle_response = self.client.get("/subtitles/example.pl.vtt")
+        try:
+            self.assertEqual(subtitle_response.status_code, 200)
+            self.assertEqual(subtitle_response.mimetype, "text/vtt")
+            self.assertIn("WEBVTT", subtitle_response.get_data(as_text=True))
+        finally:
+            subtitle_response.close()
 
     def test_generated_thumbnail_can_be_displayed(self) -> None:
         files = self.app.extensions["file_service"]
@@ -1256,15 +1309,28 @@ class ApplicationTestCase(unittest.TestCase):
             title="Example video",
             url="https://youtu.be/example",
             download_type="best",
+            tags=["muzyka", "tutoriale"],
         )
         body = self.client.get("/").get_data(as_text=True)
         self.assertIn('data-filename="example video.mp4"', body)
         self.assertIn('data-filesize-label="5.0 B"', body)
         self.assertIn('id="history-type-filter"', body)
         self.assertIn('id="history-status-filter"', body)
+        self.assertIn('id="history-tag-filter"', body)
+        self.assertIn('id="history-source-filter"', body)
         self.assertIn('id="history-pagination"', body)
+        self.assertIn('id="history-bulk-form"', body)
+        self.assertIn('id="history-bulk-select-all"', body)
+        self.assertIn('id="history-selected-count"', body)
+        self.assertIn('value="delete_files"', body)
+        self.assertIn('value="repeat"', body)
+        self.assertIn('value="delete_jobs"', body)
+        self.assertIn('name="job_ids"', body)
+        self.assertIn(f'value="{job.job_id}" form="history-bulk-form"', body)
         self.assertIn('data-history-type="best"', body)
         self.assertIn('data-history-status="completed"', body)
+        self.assertIn('data-history-tags="muzyka|tutoriale|youtube|video"', body)
+        self.assertIn('data-history-platform="youtube"', body)
         self.assertIn('class="history-delete-form"', body)
         self.assertIn(f'action="/jobs/delete/{job.job_id}"', body)
         self.assertIn(f'href="/jobs/{job.job_id}"', body)
@@ -1273,10 +1339,87 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("<th>Status</th>", body)
         self.assertIn("<th>Wynik</th>", body)
         self.assertIn(">Szczeg", body)
-        self.assertNotIn('class="repeat-download-form"', body)
-        self.assertNotIn(">Pobierz ponownie</button>", body)
-        self.assertIn(">Usuń zadanie</button>", body)
-        self.assertIn(">Usuń plik</button>", body)
+        self.assertIn("history-quick-actions", body)
+        self.assertIn("history-icon-action", body)
+        self.assertIn('target="_blank" rel="noreferrer"', body)
+        self.assertIn('aria-label="Pobierz plik"', body)
+        self.assertIn('aria-label="Otwórz w nowym oknie"', body)
+        self.assertIn('class="repeat-download-form"', body)
+        self.assertIn('aria-label="Pobierz ponownie"', body)
+        self.assertIn('aria-label="Usuń zadanie"', body)
+        self.assertIn('aria-label="Usuń plik"', body)
+
+    def test_index_history_bulk_delete_files_removes_selected_downloads(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        job = self._completed_job(
+            filename=target.name,
+            title="Example video",
+            url="https://youtu.be/example",
+            download_type="best",
+        )
+
+        response = self.client.post(
+            "/history/jobs/bulk",
+            data={
+                "_csrf_token": self._csrf_token(),
+                "action": "delete_files",
+                "job_ids": [job.job_id],
+            },
+            follow_redirects=True,
+        )
+
+        self.assertFalse(target.exists())
+        self.assertIn("Usunięto pliki: 1.", response.get_data(as_text=True))
+
+    def test_index_history_bulk_repeat_uses_selected_jobs(self) -> None:
+        class FakeUpdater:
+            calls = 0
+
+            def ensure_recent(self) -> bool:
+                self.calls += 1
+                return True
+
+        updater = FakeUpdater()
+        self.app.extensions["ytdlp_updater"] = updater
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_text("media", encoding="utf-8")
+        manager = self.app.extensions["job_manager"]
+        job = self._completed_job(
+            filename=target.name,
+            title="Example video",
+            url="https://youtu.be/example",
+            download_type="format",
+            format_id="137",
+            duration=120,
+        )
+
+        with patch.object(
+            manager,
+            "start_download",
+            return_value=SimpleNamespace(job_id="12345678"),
+        ) as start_download:
+            response = self.client.post(
+                "/history/jobs/bulk",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "action": "repeat",
+                    "job_ids": [job.job_id],
+                },
+                follow_redirects=True,
+            )
+
+        self.assertEqual(updater.calls, 1)
+        start_download.assert_called_once_with(
+            url="https://youtu.be/example",
+            title="Example video",
+            download_type="format",
+            format_id="137",
+            duration=120,
+        )
+        self.assertIn("Uruchomiono ponowne pobrania: 1.", response.get_data(as_text=True))
 
     def test_index_limits_recent_jobs_to_ten_items(self) -> None:
         manager = self.app.extensions["job_manager"]
@@ -1325,7 +1468,7 @@ class ApplicationTestCase(unittest.TestCase):
         body = self.client.get("/").get_data(as_text=True)
 
         self.assertIn("Deleted legacy clip", body)
-        self.assertIn(">Pobierz ponownie</button>", body)
+        self.assertIn('aria-label="Pobierz ponownie"', body)
         self.assertIn('name="url" value="https://youtu.be/deleted"', body)
         self.assertIn('name="download_type" value="video-720"', body)
         self.assertIn("plik usuni", body)
@@ -1588,18 +1731,36 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("custom-player-speed-slider", script)
         self.assertIn("custom-player-overlay", script)
         self.assertIn("custom-player-captions", script)
+        self.assertIn("captionsUrl", script)
+        self.assertIn("downloadedCaptions", script)
+        self.assertIn("fetch(captionsUrl", script)
+        self.assertIn('formData.append("mode", mode)', script)
+        self.assertIn('data-captions-mode="pl"', script)
+        self.assertIn("Polskie", script)
+        self.assertIn("Angielskie", script)
+        self.assertIn("Automatyczne", script)
+        self.assertIn('track.kind = "subtitles"', script)
+        self.assertIn("js.captions_status_loading", script)
+        self.assertIn("custom-player-captions-status", script)
         self.assertIn("custom-player-settings", script)
         self.assertIn("custom-player-settings-panel", script)
+        self.assertIn("Całe wideo", script)
+        self.assertIn("Wypełnij ekran", script)
         self.assertIn("custom-player-right-controls", script)
         self.assertIn("custom-player-theater-active", script)
         self.assertIn("custom-player-context-menu", script)
         self.assertIn("custom-player-stats", script)
         self.assertIn("custom-player-copy-feedback", script)
         self.assertIn("formatVideoDebugStats", script)
-        self.assertIn("Connection Speed", script)
-        self.assertIn("Network Activity", script)
-        self.assertIn("Buffer Health", script)
-        self.assertIn('["Date"', script)
+        self.assertIn("estimatedBitrateLabel", script)
+        self.assertIn("Bufor realny", script)
+        self.assertIn("Ścieżka pliku", script)
+        self.assertIn("Prędkość połączenia", script)
+        self.assertIn("Aktywność sieci", script)
+        self.assertIn("Stan bufora", script)
+        self.assertIn('["Data"', script)
+        self.assertIn("ID / nazwa filmu", script)
+        self.assertIn("zdarzenie=", script)
         self.assertIn("networkActivityLabel", script)
         self.assertIn("contextmenu", script)
         self.assertIn("preventDefault", script)

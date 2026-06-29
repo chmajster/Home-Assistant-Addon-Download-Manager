@@ -1,5 +1,68 @@
 {% extends "base.html" %}
 {% block title %}{{ t('index.title') }}{% endblock %}
+{% macro history_quick_actions(item, preview_url, mobile=false) %}
+  <div class="history-quick-actions {% if mobile %}history-mobile-actions {% endif %}d-flex flex-wrap gap-2 align-items-center">
+    {% if preview_url %}
+      <a class="btn btn-sm btn-soft history-icon-action" href="{{ preview_url }}" aria-label="{{ t('js.open_preview', title=item.title) }}" title="{{ t('preview.eyebrow') }}">
+        <span aria-hidden="true">&#9654;</span>
+        <span class="visually-hidden">{{ t('preview.eyebrow') }}</span>
+      </a>
+    {% endif %}
+    {% if item.can_download_file %}
+      <a class="btn btn-sm btn-outline-primary history-icon-action" href="{{ ingress_url('web.downloaded', filename=item.filename) }}" aria-label="{{ t('common.download_file') }}" title="{{ t('common.download_file') }}">
+        <span aria-hidden="true">&#8595;</span>
+        <span class="visually-hidden">{{ t('common.download_file') }}</span>
+      </a>
+    {% else %}
+      <span class="badge text-bg-secondary">{{ t('index.file_deleted') }}</span>
+    {% endif %}
+    {% if preview_url %}
+      <a class="btn btn-sm btn-soft history-icon-action" href="{{ preview_url }}" target="_blank" rel="noreferrer" aria-label="{{ t('preview.open_external') }}" title="{{ t('preview.open_external') }}">
+        <span aria-hidden="true">&#8599;</span>
+        <span class="visually-hidden">{{ t('preview.open_external') }}</span>
+      </a>
+    {% endif %}
+    {% if item.can_repeat %}
+      <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="url" value="{{ item.url }}">
+        <input type="hidden" name="title" value="{{ item.title }}">
+        <input type="hidden" name="download_type" value="{{ item.type }}">
+        <input type="hidden" name="allow_duplicate" value="1">
+        {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
+        {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
+        <button class="btn btn-sm btn-soft history-icon-action" type="submit" aria-label="{{ t('index.download_again') }}" title="{{ t('index.download_again') }}">
+          <span aria-hidden="true">&#8635;</span>
+          <span class="visually-hidden">{{ t('index.download_again') }}</span>
+        </button>
+      </form>
+    {% endif %}
+    {% if item.can_view_details %}
+      <a class="btn btn-sm btn-soft history-icon-action" href="{{ ingress_url('web.job_details', job_id=item.job_id) }}" aria-label="{{ t('common.details') }}" title="{{ t('common.details') }}">
+        <span aria-hidden="true">i</span>
+        <span class="visually-hidden">{{ t('common.details') }}</span>
+      </a>
+    {% endif %}
+    {% if item.can_delete_file %}
+      <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="{{ t('common.delete_file') }}" title="{{ t('common.delete_file') }}">
+          <span aria-hidden="true">&times;</span>
+          <span class="visually-hidden">{{ t('common.delete_file') }}</span>
+        </button>
+      </form>
+    {% endif %}
+    {% if item.can_delete %}
+      <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form" data-title="{{ item.title }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="{{ t('common.delete_job') }}" title="{{ t('common.delete_job') }}">
+          <span aria-hidden="true">&#10005;</span>
+          <span class="visually-hidden">{{ t('common.delete_job') }}</span>
+        </button>
+      </form>
+    {% endif %}
+  </div>
+{% endmacro %}
 {% block content %}
   <section class="hero-card card mb-4">
     <div class="card-body p-4 p-lg-5">
@@ -68,19 +131,31 @@
           </div>
           {% if history %}
             <div class="table-toolbar row g-2 mb-3 history-controls">
-              <div class="col-sm-4">
+              <div class="col-sm-6 col-lg-3">
                 <label class="form-label small mb-1" for="history-type-filter">{{ t('index.type_filter') }}</label>
                 <select class="form-select form-select-sm" id="history-type-filter">
                   <option value="">{{ t('index.all_types') }}</option>
                 </select>
               </div>
-              <div class="col-sm-4">
+              <div class="col-sm-6 col-lg-3">
                 <label class="form-label small mb-1" for="history-status-filter">{{ t('index.status_filter') }}</label>
                 <select class="form-select form-select-sm" id="history-status-filter">
                   <option value="">{{ t('index.all_statuses') }}</option>
                 </select>
               </div>
-              <div class="col-sm-4">
+              <div class="col-sm-6 col-lg-2">
+                <label class="form-label small mb-1" for="history-tag-filter">{{ t('preview.tags') }}</label>
+                <select class="form-select form-select-sm" id="history-tag-filter">
+                  <option value="">{{ t('index.all_tags') }}</option>
+                </select>
+              </div>
+              <div class="col-sm-6 col-lg-2">
+                <label class="form-label small mb-1" for="history-source-filter">{{ t('common.source') }}</label>
+                <select class="form-select form-select-sm" id="history-source-filter">
+                  <option value="">{{ t('index.all_sources') }}</option>
+                </select>
+              </div>
+              <div class="col-sm-6 col-lg-2">
                 <label class="form-label small mb-1" for="history-sort">{{ t('index.sort') }}</label>
                 <select class="form-select form-select-sm" id="history-sort">
                   <option value="newest">{{ t('index.newest_first') }}</option>
@@ -88,13 +163,30 @@
                 </select>
               </div>
             </div>
+            <form id="history-bulk-form" class="history-bulk-toolbar d-flex flex-wrap align-items-center gap-2 mb-3" action="{{ ingress_url('web.bulk_history_jobs') }}" method="post">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="history-bulk-select-all">
+                <label class="form-check-label small" for="history-bulk-select-all">{{ t('index.select_visible') }}</label>
+              </div>
+              <select class="form-select form-select-sm history-bulk-action" name="action" aria-label="{{ t('common.actions') }}">
+                <option value="delete_files">{{ t('index.bulk_delete_files') }}</option>
+                <option value="repeat">{{ t('index.bulk_repeat') }}</option>
+                <option value="delete_jobs">{{ t('index.bulk_delete_jobs') }}</option>
+              </select>
+              <button class="btn btn-sm btn-outline-primary" id="history-bulk-submit" type="submit" disabled>{{ t('index.bulk_apply') }}</button>
+              <span class="small text-body-secondary">{{ t('index.selected_count') }} <span id="history-selected-count">0</span></span>
+            </form>
             <div class="desktop-only table-responsive history-list">
               <table class="table align-middle mb-0">
-                <thead><tr><th>{{ t('common.thumbnail') }}</th><th>{{ t('common.title') }}</th><th>{{ t('common.type') }}</th><th>{{ t('common.status') }}</th><th>{{ t('common.size') }}</th><th>{{ t('common.result') }}</th><th></th></tr></thead>
+                <thead><tr><th class="history-select-column"><span class="visually-hidden">{{ t('result.select_all') }}</span></th><th>{{ t('common.thumbnail') }}</th><th>{{ t('common.title') }}</th><th>{{ t('common.type') }}</th><th>{{ t('common.status') }}</th><th>{{ t('common.size') }}</th><th>{{ t('common.result') }}</th><th></th></tr></thead>
                 <tbody class="history-items">
                   {% for item in history %}
                     {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
-                    <tr class="history-item" data-history-index="{{ loop.index0 }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-date="{{ item.downloaded_at }}">
+                    <tr class="history-item" data-history-index="{{ loop.index0 }}" data-history-key="{{ item.job_id }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-tags="{{ item.all_tags|join('|') }}" data-history-platform="{{ item.platform }}" data-history-date="{{ item.downloaded_at }}">
+                      <td class="history-select-column">
+                        <input class="form-check-input history-bulk-select" type="checkbox" name="job_ids" value="{{ item.job_id }}" form="history-bulk-form" aria-label="{{ t('js.select_job', title=item.title) }}">
+                      </td>
                       <td>
                         {% if item.thumbnail_exists %}
                           {% if preview_url %}
@@ -121,41 +213,13 @@
                       <td>{{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</td>
                       <td>
                         {% if item.can_download_file %}
-                          <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">{{ t('common.download_file') }}</a>
+                          <span class="text-body-secondary">-</span>
                         {% else %}
                           <span class="badge text-bg-secondary">{{ t('index.file_deleted') }}</span>
                         {% endif %}
                       </td>
                       <td>
-                        <div class="d-flex flex-wrap gap-2 align-items-center">
-                          {% if item.can_view_details %}
-                            <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.job_details', job_id=item.job_id) }}">{{ t('common.details') }}</a>
-                          {% endif %}
-                          {% if item.can_repeat and not item.file_exists %}
-                            <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
-                              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                              <input type="hidden" name="url" value="{{ item.url }}">
-                              <input type="hidden" name="title" value="{{ item.title }}">
-                              <input type="hidden" name="download_type" value="{{ item.type }}">
-                              <input type="hidden" name="allow_duplicate" value="1">
-                              {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
-                              {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
-                              <button class="btn btn-sm btn-soft" type="submit">{{ t('index.download_again') }}</button>
-                            </form>
-                          {% endif %}
-                          {% if item.can_delete %}
-                            <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form" data-title="{{ item.title }}">
-                              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                              <button class="btn btn-sm btn-outline-danger" type="submit">{{ t('common.delete_job') }}</button>
-                            </form>
-                          {% endif %}
-                          {% if item.can_delete_file %}
-                            <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
-                              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                              <button class="btn btn-sm btn-outline-danger" type="submit">{{ t('common.delete_file') }}</button>
-                            </form>
-                          {% endif %}
-                        </div>
+                        {{ history_quick_actions(item, preview_url) }}
                       </td>
                     </tr>
                   {% endfor %}
@@ -165,7 +229,11 @@
             <div class="mobile-only history-list history-items">
               {% for item in history %}
                 {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
-                <article class="mobile-list-card p-3 mb-2 history-item" data-history-index="{{ loop.index0 }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-date="{{ item.downloaded_at }}">
+                <article class="mobile-list-card p-3 mb-2 history-item" data-history-index="{{ loop.index0 }}" data-history-key="{{ item.job_id }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-tags="{{ item.all_tags|join('|') }}" data-history-platform="{{ item.platform }}" data-history-date="{{ item.downloaded_at }}">
+                  <div class="form-check mb-2">
+                    <input class="form-check-input history-bulk-select" type="checkbox" name="job_ids" value="{{ item.job_id }}" form="history-bulk-form" aria-label="{{ t('js.select_job', title=item.title) }}">
+                    <label class="form-check-label small text-body-secondary">{{ t('common.actions') }}</label>
+                  </div>
                   {% if item.thumbnail_exists %}
                     {% if preview_url %}
                       <a class="history-thumbnail-link d-block mb-3" href="{{ preview_url }}" aria-label="{{ t('js.open_preview', title=item.title) }}">
@@ -182,39 +250,8 @@
                   {% endif %}
                   {% if item.warning_message is defined and item.warning_message %}<small class="d-block text-warning">{{ item.warning_message }}</small>{% endif %}
                   <small class="text-body-secondary">{{ download_type_labels.get(item.type, item.type) }} | {{ item.status_label or status_labels.get(item.status, item.status) }} | {{ item.size|filesize if item.size is defined and item.size is not none else t('common.no_data') }}</small>
-                  <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
-                    {% if item.can_view_details %}
-                      <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.job_details', job_id=item.job_id) }}">{{ t('common.details') }}</a>
-                    {% endif %}
-                    {% if item.can_repeat and not item.file_exists %}
-                      <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form d-inline">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="url" value="{{ item.url }}">
-                        <input type="hidden" name="title" value="{{ item.title }}">
-                        <input type="hidden" name="download_type" value="{{ item.type }}">
-                        <input type="hidden" name="allow_duplicate" value="1">
-                        {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
-                        {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
-                        <button class="btn btn-sm btn-soft" type="submit">{{ t('index.download_again') }}</button>
-                      </form>
-                    {% endif %}
-                    {% if item.can_delete %}
-                      <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form d-inline" data-title="{{ item.title }}">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                        <button class="btn btn-sm btn-outline-danger" type="submit">{{ t('common.delete_job') }}</button>
-                      </form>
-                    {% endif %}
-                    {% if item.can_download_file %}
-                      <a class="btn btn-sm btn-outline-primary" href="{{ ingress_url('web.downloaded', filename=item.filename) }}">{{ t('common.download_file') }}</a>
-                    {% else %}
-                      <span class="badge text-bg-secondary">{{ t('index.file_deleted') }}</span>
-                    {% endif %}
-                    {% if item.can_delete_file %}
-                      <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form d-inline" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                        <button class="btn btn-sm btn-outline-danger" type="submit">{{ t('common.delete_file') }}</button>
-                      </form>
-                    {% endif %}
+                  <div class="mt-2">
+                    {{ history_quick_actions(item, preview_url, mobile=true) }}
                   </div>
                 </article>
               {% endfor %}

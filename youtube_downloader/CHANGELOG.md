@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.76
+
+- Dodano w widoku Podgląd przycisk otwierający bieżący podgląd w nowym oknie.
+- Ujednolicono szybkie akcje przy wpisach historii jako kompaktowy pasek ikon.
+- Dodano masowe akcje i filtry historii po tagach, statusie, typie oraz źródle.
+
 ## 1.3.75
 
 - Dodano opcję wyboru języka interfejsu `ui_language` z obsługą polskiego i angielskiego panelu aplikacji.

@@ -748,6 +748,28 @@ audio.history-mini-player-media {
   background: rgba(255, 255, 255, 0.2);
 }
 
+.custom-player-captions-group {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.custom-player-captions-status {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1;
+  max-width: 6.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-player-captions-status[hidden] {
+  display: none;
+}
+
 .custom-player-speed {
   display: none;
 }
@@ -855,6 +877,14 @@ audio.history-mini-player-media {
 .custom-player-settings-options .custom-player-settings-active {
   background: rgba(255, 255, 255, 0.22);
   color: #fff;
+}
+
+.custom-player-setting-status {
+  color: rgba(255, 255, 255, 0.62);
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-top: 0.35rem;
 }
 
 .custom-player-speed-control {
@@ -1400,6 +1430,30 @@ body.custom-player-theater-active {
 .history-thumbnail-mobile {
   display: block;
   width: 100%;
+}
+
+.history-bulk-toolbar {
+  background: rgba(78, 98, 139, 0.06);
+  border: 1px solid var(--app-line);
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+}
+
+.history-bulk-action {
+  max-width: 13rem;
+}
+
+.history-select-column {
+  width: 2.25rem;
+}
+
+.history-quick-actions form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.history-quick-actions .badge {
+  align-self: center;
 }
 
 .history-icon-action {

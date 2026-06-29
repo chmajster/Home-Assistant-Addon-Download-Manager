@@ -9,6 +9,7 @@
     </div>
     <div class="d-flex flex-wrap gap-2">
       <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">{{ t('nav.jobs') }}</a>
+      <a class="btn btn-outline-primary" href="{{ ingress_url('web.preview', filename=filename) }}" target="_blank" rel="noreferrer">{{ t('preview.open_external') }}</a>
       <a class="btn btn-accent" href="{{ ingress_url('web.downloaded', filename=filename) }}">{{ t('common.download_file') }}</a>
       <form action="{{ ingress_url('web.delete', filename=filename) }}" method="post" class="delete-form d-inline" data-filename="{{ filename }}" data-filesize-label="{{ file_info.size|filesize }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -22,6 +23,10 @@
       <div
         class="custom-player custom-player-video"
         data-custom-player
+          data-captions-url="{{ ingress_url('web.download_subtitle', filename=filename) }}"
+          data-file-path="{{ filename }}"
+          data-file-size="{{ file_info.size }}"
+          data-mime-type="{{ mime_type }}"
           data-quality-label="{{ download_type_labels.get(file_info.download_type, file_info.download_type or 'Original') }}"
         {% if next_preview_url %}
           data-next-url="{{ next_preview_url }}"

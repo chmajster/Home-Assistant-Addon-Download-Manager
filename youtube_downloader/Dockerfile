@@ -4,7 +4,7 @@ FROM mwader/static-ffmpeg:8.1.1 AS ffmpeg
 
 FROM ${BUILD_FROM}
 
-ARG BUILD_VERSION="1.3.75"
+ARG BUILD_VERSION="1.3.76"
 ARG BUILD_ARCH="amd64"
 
 COPY --from=ffmpeg /ffmpeg /usr/local/bin/ffmpeg

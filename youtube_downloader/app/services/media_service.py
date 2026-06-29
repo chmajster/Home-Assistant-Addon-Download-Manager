@@ -37,6 +37,12 @@ VIDEO_QUALITY_LIMITS = {
     "video-720": 720,
     "video-1080": 1080,
 }
+SUBTITLE_LANGUAGE_PREFERENCE = ("pl", "pl-orig", "en", "en-US", "en-orig")
+SUBTITLE_MODE_LANGUAGE_PREFERENCES = {
+    "pl": ("pl", "pl-orig"),
+    "en": ("en", "en-US", "en-GB", "en-orig"),
+    "auto": ("pl", "pl-orig", "en", "en-US", "en-GB", "en-orig"),
+}
 YOUTUBE_PUBLIC_PLAYER_CLIENTS = ("default", "mweb", "web_embedded")
 YOUTUBE_ANONYMOUS_ACCESS_MESSAGE = (
     "YouTube zablokował anonimowy dostęp z tego adresu IP. "
@@ -230,6 +236,89 @@ class MediaService:
             paths.extend(path.with_suffix(f".{audio_format}") for path in list(paths))
         return self._existing_managed_paths(paths)
 
+    def download_subtitle(
+        self, url: str, media_path: Path, mode: str = "pl"
+    ) -> dict[str, Any]:
+        """Download the best matching subtitle track for an existing managed video."""
+
+        subtitle_mode = self._subtitle_mode(mode)
+        media_path = media_path.resolve()
+        try:
+            media_path.relative_to(self.download_dir)
+        except ValueError as error:
+            raise MediaServiceError("Niepoprawna ścieżka pliku wideo.") from error
+        if not media_path.is_file():
+            raise MediaServiceError("Nie znaleziono pliku wideo.")
+
+        existing = self._existing_subtitle(
+            media_path, preferred_languages=SUBTITLE_MODE_LANGUAGE_PREFERENCES[subtitle_mode]
+        )
+        if existing:
+            return {
+                "path": existing,
+                "language": self._subtitle_language_from_path(existing, media_path),
+                "source": "file",
+                "automatic": False,
+            }
+
+        validated_url = self.validate_url(url)
+        YoutubeDL, DownloadError = _yt_dlp_api()
+        analysis_options: dict[str, Any] = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "socket_timeout": 20,
+            "noplaylist": True,
+        }
+        self._apply_public_youtube_options(analysis_options, validated_url)
+        try:
+            with YoutubeDL(analysis_options) as ydl:
+                info = ydl.extract_info(validated_url, download=False)
+        except DownloadError as error:
+            raise MediaServiceError(self.polish_error(str(error))) from error
+        except Exception as error:
+            LOGGER.exception("Nieoczekiwany błąd sprawdzania napisów")
+            raise MediaServiceError("Nie udało się sprawdzić napisów przez yt-dlp.") from error
+
+        language, automatic = self._select_subtitle_language(info or {}, subtitle_mode)
+        if not language:
+            raise MediaServiceError("Ten materiał nie udostępnia napisów.")
+
+        outtmpl = str(media_path.with_suffix("")) + ".%(ext)s"
+        options: dict[str, Any] = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "socket_timeout": 20,
+            "noplaylist": True,
+            "outtmpl": outtmpl,
+            "subtitleslangs": [language],
+            "subtitlesformat": "vtt/best",
+            "writesubtitles": not automatic,
+            "writeautomaticsub": automatic,
+        }
+        self._apply_public_youtube_options(options, validated_url)
+        try:
+            with YoutubeDL(options) as ydl:
+                ydl.extract_info(validated_url, download=True)
+        except DownloadError as error:
+            raise MediaServiceError(self.polish_error(str(error))) from error
+        except OSError as error:
+            raise MediaServiceError("Nie udało się zapisać pliku napisów.") from error
+        except Exception as error:
+            LOGGER.exception("Nieoczekiwany błąd pobierania napisów")
+            raise MediaServiceError("Nie udało się pobrać napisów przez yt-dlp.") from error
+
+        downloaded = self._existing_subtitle(media_path, preferred_languages=(language,))
+        if not downloaded:
+            raise MediaServiceError("yt-dlp nie zwrócił pliku napisów w formacie VTT.")
+        return {
+            "path": downloaded,
+            "language": language,
+            "source": "automatic" if automatic else "official",
+            "automatic": automatic,
+        }
+
     def effective_download_options(
         self,
         url: str,
@@ -417,6 +506,92 @@ class MediaService:
         youtube_args["player_client"] = requested_clients
         extractor_args["youtube"] = youtube_args
         options["extractor_args"] = extractor_args
+
+    @staticmethod
+    def _subtitle_mode(mode: str) -> str:
+        normalized = str(mode or "pl").casefold()
+        if normalized not in SUBTITLE_MODE_LANGUAGE_PREFERENCES:
+            raise MediaServiceError("Wybierz poprawny tryb napisow.")
+        return normalized
+
+    def _existing_subtitle(
+        self, media_path: Path, preferred_languages: tuple[str, ...] = ()
+    ) -> Path | None:
+        candidates: list[Path] = []
+        exact_path = media_path.with_suffix(".vtt")
+        if exact_path.is_file() and self._is_managed_path(exact_path):
+            candidates.append(exact_path)
+        candidates.extend(
+            path
+            for path in media_path.parent.glob(f"{media_path.stem}.*.vtt")
+            if path.is_file() and self._is_managed_path(path) and path not in candidates
+        )
+        if not candidates:
+            return None
+        for language in preferred_languages:
+            preferred = f".{language}.vtt"
+            for candidate in candidates:
+                if candidate.name.endswith(preferred):
+                    return candidate
+        if preferred_languages:
+            return None
+        for language in SUBTITLE_LANGUAGE_PREFERENCE:
+            preferred = f".{language}.vtt"
+            for candidate in candidates:
+                if candidate.name.endswith(preferred):
+                    return candidate
+        return sorted(candidates, key=lambda item: item.name.casefold())[0]
+
+    @staticmethod
+    def _subtitle_language_from_path(subtitle_path: Path, media_path: Path) -> str:
+        subtitle_stem = subtitle_path.stem
+        media_stem = media_path.with_suffix("").name
+        language_prefix = f"{media_stem}."
+        if subtitle_stem.startswith(language_prefix):
+            language = subtitle_stem[len(language_prefix) :].strip()
+            if language:
+                return language
+        return ""
+
+    def _is_managed_path(self, path: Path) -> bool:
+        try:
+            resolved = path.resolve()
+            resolved.relative_to(self.download_dir)
+        except (OSError, ValueError):
+            return False
+        return resolved != self.download_dir
+
+    @staticmethod
+    def _select_subtitle_language(
+        info: dict[str, Any], mode: str = "pl"
+    ) -> tuple[str | None, bool]:
+        subtitles = {
+            str(language): tracks
+            for language, tracks in dict(info.get("subtitles") or {}).items()
+            if tracks
+        }
+        automatic = {
+            str(language): tracks
+            for language, tracks in dict(info.get("automatic_captions") or {}).items()
+            if tracks
+        }
+        preferred_languages = SUBTITLE_MODE_LANGUAGE_PREFERENCES.get(
+            mode, SUBTITLE_LANGUAGE_PREFERENCE
+        )
+        if mode != "auto":
+            for language in preferred_languages:
+                if language in subtitles:
+                    return language, False
+            for language in preferred_languages:
+                if language in automatic:
+                    return language, True
+            return None, False
+        for language in preferred_languages:
+            if language in automatic:
+                return language, True
+        if automatic:
+            return sorted(automatic)[0], True
+        return None, False
 
     @staticmethod
     def polish_error(message: str) -> str:
