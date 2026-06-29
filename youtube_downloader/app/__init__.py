@@ -13,10 +13,11 @@ from urllib.parse import urlsplit
 from flask import Flask, request, session, url_for
 
 from .config import AppConfig
+from .i18n import download_type_labels, frontend_catalog, status_labels, translate
 from .services.file_service import FileService
 from .services.ha_notifications import HomeAssistantNotifier
 from .services.job_manager import JobManager
-from .services.media_service import ALLOWED_DOMAINS, MediaService
+from .services.media_service import MediaService
 from .services.ytdlp_updater import YtDlpUpdater
 
 LOGGER = logging.getLogger(__name__)
@@ -154,15 +155,27 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_helpers() -> dict[str, object]:
+        language = settings.ui_language
         return {
             "ingress_url": ingress_url,
             "ingress_path": get_ingress_path(),
-            "status_labels": JobManager.STATUS_LABELS,
+            "status_labels": status_labels(language),
+            "download_type_labels": download_type_labels(language),
             "csrf_token": csrf_token,
             "app_settings": settings,
-            "allowed_hosts": sorted(ALLOWED_DOMAINS),
             "active_job_statuses": sorted(JobManager.ACTIVE_STATUSES),
+            "ui_language": language,
+            "ui_translations": frontend_catalog(language),
+            "t": lambda key, **values: translate(language, key, **values),
         }
+
+    app.jinja_env.globals.update(
+        ui_language=settings.ui_language,
+        ui_translations=frontend_catalog(settings.ui_language),
+        status_labels=status_labels(settings.ui_language),
+        download_type_labels=download_type_labels(settings.ui_language),
+        t=lambda key, **values: translate(settings.ui_language, key, **values),
+    )
 
     LOGGER.info(
         "Aplikacja gotowa: download_dir=%s, max_concurrent_jobs=%s",

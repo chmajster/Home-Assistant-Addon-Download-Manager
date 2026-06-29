@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify
 
+from ..i18n import localize_job
 from ..services.job_manager import JobManager
 
 api_bp = Blueprint("api", __name__)
@@ -18,7 +19,10 @@ def jobs_list():
     """Return all in-memory jobs for polling clients."""
 
     manager = _job_manager()
-    response = jsonify({"jobs": [manager.job_dict(job) for job in manager.list_jobs()]})
+    language = current_app.config["APP_SETTINGS"].ui_language
+    response = jsonify(
+        {"jobs": [localize_job(manager.job_dict(job), language) for job in manager.list_jobs()]}
+    )
     response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -28,8 +32,9 @@ def job_status(job_id: str):
     """Return one job state."""
 
     manager = _job_manager()
+    language = current_app.config["APP_SETTINGS"].ui_language
     try:
-        response = jsonify(manager.job_dict(manager.get_job(job_id)))
+        response = jsonify(localize_job(manager.job_dict(manager.get_job(job_id)), language))
         response.headers["Cache-Control"] = "no-store"
         return response
     except KeyError:

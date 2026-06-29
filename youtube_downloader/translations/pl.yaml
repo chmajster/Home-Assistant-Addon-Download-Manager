@@ -38,6 +38,9 @@ configuration:
   preferred_format:
     name: "Preferowany format"
     description: "Domyślna jakość filmu lub wariant audio prezentowany przez aplikację."
+  ui_language:
+    name: "Język interfejsu"
+    description: "Język panelu Media Web Downloader: polski albo angielski."
 network:
   8099/tcp: "Opcjonalny zewnętrzny dostęp do interfejsu webowego"
   999/tcp: "Publiczny dostęp bez Ingress po włączeniu opcji"

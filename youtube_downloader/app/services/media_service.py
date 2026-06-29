@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import importlib
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlsplit, urlunsplit
@@ -12,7 +13,7 @@ from urllib.parse import urlsplit, urlunsplit
 from .error_messages import operational_error_message
 
 LOGGER = logging.getLogger(__name__)
-ALLOWED_DOMAINS = {
+KNOWN_PLATFORM_DOMAINS = {
     "youtube.com": "youtube",
     "www.youtube.com": "youtube",
     "m.youtube.com": "youtube",
@@ -52,6 +53,12 @@ def _yt_dlp_api() -> tuple[Any, type[Exception]]:
     return yt_dlp.YoutubeDL, utils.DownloadError
 
 
+@lru_cache(maxsize=1)
+def _yt_dlp_extractors() -> tuple[Any, ...]:
+    extractor_module = importlib.import_module("yt_dlp.extractor")
+    return tuple(extractor_module.gen_extractors())
+
+
 class MediaServiceError(RuntimeError):
     """User-facing yt-dlp or URL validation error."""
 
@@ -65,7 +72,7 @@ class MediaService:
 
     @staticmethod
     def validate_url(url: str) -> str:
-        """Allow only public HTTP(S) links to explicitly supported media hosts."""
+        """Allow public HTTP(S) links handled by a concrete yt-dlp extractor."""
 
         candidate = (url or "").strip()
         if not candidate or len(candidate) > 2048:
@@ -83,25 +90,82 @@ class MediaService:
             raise MediaServiceError(
                 "Adres URL nie może zawierać danych logowania ani niestandardowego portu."
             )
-        if host not in ALLOWED_DOMAINS:
+        normalized_url = urlunsplit(
+            (parts.scheme.lower(), host, parts.path, parts.query, "")
+        )
+        if (
+            not MediaService._known_platform(host)
+            and not MediaService._matching_ytdlp_extractor(normalized_url)
+        ):
             raise MediaServiceError(
-                "Dozwolone są wyłącznie obsługiwane domeny YouTube, Instagram, Kick i Twitch."
+                "Ten adres nie pasuje do żadnego obsługiwanego extractora yt-dlp."
             )
         if not parts.path:
             raise MediaServiceError("Podaj pełny adres materiału lub kanału.")
-        if ALLOWED_DOMAINS[host] == "youtube" and parts.path.rstrip("/").lower() in {
-            "/redirect",
-            "/attribution_link",
-        }:
+        if (
+            MediaService._known_platform(host) == "youtube"
+            and parts.path.rstrip("/").lower()
+            in {
+                "/redirect",
+                "/attribution_link",
+            }
+        ):
             raise MediaServiceError("Linki przekierowujące YouTube nie są obsługiwane.")
-        return urlunsplit((parts.scheme.lower(), host, parts.path, parts.query, ""))
+        return normalized_url
 
     @staticmethod
     def detect_platform(url: str) -> str:
         """Return the supported platform associated with an already validated URL."""
 
         host = (urlsplit(url).hostname or "").lower().rstrip(".")
-        return ALLOWED_DOMAINS.get(host, "unknown")
+        known_platform = MediaService._known_platform(host)
+        if known_platform:
+            return known_platform
+        return MediaService._platform_from_host(host)
+
+    @staticmethod
+    def _known_platform(host: str) -> str | None:
+        return KNOWN_PLATFORM_DOMAINS.get(host)
+
+    @staticmethod
+    def _platform_from_host(host: str) -> str:
+        for label in host.split("."):
+            cleaned = re.sub(r"[^a-z0-9_-]+", "", label.casefold())
+            if cleaned and cleaned not in {"www", "m", "mobile", "amp"}:
+                return cleaned[:40]
+        return "unknown"
+
+    @staticmethod
+    def _matching_ytdlp_extractor(url: str) -> str | None:
+        """Return the concrete yt-dlp extractor name for a URL, excluding Generic."""
+
+        try:
+            extractors = _yt_dlp_extractors()
+        except Exception as error:
+            LOGGER.warning("Nie można odczytać listy extractorów yt-dlp: %s", error)
+            return None
+        for extractor in extractors:
+            name = str(getattr(extractor, "IE_NAME", "") or "")
+            key = ""
+            try:
+                key = str(extractor.ie_key())
+            except Exception:
+                key = type(extractor).__name__
+            if name.casefold() == "generic" or key.casefold() == "generic":
+                continue
+            try:
+                if not extractor.working():
+                    continue
+            except Exception:
+                pass
+            try:
+                if extractor.suitable(url):
+                    return key or name
+            except Exception:
+                LOGGER.debug(
+                    "Extractor %s nie sprawdził URL", key or name, exc_info=True
+                )
+        return None
 
     def analyze(self, url: str) -> dict[str, Any]:
         """Extract metadata without downloading media."""
@@ -337,7 +401,8 @@ class MediaService:
 
     @staticmethod
     def _apply_public_youtube_options(options: dict[str, Any], url: str) -> None:
-        if MediaService.detect_platform(url) != "youtube":
+        host = (urlsplit(url).hostname or "").lower().rstrip(".")
+        if MediaService._known_platform(host) != "youtube":
             return
 
         extractor_args = {

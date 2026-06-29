@@ -23,7 +23,7 @@ from app.services.error_messages import (
     THUMBNAIL_FFMPEG_WARNING,
     THUMBNAIL_STORAGE_WARNING,
 )
-from app.services.file_service import FileService, ThumbnailResult
+from app.services.file_service import FileService, ThumbnailResult, UnsafeFilenameError
 from app.services.ha_options import (
     _network_mount_root,
     _validated_storage_mode,
@@ -231,6 +231,7 @@ class ApplicationTestCase(unittest.TestCase):
             external_port=999,
             debug=False,
             preferred_format="best",
+            ui_language="pl",
             secret_key="test-secret",
         )
         with patch("app.AppConfig.load", return_value=settings):
@@ -1106,9 +1107,11 @@ class ApplicationTestCase(unittest.TestCase):
         body = response.get_data(as_text=True)
         self.assertIn("Twoje media.", body)
         self.assertIn("platform-chip platform-youtube", body)
-        self.assertIn("platform-chip platform-instagram", body)
-        self.assertIn("platform-chip platform-kick", body)
         self.assertIn("platform-chip platform-twitch", body)
+        self.assertIn("platform-chip platform-vimeo", body)
+        self.assertIn("platform-chip platform-soundcloud", body)
+        self.assertIn("platform-chip platform-ytdlp", body)
+        self.assertIn(">i inne przez yt-dlp</span>", body)
         self.assertIn("hero-input-group", body)
         self.assertIn("bulk-url-review", body)
         self.assertIn('data-bulk-url-list', body)
@@ -1127,11 +1130,23 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('class="col-12 history-panel"', body)
         self.assertNotIn('class="col-lg-7"', body)
 
+    def test_index_adds_recent_platform_chips(self) -> None:
+        files = self.app.extensions["file_service"]
+        for filename, title, url in (
+            ("instagram.mp4", "Instagram reel", "https://www.instagram.com/reel/abc/"),
+            ("kick.mp4", "Kick clip", "https://kick.com/channel"),
+        ):
+            (files.download_dir / filename).write_text("media", encoding="utf-8")
+            self._completed_job(filename=filename, title=title, url=url)
+
+        body = self.client.get("/").get_data(as_text=True)
+
+        self.assertIn("platform-chip platform-instagram", body)
+        self.assertIn("platform-chip platform-kick", body)
+
     def test_base_exposes_frontend_configuration(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
-        self.assertIn('id="allowed-hosts"', body)
-        self.assertIn("www.youtube.com", body)
-        self.assertIn("www.twitch.tv", body)
+        self.assertNotIn('id="allowed-hosts"', body)
         self.assertIn('href="/diagnostics"', body)
         self.assertIn('id="active-job-statuses"', body)
         self.assertIn("downloading", body)
@@ -2108,7 +2123,6 @@ class ApplicationTestCase(unittest.TestCase):
                 ingress_url=lambda endpoint, **values: "/",
                 csrf_token=lambda: "token",
                 ingress_path="",
-                allowed_hosts=[],
                 active_job_statuses=[],
             )
         self.assertIn('class="btn btn-sm btn-soft format-download"', body)
@@ -2164,7 +2178,6 @@ class ApplicationTestCase(unittest.TestCase):
                 ingress_url=lambda endpoint, **values: "/",
                 csrf_token=lambda: "token",
                 ingress_path="",
-                allowed_hosts=[],
                 active_job_statuses=[],
             )
 
@@ -2203,7 +2216,6 @@ class ApplicationTestCase(unittest.TestCase):
                 ingress_url=fake_ingress_url,
                 csrf_token=lambda: "token",
                 ingress_path="",
-                allowed_hosts=[],
                 active_job_statuses=[],
             )
         self.assertIn("/live/watch", body)
@@ -2247,7 +2259,6 @@ class ApplicationTestCase(unittest.TestCase):
                 ingress_url=fake_ingress_url,
                 csrf_token=lambda: "token",
                 ingress_path="",
-                allowed_hosts=[],
                 active_job_statuses=[],
             )
         self.assertIn("transmisji live", body)
@@ -2293,14 +2304,26 @@ for _test_name in _OBSOLETE_HISTORY_PAGE_TESTS:
 
 
 class MediaUrlTestCase(unittest.TestCase):
-    """Keep extractor input limited to known public YouTube hosts."""
+    """Keep extractor input limited to safe public URLs supported by yt-dlp."""
 
     def test_supported_url_is_normalized(self) -> None:
         url = MediaService.validate_url("HTTPS://WWW.YOUTUBE.COM/watch?v=abc#fragment")
         self.assertEqual(url, "https://www.youtube.com/watch?v=abc")
 
-    def test_non_youtube_domain_is_rejected(self) -> None:
-        with self.assertRaises(MediaServiceError):
+    def test_ytdlp_extractor_domain_is_supported(self) -> None:
+        with patch.object(
+            MediaService, "_matching_ytdlp_extractor", return_value="Vimeo"
+        ):
+            url = MediaService.validate_url("https://vimeo.com/123456#comments")
+
+        self.assertEqual(url, "https://vimeo.com/123456")
+        self.assertEqual(MediaService.detect_platform(url), "vimeo")
+
+    def test_unknown_extractor_domain_is_rejected(self) -> None:
+        with (
+            patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None),
+            self.assertRaises(MediaServiceError),
+        ):
             MediaService.validate_url("https://example.com/watch?v=abc")
 
     def test_file_scheme_is_rejected(self) -> None:
@@ -2308,7 +2331,10 @@ class MediaUrlTestCase(unittest.TestCase):
             MediaService.validate_url("file:///etc/passwd")
 
     def test_youtube_subdomain_confusion_is_rejected(self) -> None:
-        with self.assertRaises(MediaServiceError):
+        with (
+            patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None),
+            self.assertRaises(MediaServiceError),
+        ):
             MediaService.validate_url("https://youtube.com.example.org/watch?v=abc")
 
     def test_youtube_redirect_endpoint_is_rejected(self) -> None:
@@ -2547,6 +2573,18 @@ class HomeAssistantOptionsTestCase(unittest.TestCase):
             return_value={"preferred_format": "video"},
         ):
             self.assertEqual(load_options().preferred_format, "best")
+
+    def test_ui_language_is_validated(self) -> None:
+        with patch(
+            "app.services.ha_options._read_json",
+            return_value={"ui_language": "en"},
+        ):
+            self.assertEqual(load_options().ui_language, "en")
+        with patch(
+            "app.services.ha_options._read_json",
+            return_value={"ui_language": "de"},
+        ):
+            self.assertEqual(load_options().ui_language, "pl")
 
 
 class AutomaticDownloadRulesTestCase(unittest.TestCase):
@@ -3367,9 +3405,9 @@ class JobManagerTestCase(unittest.TestCase):
         job = self.manager.start_download("https://youtu.be/abc", "Example", "best")
         completed = self._wait_for_status(job.job_id, "completed")
         self.assertEqual(completed.warning_message, THUMBNAIL_FFMPEG_WARNING)
-        self.assertEqual(
-            self.files.history()[0]["warning_message"], THUMBNAIL_FFMPEG_WARNING
-        )
+        stored_job = self.manager.state_store.jobs_all()[0]
+        self.assertEqual(stored_job["warning_message"], THUMBNAIL_FFMPEG_WARNING)
+        self.assertEqual(self.files.history(), [])
 
     def test_queued_download_can_be_stopped_and_resumed(self) -> None:
         self.manager._slots.acquire()

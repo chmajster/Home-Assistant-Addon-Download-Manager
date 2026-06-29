@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="pl">
+<html lang="{{ t('lang') }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="ingress-path" content="{{ ingress_path }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <script id="allowed-hosts" type="application/json">{{ allowed_hosts|tojson }}</script>
     <script id="active-job-statuses" type="application/json">{{ active_job_statuses|tojson }}</script>
+    <script id="ui-translations" type="application/json">{{ ui_translations|tojson }}</script>
     <script>
       (() => {
         try {
@@ -42,12 +42,12 @@
         </button>
         <div class="collapse navbar-collapse app-navbar-menu" id="app-navbar-menu">
           <div class="navbar-nav app-nav ms-md-auto">
-            <a class="nav-link{% if start_active %} active{% endif %}" href="{{ ingress_url('web.index') }}"{% if start_active %} aria-current="page"{% endif %}>Start</a>
-            <a class="nav-link{% if active_endpoint == 'web.diagnostics' %} active{% endif %}" href="{{ ingress_url('web.diagnostics') }}"{% if active_endpoint == 'web.diagnostics' %} aria-current="page"{% endif %}>Diagnostyka</a>
+            <a class="nav-link{% if start_active %} active{% endif %}" href="{{ ingress_url('web.index') }}"{% if start_active %} aria-current="page"{% endif %}>{{ t('nav.start') }}</a>
+            <a class="nav-link{% if active_endpoint == 'web.diagnostics' %} active{% endif %}" href="{{ ingress_url('web.diagnostics') }}"{% if active_endpoint == 'web.diagnostics' %} aria-current="page"{% endif %}>{{ t('nav.diagnostics') }}</a>
             <a class="nav-link{% if jobs_active %} active{% endif %}" href="{{ ingress_url('web.jobs') }}"{% if jobs_active %} aria-current="page"{% endif %}>
-              Zadania <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="Aktywne zadania">0</span>
+              {{ t('nav.jobs') }} <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="{{ t('nav.jobs') }}">0</span>
             </a>
-            <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="Zmień motyw" aria-pressed="false" title="Zmień motyw">
+            <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="{{ t('theme.change') }}" aria-pressed="false" title="{{ t('theme.change') }}">
               <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
               <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
             </button>
@@ -72,10 +72,10 @@
                   <div class="toast-body">
                     <span>{{ message }}</span>
                     {% if show_jobs_link %}
-                      <a class="toast-action-link" href="{{ ingress_url('web.jobs') }}">Przejdź do zadań</a>
+                      <a class="toast-action-link" href="{{ ingress_url('web.jobs') }}">{{ t('nav.go_jobs') }}</a>
                     {% endif %}
                   </div>
-                  <button type="button" class="btn-close{% if close_light %} btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="Zamknij"></button>
+                  <button type="button" class="btn-close{% if close_light %} btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="{{ t('common.close') }}"></button>
                 </div>
               </div>
             {% endfor %}

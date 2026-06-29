@@ -1,19 +1,18 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} | Media Web Downloader{% endblock %}
 {% block content %}
-  {% set download_type_labels = {"best": "najlepsza", "video": "najlepsza", "video-1080": "1080p", "video-720": "720p", "video-360": "360p", "audio": "audio MP3", "format": "konkretny format", "live": "live"} %}
   <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-      <span class="eyebrow">Podgląd</span>
+      <span class="eyebrow">{{ t('preview.eyebrow') }}</span>
       <h1 class="h3 mb-1">{{ title }}</h1>
       <p class="section-copy mb-0 text-break">{{ filename }}</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-      <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
-      <a class="btn btn-accent" href="{{ ingress_url('web.downloaded', filename=filename) }}">Pobierz plik</a>
+      <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">{{ t('nav.jobs') }}</a>
+      <a class="btn btn-accent" href="{{ ingress_url('web.downloaded', filename=filename) }}">{{ t('common.download_file') }}</a>
       <form action="{{ ingress_url('web.delete', filename=filename) }}" method="post" class="delete-form d-inline" data-filename="{{ filename }}" data-filesize-label="{{ file_info.size|filesize }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-outline-danger" type="submit">Usuń nagranie</button>
+        <button class="btn btn-outline-danger" type="submit">{{ t('preview.delete') }}</button>
       </form>
     </div>
   </section>
@@ -23,7 +22,7 @@
       <div
         class="custom-player custom-player-video"
         data-custom-player
-        data-quality-label="{{ download_type_labels.get(file_info.download_type, file_info.download_type or 'Oryginalna') }}"
+          data-quality-label="{{ download_type_labels.get(file_info.download_type, file_info.download_type or 'Original') }}"
         {% if next_preview_url %}
           data-next-url="{{ next_preview_url }}"
         {% endif %}
@@ -46,23 +45,23 @@
       </div>
     {% else %}
       <div class="empty-state">
-        <strong>Podgląd tego typu pliku nie jest dostępny</strong>
-        <small>Możesz pobrać plik przyciskiem powyżej.</small>
+        <strong>{{ t('preview.unavailable') }}</strong>
+        <small>{{ t('preview.unavailable_copy') }}</small>
       </div>
     {% endif %}
   </section>
 
   <section class="preview-details app-card mt-4">
     <div class="card-body">
-      <span class="eyebrow">Informacje o pliku</span>
+      <span class="eyebrow">{{ t('preview.file_info') }}</span>
       <dl class="preview-info-grid mb-0">
-        <dt>Rozmiar</dt>
+        <dt>{{ t('common.size') }}</dt>
         <dd>{{ file_info.size|filesize }}</dd>
-        <dt>Data pobrania</dt>
+        <dt>{{ t('preview.downloaded_at') }}</dt>
         <dd>{{ file_info.downloaded_at|replace("T", " ")|truncate(19, True, "") }}</dd>
-        <dt>Typ pobrania</dt>
-        <dd>{{ download_type_labels.get(file_info.download_type, file_info.download_type or "brak danych") }}</dd>
-        <dt>Tagi</dt>
+        <dt>{{ t('preview.download_type') }}</dt>
+        <dd>{{ download_type_labels.get(file_info.download_type, file_info.download_type or t('common.no_data')) }}</dd>
+        <dt>{{ t('preview.tags') }}</dt>
         <dd>
           {% if file_info.all_tags %}
             <span class="d-flex flex-wrap gap-1">
@@ -74,25 +73,25 @@
               {% endfor %}
             </span>
           {% else %}
-            brak tagów
+            {{ t('preview.no_tags') }}
           {% endif %}
         </dd>
-        <dt>Format pliku</dt>
+        <dt>{{ t('preview.mime') }}</dt>
         <dd>{{ mime_type }}</dd>
         {% if file_info.format_id %}
-          <dt>ID formatu</dt>
+          <dt>{{ t('result.format_id') }}</dt>
           <dd>{{ file_info.format_id }}</dd>
         {% endif %}
         {% if file_info.status %}
-          <dt>Status</dt>
+          <dt>{{ t('common.status') }}</dt>
           <dd>{{ status_labels.get(file_info.status, file_info.status) }}</dd>
         {% endif %}
-        <dt>Źródło</dt>
+        <dt>{{ t('common.source') }}</dt>
         <dd>
           {% if file_info.source_url %}
             <a class="text-break" href="{{ file_info.source_url }}" target="_blank" rel="noreferrer">{{ file_info.source_url }}</a>
           {% else %}
-            brak danych
+            {{ t('common.no_data') }}
           {% endif %}
         </dd>
       </dl>

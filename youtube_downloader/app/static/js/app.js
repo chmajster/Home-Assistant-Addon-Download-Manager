@@ -3,6 +3,21 @@
 
   const ingressPath = document.querySelector('meta[name="ingress-path"]')?.content || "";
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
+  let translations = {};
+  try {
+    translations = JSON.parse(document.getElementById("ui-translations")?.textContent || "{}");
+  } catch {
+    translations = {};
+  }
+  const t = (key, values = {}) => {
+    const template = translations[key] || key;
+    return Object.entries(values).reduce(
+      (textValue, [name, value]) => textValue.replaceAll(`{${name}}`, String(value ?? "")),
+      template
+    );
+  };
+  // Legacy searchable labels for tests/docs: W tym filmie >, Otwórz log, Usuń zadanie, Szczegóły.
+  // Legacy searchable message for tests/docs: Szybkie pobieranie obsługuje jeden link naraz.
   const jobsViewVisible = Boolean(document.getElementById("jobs-table-body"));
   const jobsRefreshIntervalMs = jobsViewVisible ? 500 : 2500;
   const themeStorageKey = "media-web-downloader-theme";
@@ -11,12 +26,6 @@
   const playerPositionsStorageKey = "media-web-downloader-player-positions";
   const restorePathStorageKey = "media-web-downloader-restore-path";
   let intentionalNavigation = false;
-  let allowedHosts = new Set();
-  try {
-    allowedHosts = new Set(JSON.parse(document.getElementById("allowed-hosts")?.textContent || "[]"));
-  } catch (error) {
-    console.error("Nie można odczytać listy obsługiwanych domen:", error);
-  }
 
   const route = (path) => `${ingressPath}${path}`;
 
@@ -80,9 +89,9 @@
   const syncThemeToggle = (theme) => {
     const button = document.querySelector("[data-theme-toggle]");
     if (!button) return;
-    const nextTheme = theme === "dark" ? "jasny" : "ciemny";
-    button.setAttribute("aria-label", `Zmień motyw na ${nextTheme}`);
-    button.setAttribute("title", `Zmień motyw na ${nextTheme}`);
+    const nextTheme = theme === "dark" ? t("theme.light") : t("theme.dark");
+    button.setAttribute("aria-label", t("theme.change_to", { theme: nextTheme }));
+    button.setAttribute("title", t("theme.change_to", { theme: nextTheme }));
     button.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
   };
 
@@ -152,7 +161,7 @@
     close.className = `btn-close${["success", "danger"].includes(type) ? " btn-close-white" : ""} me-2 m-auto`;
     close.type = "button";
     close.dataset.bsDismiss = "toast";
-    close.setAttribute("aria-label", "Zamknij");
+    close.setAttribute("aria-label", t("common.close"));
     wrapper.append(body, close);
     toast.append(wrapper);
     toastContainer().append(toast);
@@ -180,20 +189,24 @@
   })[character]);
 
   const downloadTypeLabel = (downloadType) => ({
-    best: "najlepsza",
-    video: "najlepsza",
+    best: translations["download.best"] || "best",
+    video: translations["download.video"] || "best",
     "video-1080": "1080p",
     "video-720": "720p",
     "video-360": "360p",
     audio: "audio MP3",
-    format: "konkretny format",
+    format: translations["download.format"] || "format",
     live: "live",
   })[downloadType] || downloadType;
 
   const isValidMediaUrl = (value) => {
     try {
       const url = new URL(value);
-      return ["http:", "https:"].includes(url.protocol) && allowedHosts.has(url.hostname.toLowerCase());
+      return ["http:", "https:"].includes(url.protocol)
+        && Boolean(url.hostname)
+        && !url.username
+        && !url.password
+        && !url.port;
     } catch {
       return false;
     }
@@ -263,7 +276,7 @@
       const total = bulkList.querySelectorAll(".bulk-url-select").length;
       const selected = selectedBulkUrls().length;
       const invalid = bulkList.querySelectorAll(".bulk-url-item-invalid").length;
-      bulkSummary.textContent = total > 1 ? `Wybrano ${selected} z ${total} linków.` : "";
+      bulkSummary.textContent = total > 1 ? t("js.url_selected", { selected, total }) : "";
       if (copyInvalidUrls instanceof HTMLButtonElement) copyInvalidUrls.disabled = invalid === 0;
       if (removeInvalidUrls instanceof HTMLButtonElement) removeInvalidUrls.disabled = invalid === 0;
     };
@@ -294,12 +307,12 @@
         body.textContent = url;
         const status = document.createElement("span");
         status.className = "bulk-url-status";
-        status.textContent = valid ? `Link ${index + 1}` : "Nieobsługiwany lub niepoprawny URL";
+        status.textContent = valid ? t("js.link", { number: index + 1 }) : t("js.invalid_url_item");
         const remove = document.createElement("button");
         remove.className = "bulk-url-remove";
         remove.type = "button";
-        remove.setAttribute("aria-label", `Usuń link ${index + 1}`);
-        remove.title = "Usuń link";
+        remove.setAttribute("aria-label", t("js.remove_link", { number: index + 1 }));
+        remove.title = t("common.delete");
         remove.textContent = "×";
         remove.addEventListener("click", (event) => {
           event.preventDefault();
@@ -327,12 +340,12 @@
       if (!invalidUrls.length) return;
       try {
         await copyTextToClipboard(invalidUrls.join("\n"));
-        copyInvalidUrls.textContent = "Skopiowano";
+        copyInvalidUrls.textContent = t("js.copied");
         window.setTimeout(() => {
-          copyInvalidUrls.textContent = "Kopiuj błędne";
+          copyInvalidUrls.textContent = t("index.copy_invalid");
         }, 1400);
       } catch (error) {
-        console.error("Nie można skopiować błędnych URL-i:", error);
+        console.error(t("js.copy_invalid_error"), error);
       }
     });
     removeInvalidUrls?.addEventListener("click", () => {
@@ -358,16 +371,16 @@
         input?.classList.add("is-invalid");
         if (feedback) {
           feedback.textContent = !urls.length
-            ? "Wklej co najmniej jeden adres URL."
+            ? t("js.paste_one")
             : invalidUrls.length
-              ? `Niepoprawne URL-e: ${invalidUrls.join(", ")}`
-              : "Szybkie pobieranie obsługuje jeden link naraz.";
+              ? t("js.invalid_urls", { urls: invalidUrls.join(", ") })
+              : t("js.quick_one");
         }
         return;
       }
       if (input instanceof HTMLTextAreaElement) input.value = urls.join("\n");
       if (feedback) {
-        feedback.textContent = "Wklej poprawny adres HTTP lub HTTPS z obsługiwanej domeny YouTube, Instagram, Kick albo Twitch.";
+        feedback.textContent = t("index.invalid_url");
       }
       input?.classList.remove("is-invalid");
       syncTextareaHeight();
@@ -383,13 +396,13 @@
       const label = button?.querySelector(
         quickDownload ? ".quick-download-submit-label" : ".analyze-submit-label"
       );
-      if (label) label.textContent = "Analizuję...";
-      if (label && quickDownload) label.textContent = "Dodaję...";
+      if (label) label.textContent = t("js.analyzing");
+      if (label && quickDownload) label.textContent = t("js.adding");
       const loading = form.querySelector(".analyze-loading");
       if (loading) {
         loading.innerHTML = quickDownload
-          ? '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Dodaję pobieranie do kolejki.'
-          : '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Analizuję materiał przez yt-dlp. To może potrwać chwilę.';
+          ? `<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>${t("index.loading_download")}`
+          : `<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>${t("index.loading_analyze")}`;
         loading.classList.remove("d-none");
       }
     });
@@ -720,7 +733,7 @@
     progress.max = "1000";
     progress.value = "0";
     progress.step = "1";
-    progress.setAttribute("aria-label", "Postęp odtwarzania");
+    progress.setAttribute("aria-label", t("js.playback_progress"));
 
     const play = customPlayerButton("Odtwórz", playerIcon("play"), "custom-player-play");
     const playSecondary = customPlayerButton(
@@ -754,13 +767,13 @@
     const inThisVideo = document.createElement("button");
     inThisVideo.className = "custom-player-pill";
     inThisVideo.type = "button";
-    inThisVideo.setAttribute("aria-label", "W tym filmie");
-    inThisVideo.textContent = "W tym filmie >";
+    inThisVideo.setAttribute("aria-label", t("preview.file_info"));
+    inThisVideo.textContent = `${t("preview.file_info")} >`;
     const settingsPanel = document.createElement("div");
     settingsPanel.className = "custom-player-settings-panel";
     settingsPanel.hidden = true;
     settingsPanel.setAttribute("role", "menu");
-    settingsPanel.setAttribute("aria-label", "Ustawienia playera");
+    settingsPanel.setAttribute("aria-label", t("js.player_settings"));
     const qualityLabel = escapeHtml(player.dataset.qualityLabel || "Oryginalna");
     settingsPanel.innerHTML = `
       <div class="custom-player-settings-heading">Ustawienia</div>
@@ -806,7 +819,7 @@
     speed.max = "3";
     speed.step = "0.05";
     speed.value = String(media.playbackRate);
-    speed.setAttribute("aria-label", "Prędkość odtwarzania");
+    speed.setAttribute("aria-label", t("js.speed"));
     const volume = document.createElement("input");
     volume.className = "custom-player-range custom-player-volume";
     volume.type = "range";
@@ -814,7 +827,7 @@
     volume.max = "1";
     volume.step = "0.01";
     volume.value = String(media.volume || 1);
-    volume.setAttribute("aria-label", "Głośność");
+    volume.setAttribute("aria-label", t("js.volume"));
 
     const controls = document.createElement("div");
     controls.className = "custom-player-controls";
@@ -884,7 +897,7 @@
       const overlay = document.createElement("button");
       overlay.className = "custom-player-overlay";
       overlay.type = "button";
-      overlay.setAttribute("aria-label", "Odtwórz lub pauzuj");
+      overlay.setAttribute("aria-label", t("js.play_pause"));
       overlayIcon = text("span", "\u25b6", "custom-player-overlay-icon");
       overlayTime = text("span", "0:00 / 0:00", "custom-player-overlay-time");
       overlay.append(overlayIcon, overlayTime);
@@ -916,12 +929,12 @@
       contextMenu.className = "custom-player-context-menu";
       contextMenu.hidden = true;
       contextMenu.setAttribute("role", "menu");
-      contextMenu.setAttribute("aria-label", "Menu kontekstowe playera");
+      contextMenu.setAttribute("aria-label", t("js.context_menu"));
 
       statsOverlay = document.createElement("section");
       statsOverlay.className = "custom-player-stats";
       statsOverlay.hidden = true;
-      statsOverlay.setAttribute("aria-label", "Statystyki dla nerdów");
+      statsOverlay.setAttribute("aria-label", t("js.stats"));
       const statsHeader = document.createElement("div");
       statsHeader.className = "custom-player-stats-header";
       statsHeader.append(text("strong", "Statystyki dla nerdów"));
@@ -929,7 +942,7 @@
       statsClose.className = "custom-player-stats-close";
       statsClose.type = "button";
       statsClose.textContent = "[X]";
-      statsClose.setAttribute("aria-label", "Zamknij statystyki");
+      statsClose.setAttribute("aria-label", t("js.close_stats"));
       statsHeader.append(statsClose);
       statsContent = document.createElement("pre");
       statsContent.className = "custom-player-stats-content";
@@ -957,9 +970,9 @@
           showPlayerCopyFeedback(successMessage);
           showAppToast(successMessage, { type: "success" });
         } catch (error) {
-          console.error("Nie można skopiować danych playera:", error);
-          showPlayerCopyFeedback("Nie udało się skopiować danych");
-          showAppToast("Nie udało się skopiować danych", { type: "danger" });
+          console.error(t("js.copy_failed"), error);
+          showPlayerCopyFeedback(t("js.copy_failed"));
+          showAppToast(t("js.copy_failed"), { type: "danger" });
         }
       };
       const updateStatsOverlay = () => {
@@ -1036,23 +1049,23 @@
         }),
         createPlayerContextMenuItem("Kopiuj adres URL filmu", "copy", () => {
           hideContextMenu();
-          copyPlayerValue(sourceUrlForCopy(), "Skopiowano adres URL filmu");
+          copyPlayerValue(sourceUrlForCopy(), t("js.copied_video_url"));
         }),
         createPlayerContextMenuItem("Kopiuj adres URL bieżącego momentu", "linkTime", () => {
           hideContextMenu();
-          copyPlayerValue(currentTimeUrl(), "Skopiowano adres URL bieżącego momentu");
+          copyPlayerValue(currentTimeUrl(), t("js.copied_time_url"));
         }),
-        createPlayerContextMenuItem("Skopiuj kod do umieszczenia na stronie", "embed", () => {
+        createPlayerContextMenuItem(t("js.copy_embed"), "embed", () => {
           hideContextMenu();
-          copyPlayerValue(embedCode(), "Skopiowano kod osadzenia");
+          copyPlayerValue(embedCode(), t("js.copied_embed"));
         }),
         createPlayerContextMenuItem("Kopiuj informacje debugowania", "debug", () => {
           hideContextMenu();
-          copyPlayerValue(formatVideoDebugStats(player, media, networkActivity), "Skopiowano informacje debugowania");
+          copyPlayerValue(formatVideoDebugStats(player, media, networkActivity), t("js.copied_debug"));
         }),
         createPlayerContextMenuItem("Rozwiąż problem z odtwarzaniem", "flag", () => {
           hideContextMenu();
-          showAppToast("Otwórz Diagnostykę, aby sprawdzić ffmpeg, yt-dlp, sieć i miejsce na dysku", {
+          showAppToast(t("js.open_diagnostics"), {
             type: "info",
             actionHref: route("/diagnostics"),
             actionLabel: "Diagnostyka",
@@ -1124,8 +1137,8 @@
       const active = fullscreenElement() === player;
       player.classList.toggle("custom-player-is-fullscreen", active);
       fullscreen.innerHTML = active ? playerIcon("fullscreenExit") : playerIcon("fullscreen");
-      fullscreen.setAttribute("aria-label", active ? "Zamknij pełny ekran" : "Pełny ekran");
-      fullscreen.title = active ? "Zamknij pełny ekran" : "Pełny ekran";
+      fullscreen.setAttribute("aria-label", active ? t("js.exit_fullscreen") : t("js.fullscreen"));
+      fullscreen.title = active ? t("js.exit_fullscreen") : t("js.fullscreen");
     };
     const syncPlay = () => {
       const paused = media.paused;
@@ -1143,8 +1156,8 @@
     const syncMute = () => {
       const muted = media.muted || media.volume === 0;
       mute.innerHTML = muted ? playerIcon("volumeOff") : playerIcon("volume");
-      mute.setAttribute("aria-label", muted ? "Włącz dźwięk" : "Wycisz");
-      mute.title = muted ? "Włącz dźwięk" : "Wycisz";
+      mute.setAttribute("aria-label", muted ? t("js.unmute") : t("js.mute"));
+      mute.title = muted ? t("js.unmute") : t("js.mute");
       volume.value = String(media.muted ? 0 : media.volume);
       updateRangeFill(volume, Number(volume.value) * 100, "--volume-fill");
     };
@@ -1479,7 +1492,7 @@
     form.addEventListener("submit", (event) => {
       const filename = form.dataset.filename || "brak danych";
       const filesize = form.dataset.filesizeLabel || "brak danych";
-      const message = `Czy na pewno usunąć pobrany plik?\n\nNazwa: ${filename}\nRozmiar: ${filesize}`;
+      const message = t("js.delete_file_confirm", { filename, size: filesize });
       if (!window.confirm(message)) {
         event.preventDefault();
       }
@@ -1488,8 +1501,8 @@
 
   document.querySelectorAll(".history-delete-form").forEach((form) => {
     form.addEventListener("submit", (event) => {
-      const title = form.dataset.title || "brak danych";
-      if (!window.confirm(`Czy na pewno usunąć zadanie?\n\nTytuł: ${title}`)) {
+      const title = form.dataset.title || t("common.no_data");
+      if (!window.confirm(t("js.delete_job_confirm", { title }))) {
         event.preventDefault();
       }
     });
@@ -1562,8 +1575,8 @@
       const inputs = Array.from(form.querySelectorAll(".playlist-entry-select"));
       if (playlistSelectAll && inputs.length) {
         playlistSelectAll.textContent = inputs.every((input) => input.checked)
-          ? "Odznacz wszystkie"
-          : "Zaznacz wszystkie";
+          ? t("result.unselect_all")
+          : t("result.select_all");
       }
     };
     const playlistNumber = (input) => {
@@ -1664,7 +1677,7 @@
       });
       empty?.classList.toggle("d-none", filtered.length > 0);
       document.getElementById("history-pagination")?.classList.toggle("d-none", filtered.length === 0);
-      if (pageLabel) pageLabel.textContent = `Strona ${currentPage} z ${pageCount}`;
+    if (pageLabel) pageLabel.textContent = t("index.page_count", { current: currentPage, total: pageCount });
       if (previous) previous.disabled = currentPage <= 1;
       if (next) next.disabled = currentPage >= pageCount;
     };
@@ -1728,7 +1741,7 @@
         delete_files: "usunąć pliki dla zaznaczonych wpisów",
         repeat: "ponownie pobrać zaznaczone pozycje",
       };
-      if (!selectedCount || !window.confirm(`Czy na pewno ${labels[action] || "wykonać akcję"} (${selectedCount})?`)) {
+      if (!selectedCount || !window.confirm(t("js.history_action_confirm", { action: t("js.history_do_action"), count: selectedCount }))) {
         event.preventDefault();
       }
     });
@@ -1778,7 +1791,7 @@
   try {
     activeJobStatuses = new Set(JSON.parse(document.getElementById("active-job-statuses")?.textContent || "[]"));
   } catch (error) {
-    console.error("Nie można odczytać listy aktywnych statusów:", error);
+    console.error(t("js.bad_api"), error);
   }
   const isActiveJob = (job) => activeJobStatuses.has(job.status);
   const isRemovableJob = (job) => job.can_delete === true;
@@ -1788,32 +1801,32 @@
   const jobFilterConfig = {
     all: {
       matches: () => true,
-      emptyTitle: "Nie ma zadań",
-      emptyCopy: "Wklej link na stronie startowej, a postęp pobierania pojawi się tutaj automatycznie.",
+      emptyTitle: t("js.empty_no_jobs"),
+      emptyCopy: t("jobs.empty_copy"),
     },
     in_progress: {
       matches: isActiveJob,
-      emptyTitle: "Nie ma zadań w toku",
+      emptyTitle: t("js.empty_no_active"),
       emptyCopy: "Wróć do pełnej kolejki, aby zobaczyć oczekujące, aktywne i zakończone pobrania.",
     },
     completed: {
       matches: (job) => job.status === "completed",
-      emptyTitle: "Nie ma ukończonych zadań",
+      emptyTitle: t("js.empty_no_completed"),
       emptyCopy: "Ukończone pobrania pojawią się tutaj po zakończeniu pracy kolejki.",
     },
     errors: {
       matches: (job) => job.status === "error",
-      emptyTitle: "Nie ma nieudanych zadań",
+      emptyTitle: t("js.empty_no_errors"),
       emptyCopy: "Filtr błędów jest pusty. Wróć do pełnej kolejki, aby zobaczyć aktywne i zakończone pobrania.",
     },
     stopped: {
       matches: (job) => job.status === "stopped",
-      emptyTitle: "Nie ma zatrzymanych zadań",
+      emptyTitle: t("js.empty_no_stopped"),
       emptyCopy: "Zatrzymane pobrania pojawią się tutaj, gdy przerwiesz je ręcznie.",
     },
     interrupted: {
       matches: (job) => job.status === "interrupted",
-      emptyTitle: "Nie ma przerwanych zadań",
+      emptyTitle: t("js.empty_no_interrupted"),
       emptyCopy: "Przerwane zadania pojawią się tutaj po restarcie lub nieoczekiwanym zatrzymaniu pracy.",
     },
   };
@@ -1838,7 +1851,7 @@
     const wrapper = document.createElement("div");
     wrapper.className = "progress";
     wrapper.setAttribute("role", "progressbar");
-    wrapper.setAttribute("aria-label", "Postęp pobierania");
+    wrapper.setAttribute("aria-label", t("js.download_progress"));
     wrapper.setAttribute("aria-valuenow", String(job.progress || 0));
     wrapper.setAttribute("aria-valuemin", "0");
     wrapper.setAttribute("aria-valuemax", "100");
@@ -1890,10 +1903,10 @@
     wrapper.className = "job-error-box mt-2";
     const header = document.createElement("div");
     header.className = "d-flex flex-wrap gap-2 justify-content-between align-items-start";
-    const message = text("strong", job.error_message || "Zadanie zakończyło się błędem.", "text-danger");
+    const message = text("strong", job.error_message || t("js.job_failed"), "text-danger");
     const copyButton = text("button", "Kopiuj błąd", "btn btn-sm btn-soft job-error-copy");
     copyButton.type = "button";
-    copyButton.dataset.copyText = job.error_message || "Zadanie zakończyło się błędem.";
+    copyButton.dataset.copyText = job.error_message || t("js.job_failed");
     header.append(message, copyButton);
     wrapper.append(
       header,
@@ -1960,7 +1973,7 @@
 
   const outputLink = (job) => {
     if (!job.output_file) return text("span", "-", "text-body-secondary");
-    const link = text("a", "Pobierz", "btn btn-sm btn-soft");
+    const link = text("a", t("common.download"), "btn btn-sm btn-soft");
     link.href = route(`/downloaded/${encodeURIComponent(job.output_file)}`);
     link.title = job.output_file;
     return link;
@@ -1979,7 +1992,7 @@
     }
     const link = text("a", job.title, "job-title-link");
     link.href = route(previewPath);
-    link.setAttribute("aria-label", `Otworz podglad: ${job.title}`);
+    link.setAttribute("aria-label", t("js.open_preview", { title: job.title }));
     heading.append(link);
     return heading;
   };
@@ -1996,7 +2009,7 @@
         const link = document.createElement("a");
         link.className = `job-thumbnail-link${mobile ? " d-block mb-3" : ""}`;
         link.href = route(previewPath);
-        link.setAttribute("aria-label", `Otworz podglad: ${job.title}`);
+        link.setAttribute("aria-label", t("js.open_preview", { title: job.title }));
         link.append(image);
         return link;
       }
@@ -2004,8 +2017,8 @@
       return image;
     }
     const placeholder = text("span", "-", `job-thumbnail-placeholder${mobile ? " job-thumbnail-mobile mb-3" : ""}`);
-    placeholder.title = "Brak miniatury";
-    placeholder.setAttribute("aria-label", "Brak miniatury");
+    placeholder.title = t("js.no_thumbnail");
+    placeholder.setAttribute("aria-label", t("js.no_thumbnail"));
     return placeholder;
   };
 
@@ -2032,7 +2045,7 @@
     if (!job.can_repeat) {
       return document.createDocumentFragment();
     }
-    const form = actionForm(route("/download"), "Pobierz ponownie", "btn btn-sm btn-outline-primary");
+    const form = actionForm(route("/download"), t("index.download_again"), "btn btn-sm btn-outline-primary");
     const fields = {
       url: job.url,
       title: job.title,
@@ -2128,8 +2141,8 @@
     const errorSummary = document.getElementById("jobs-error-summary");
     if (errorSummary) {
       errorSummary.textContent = failedJobs.length
-        ? `Nieudane zadania: ${failedJobs.length}. Sprawdź krótki opis przy wpisie, popraw URL lub format i ponów zadanie.`
-        : "Nieudane zadania zwykle oznaczają problem z URL, siecią, miejscem na dysku albo wybranym formatem.";
+        ? t("jobs.error_summary", { count: failedJobs.length })
+        : t("jobs.error_summary_empty");
     }
     const selectAll = document.getElementById("jobs-select-all");
     if (selectAll) {
@@ -2150,7 +2163,7 @@
     checkbox.value = job.job_id;
     checkbox.checked = selectedJobIds.has(job.job_id);
     checkbox.disabled = !isRemovableJob(job);
-    checkbox.setAttribute("aria-label", `Zaznacz zadanie ${job.title}`);
+    checkbox.setAttribute("aria-label", t("js.select_job", { title: job.title }));
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) selectedJobIds.add(job.job_id);
       else selectedJobIds.delete(job.job_id);
@@ -2162,26 +2175,26 @@
   const jobActions = (job) => {
     const actions = document.createElement("span");
     actions.className = "d-flex flex-wrap gap-2";
-    const detailsLink = text("a", "Szczegóły", "btn btn-sm btn-soft");
+    const detailsLink = text("a", t("common.details"), "btn btn-sm btn-soft");
     detailsLink.href = route(`/jobs/${encodeURIComponent(job.job_id)}`);
     actions.append(detailsLink);
     if (job.can_stop) {
       actions.append(actionForm(
         route(`/${job.is_live ? "live" : "download"}/stop/${encodeURIComponent(job.job_id)}`),
-        "Zatrzymaj",
+        translations["job.stop"] || "Stop",
         "btn btn-sm btn-outline-danger"
       ));
     } else if (job.can_resume) {
       actions.append(actionForm(
         route(`/download/resume/${encodeURIComponent(job.job_id)}`),
-        "Wznów",
+        translations["job.resume"] || "Resume",
         "btn btn-sm btn-outline-primary"
       ));
     }
     if (job.can_retry) {
       actions.append(actionForm(
         route(`/jobs/retry/${encodeURIComponent(job.job_id)}`),
-        "Ponów",
+        t("common.retry"),
         "btn btn-sm btn-outline-primary"
       ));
     }
@@ -2189,9 +2202,9 @@
     if (isRemovableJob(job)) {
       actions.append(actionForm(
         route(`/jobs/delete/${encodeURIComponent(job.job_id)}`),
-        "Usuń zadanie",
+        t("common.delete_job"),
         "btn btn-sm btn-outline-danger",
-        `Czy na pewno usunąć zadanie „${job.title}” z listy?`
+        t("js.delete_job_confirm", { title: job.title })
       ));
     }
     return actions;
@@ -2303,20 +2316,20 @@
   });
 
   document.getElementById("jobs-delete-selected-form")?.addEventListener("submit", (event) => {
-    if (!selectedJobIds.size || !window.confirm(`Czy na pewno usunąć zaznaczone zadania (${selectedJobIds.size})?`)) {
+    if (!selectedJobIds.size || !window.confirm(t("js.delete_selected_jobs", { count: selectedJobIds.size }))) {
       event.preventDefault();
     }
   });
 
   document.getElementById("jobs-clear-form")?.addEventListener("submit", (event) => {
-    if (!window.confirm("Czy na pewno wyczyścić listę zakończonych zadań? Aktywne zadania pozostaną na liście.")) {
+    if (!window.confirm(t("js.clear_jobs"))) {
       event.preventDefault();
     }
   });
 
   document.getElementById("jobs-retry-failed-form")?.addEventListener("submit", (event) => {
     const failedCount = (lastSuccessfulJobs || []).filter((job) => job.can_retry === true).length;
-    if (!failedCount || !window.confirm(`Ponowić wszystkie nieudane zadania (${failedCount})?`)) {
+    if (!failedCount || !window.confirm(t("js.retry_failed_jobs", { count: failedCount }))) {
       event.preventDefault();
     }
   });
@@ -2343,10 +2356,10 @@
     const originalLabel = button.textContent;
     try {
       await copyTextToClipboard(button.dataset.copyText || "");
-      button.textContent = "Skopiowano";
+      button.textContent = t("js.copied");
     } catch (error) {
-      console.error("Nie można skopiować błędu:", error);
-      button.textContent = "Błąd kopiowania";
+      console.error(t("js.copy_error"), error);
+      button.textContent = t("js.copy_error");
     } finally {
       window.setTimeout(() => {
         button.textContent = originalLabel;
@@ -2367,10 +2380,10 @@
     jobs.forEach((job) => {
       const previousStatus = knownJobStatuses.get(job.job_id);
       if (hadSnapshot && job.status === "error" && previousStatus !== "error") {
-        showAppToast(`Zadanie zakończyło się błędem: ${job.title || job.job_id}`, {
+        showAppToast(t("js.job_error_toast", { title: job.title || job.job_id }), {
           type: "danger",
           actionHref: route(`/jobs/log/${encodeURIComponent(job.job_id)}`),
-          actionLabel: "Otwórz log",
+          actionLabel: t("common.open_log"),
         });
       }
     });
@@ -2387,13 +2400,13 @@
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
-      if (!payload || !Array.isArray(payload.jobs)) throw new Error("Niepoprawna odpowiedź API");
+      if (!payload || !Array.isArray(payload.jobs)) throw new Error(t("js.bad_api"));
       notifyNewJobErrors(payload.jobs);
       lastSuccessfulJobs = payload.jobs;
       setJobsRefreshError(false);
       updateJobsView(lastSuccessfulJobs);
     } catch (error) {
-      console.error("Nie można odświeżyć listy zadań:", error);
+      console.error(t("js.refresh_failed"), error);
       setJobsRefreshError(true);
       if (lastSuccessfulJobs) updateJobsView(lastSuccessfulJobs);
     } finally {

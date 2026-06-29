@@ -1,31 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Diagnostyka | Media Web Downloader{% endblock %}
+{% block title %}{{ t('diagnostics.title') }}{% endblock %}
 {% block content %}
   {% set rows = diagnostics.rows %}
   <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-      <span class="eyebrow">Stan systemu</span>
-      <h1 class="h3 mb-1">Panel diagnostyczny</h1>
-      <p class="section-copy mb-0">Najważniejsze dane techniczne do szybkiej diagnozy pobierania i integracji Home Assistant.</p>
+      <span class="eyebrow">{{ t('diagnostics.system') }}</span>
+      <h1 class="h3 mb-1">{{ t('diagnostics.heading') }}</h1>
+      <p class="section-copy mb-0">{{ t('diagnostics.copy') }}</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-      <a class="btn btn-primary" href="{{ ingress_url('web.diagnostics', run='quick') }}">Uruchom szybki test</a>
-      <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">Zadania</a>
+      <a class="btn btn-primary" href="{{ ingress_url('web.diagnostics', run='quick') }}">{{ t('diagnostics.run') }}</a>
+      <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">{{ t('nav.jobs') }}</a>
     </div>
   </section>
 
   {% if request.args.get("run") == "quick" %}
-    <div class="alert alert-info app-alert" role="status">Szybki test został wykonany.</div>
+    <div class="alert alert-info app-alert" role="status">{{ t('diagnostics.done') }}</div>
   {% endif %}
 
   <section class="diagnostics-quick-card mb-4">
     <div class="section-heading">
       <div>
-        <span class="eyebrow">Szybki test</span>
-        <h2 class="h5 mb-0">yt-dlp, ffmpeg, zapis i sieć</h2>
+        <span class="eyebrow">{{ t('diagnostics.quick') }}</span>
+        <h2 class="h5 mb-0">{{ t('diagnostics.quick_title') }}</h2>
       </div>
     </div>
-    <div class="diagnostics-summary mb-0" aria-label="Szybki test zależności">
+    <div class="diagnostics-summary mb-0" aria-label="{{ t('diagnostics.quick_aria') }}">
       {% for row in diagnostics.quick_checks %}
         <article class="diagnostics-status-card diagnostics-status-{{ row.status }}">
           <span class="badge diagnostics-badge diagnostics-badge-{{ row.status }}">{{ row.status_label }}</span>
@@ -37,7 +37,7 @@
     </div>
   </section>
 
-  <section class="diagnostics-summary mb-4" aria-label="Podsumowanie diagnostyki">
+  <section class="diagnostics-summary mb-4" aria-label="{{ t('diagnostics.summary_aria') }}">
     {% for row in rows %}
       <article class="diagnostics-status-card diagnostics-status-{{ row.status }}">
         <span class="badge diagnostics-badge">{{ row.status_label }}</span>
@@ -52,20 +52,20 @@
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
         <div>
           <span class="eyebrow">yt-dlp</span>
-          <h2 class="h5 mb-1">Stan narzędzia pobierania</h2>
-          <p class="section-copy mb-0">Wersja, ostatnia aktualizacja i ewentualny błąd aktualizatora.</p>
+          <h2 class="h5 mb-1">{{ t('diagnostics.tool_status') }}</h2>
+          <p class="section-copy mb-0">{{ t('diagnostics.tool_copy') }}</p>
         </div>
         <span class="badge {{ 'text-bg-danger' if diagnostics.yt_dlp.last_error else ('text-bg-warning' if diagnostics.yt_dlp.needs_update else 'text-bg-success') }}">
-          {{ "błąd" if diagnostics.yt_dlp.last_error else ("do sprawdzenia" if diagnostics.yt_dlp.needs_update else "OK") }}
+          {{ t('common.error') if diagnostics.yt_dlp.last_error else (t('diagnostics.needs_check') if diagnostics.yt_dlp.needs_update else t('common.ok')) }}
         </span>
       </div>
       <dl class="diagnostics-ytdlp-grid mb-0 mt-3">
-        <dt>Wersja</dt>
+        <dt>{{ t('diagnostics.version') }}</dt>
         <dd>{{ diagnostics.yt_dlp.version }}</dd>
-        <dt>Ostatnia aktualizacja</dt>
-        <dd>{{ diagnostics.yt_dlp.last_success|replace("T", " ")|truncate(19, True, "") if diagnostics.yt_dlp.last_success else "brak danych" }}</dd>
-        <dt>Ostatni błąd</dt>
-        <dd class="{{ 'text-danger' if diagnostics.yt_dlp.last_error else 'text-body-secondary' }}">{{ diagnostics.yt_dlp.last_error or "brak" }}</dd>
+        <dt>{{ t('diagnostics.last_update') }}</dt>
+        <dd>{{ diagnostics.yt_dlp.last_success|replace("T", " ")|truncate(19, True, "") if diagnostics.yt_dlp.last_success else t('common.no_data') }}</dd>
+        <dt>{{ t('diagnostics.last_error') }}</dt>
+        <dd class="{{ 'text-danger' if diagnostics.yt_dlp.last_error else 'text-body-secondary' }}">{{ diagnostics.yt_dlp.last_error or t('common.none') }}</dd>
       </dl>
     </div>
   </section>
@@ -74,18 +74,18 @@
     <div class="card-body">
       <div class="section-heading">
         <div>
-          <span class="eyebrow">Szybka diagnoza</span>
-          <h2 class="h5 mb-0">Kluczowe informacje techniczne</h2>
+          <span class="eyebrow">{{ t('diagnostics.quick_diag') }}</span>
+          <h2 class="h5 mb-0">{{ t('diagnostics.key_info') }}</h2>
         </div>
       </div>
       <div class="table-responsive">
         <table class="table diagnostics-table align-middle">
           <thead>
             <tr>
-              <th>Parametr</th>
-              <th>Wartość</th>
-              <th>Status</th>
-              <th>Szczegóły</th>
+              <th>{{ t('common.parameter') }}</th>
+              <th>{{ t('common.value') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th>{{ t('common.details') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -109,16 +109,16 @@
     <div class="card-body">
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
         <div>
-          <span class="eyebrow">Ostatni problem</span>
-          <h2 class="h5 mb-1">Ostatni błąd diagnostyczny</h2>
+          <span class="eyebrow">{{ t('diagnostics.last_problem') }}</span>
+          <h2 class="h5 mb-1">{{ t('diagnostics.last_diag_error') }}</h2>
           {% if diagnostics.last_error %}
             <p class="diagnostics-last-error text-danger mb-0">{{ diagnostics.last_error }}</p>
           {% else %}
-            <p class="text-body-secondary mb-0">Brak błędów diagnostycznych.</p>
+            <p class="text-body-secondary mb-0">{{ t('diagnostics.no_errors') }}</p>
           {% endif %}
         </div>
         <span class="badge {{ 'text-bg-danger' if diagnostics.last_error else 'text-bg-success' }}">
-          {{ "błąd" if diagnostics.last_error else "OK" }}
+          {{ t('common.error') if diagnostics.last_error else t('common.ok') }}
         </span>
       </div>
     </div>

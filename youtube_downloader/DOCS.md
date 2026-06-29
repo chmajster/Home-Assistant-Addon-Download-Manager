@@ -2,7 +2,7 @@
 
 ## Analiza przez yt-dlp
 
-Po przesłaniu URL aplikacja sprawdza schemat i domenę, a następnie uruchamia `yt-dlp` w trybie pobierania samych metadanych. Extractor zwraca tytuł, kanał, miniaturę, czas trwania, status transmisji i dostępne formaty. Dla playlist aplikacja pokazuje elementy zwrócone przez extractor.
+Po przesłaniu URL aplikacja sprawdza schemat, blokuje dane logowania i niestandardowe porty, a następnie weryfikuje, czy adres pasuje do znanej domeny albo konkretnego extractora `yt-dlp`. Ogólny extractor `Generic` nie wystarcza do zaakceptowania URL. Potem aplikacja uruchamia `yt-dlp` w trybie pobierania samych metadanych. Extractor zwraca tytuł, kanał, miniaturę, czas trwania, status transmisji i dostępne formaty. Dla playlist aplikacja pokazuje elementy zwrócone przez extractor.
 
 Przy właściwym pobieraniu aplikacja nie przyjmuje ścieżki docelowej od użytkownika. Wybiera szablon nazwy wewnątrz skonfigurowanego katalogu trwałego i ogranicza nazwy plików do bezpiecznego zestawu znaków obsługiwanego przez `yt-dlp`.
 

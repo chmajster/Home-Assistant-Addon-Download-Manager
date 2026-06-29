@@ -1,7 +1,16 @@
 # Changelog
 
+## 1.3.75
+
+- Dodano opcję wyboru języka interfejsu `ui_language` z obsługą polskiego i angielskiego panelu aplikacji.
+
+## 1.3.74
+
+- Wydanie porzadkowe po przegladzie kodu i przygotowaniu rekomendacji usprawnien.
+
 ## 1.3.73
 
+- Rozszerzono akceptowane URL-e na serwisy obsługiwane przez konkretne extractory `yt-dlp`, bez ograniczania wejścia do YouTube, Instagram, Kick i Twitch.
 - Ograniczono panel Start / Ostatnie zadania do 10 najnowszych pozycji i ukryto akcje `Pobierz ponownie` dla wpisow z istniejacym plikiem.
 
 ## 1.3.72

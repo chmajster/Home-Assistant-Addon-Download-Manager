@@ -28,6 +28,7 @@ class AppConfig:
     external_port: int
     debug: bool
     preferred_format: str
+    ui_language: str
     secret_key: str
 
     @classmethod
@@ -54,5 +55,6 @@ class AppConfig:
             external_port=options.external_port,
             debug=options.debug,
             preferred_format=options.preferred_format,
+            ui_language=options.ui_language,
             secret_key=secrets.token_hex(32),
         )

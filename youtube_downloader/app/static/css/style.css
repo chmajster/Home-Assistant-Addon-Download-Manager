@@ -285,6 +285,18 @@ a:hover {
   color: #6b45c9;
 }
 
+.platform-vimeo {
+  color: #1d78b8;
+}
+
+.platform-soundcloud {
+  color: #c95f1b;
+}
+
+.platform-ytdlp {
+  color: var(--app-primary-dark);
+}
+
 .hero-input-group {
   background: #fff;
   border: 1px solid rgba(103, 88, 232, 0.17);

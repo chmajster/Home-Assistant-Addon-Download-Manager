@@ -26,6 +26,7 @@ from flask import (
 )
 
 from .. import ingress_url, valid_csrf_token
+from ..i18n import localize_job, translate
 from ..services.file_service import (
     FileService,
     UnsafeFilenameError,
@@ -82,6 +83,24 @@ HISTORY_SORT_LABELS = {
     "title": "tytuł",
     "platform": "serwis",
 }
+DOWNLOAD_PROFILE_TRANSLATION_KEYS = {
+    "best-quality": ("profile.best.label", "profile.best.description"),
+    "manual": ("profile.manual.label", "profile.manual.description"),
+    "audio-mp3": ("profile.audio.label", "profile.audio.description"),
+    "video-1080": ("profile.video1080.label", "profile.video1080.description"),
+    "live-archive": ("profile.live.label", "profile.live.description"),
+    "twitch-only": ("profile.twitch.label", "profile.twitch.description"),
+}
+PLATFORM_LABELS = {
+    "youtube": "YouTube",
+    "twitch": "Twitch",
+    "vimeo": "Vimeo",
+    "soundcloud": "SoundCloud",
+    "instagram": "Instagram",
+    "kick": "Kick",
+}
+DEFAULT_PLATFORM_CHIPS = ("youtube", "twitch", "vimeo", "soundcloud")
+PLATFORM_CHIP_LIMIT = 7
 
 
 def _file_service() -> FileService:
@@ -102,6 +121,14 @@ def _ytdlp_updater() -> YtDlpUpdater:
 
 def _ha_notifier():
     return current_app.extensions["ha_notifier"]
+
+
+def _language() -> str:
+    return current_app.config["APP_SETTINGS"].ui_language
+
+
+def _t(key: str, **values: object) -> str:
+    return translate(_language(), key, **values)
 
 
 def _ensure_ytdlp_recent() -> None:
@@ -224,7 +251,7 @@ def _nfs_test(settings: Any, download_dir: object) -> dict[str, Any]:
 
 def _diagnostic_status_label(status: str) -> str:
     return {
-        "ok": "OK",
+        "ok": _t("common.ok"),
         "warning": "ostrzeżenie",
         "error": "błąd",
     }.get(status, status)
@@ -238,7 +265,7 @@ def _diagnostic_row(
 ) -> dict[str, str]:
     return {
         "label": label,
-        "value": str(value or "brak danych"),
+        "value": str(value or _t("common.no_data")),
         "status": status,
         "status_label": _diagnostic_status_label(status),
         "details": str(details or ""),
@@ -273,28 +300,28 @@ def _diagnostic_rows(
 
     ha_status = "ok" if home_assistant.get("available") else "error"
     return [
-        _diagnostic_row("Wersja yt-dlp", ytdlp.get("version"), ytdlp_version_status),
+        _diagnostic_row(_t("diag.ytdlp_version"), ytdlp.get("version"), ytdlp_version_status),
         _diagnostic_row(
-            "Ostatnia aktualizacja yt-dlp",
+            _t("diag.ytdlp_update"),
             _date_time_label(ytdlp.get("last_success")),
             ytdlp_update_status,
             ytdlp_update_details,
         ),
         _diagnostic_row(
-            "Wersja ffmpeg",
+            _t("diag.ffmpeg_version"),
             ffmpeg.get("version"),
             ffmpeg_status,
             ffmpeg.get("error"),
         ),
         _diagnostic_row(
-            "Wolne miejsce na dysku",
+            _t("diag.free_space"),
             f"{_filesize_label(storage.get('free'))} ({storage.get('free_percent')}%)",
             storage_status,
             f"Zajęte: {_filesize_label(storage.get('used'))} z {_filesize_label(storage.get('total'))}.",
         ),
         _diagnostic_row("Katalog pobrań", paths.get("download_dir")),
         _diagnostic_row(
-            "Home Assistant API",
+            _t("diag.ha_api"),
             "połączono" if home_assistant.get("available") else "problem",
             ha_status,
             home_assistant.get("message"),
@@ -345,31 +372,31 @@ def _diagnostics_snapshot() -> dict[str, Any]:
     rows.extend(
         [
             _diagnostic_row(
-                "Test zapisu katalogu",
+                _t("diag.write_test"),
                 "działa" if write_test.get("available") else "problem",
                 "ok" if write_test.get("available") else "error",
                 write_test.get("message"),
             ),
             _diagnostic_row(
-                "Test ffmpeg",
+                _t("diag.ffmpeg_test"),
                 "działa" if ffmpeg.get("available") else "problem",
                 "ok" if ffmpeg.get("available") else "error",
                 ffmpeg.get("error") or ffmpeg.get("version"),
             ),
             _diagnostic_row(
-                "Test yt-dlp CLI",
+                _t("diag.ytdlp_cli"),
                 ytdlp_cli.get("version"),
                 "ok" if ytdlp_cli.get("available") else "warning",
                 ytdlp_cli.get("error") or "CLI yt-dlp odpowiada.",
             ),
             _diagnostic_row(
-                "Test sieci",
+                _t("diag.network_test"),
                 "połączono" if network.get("available") else "problem",
                 "ok" if network.get("available") else "error",
                 network.get("message"),
             ),
             _diagnostic_row(
-                "Test NFS",
+                _t("diag.nfs_test"),
                 nfs.get("value"),
                 str(nfs.get("status") or "ok"),
                 nfs.get("message"),
@@ -378,7 +405,7 @@ def _diagnostics_snapshot() -> dict[str, Any]:
     )
     quick_checks = [
         _diagnostic_row(
-            "yt-dlp CLI",
+            _t("diag.ytdlp_cli"),
             ytdlp_cli.get("version"),
             "ok" if ytdlp_cli.get("available") else "warning",
             ytdlp_cli.get("error") or "CLI yt-dlp odpowiada.",
@@ -390,7 +417,7 @@ def _diagnostics_snapshot() -> dict[str, Any]:
             ffmpeg.get("error") or ffmpeg.get("version"),
         ),
         _diagnostic_row(
-            "Zapis katalogu",
+            _t("diag.write_test"),
             "działa" if write_test.get("available") else "problem",
             "ok" if write_test.get("available") else "error",
             write_test.get("message"),
@@ -555,6 +582,18 @@ def _download_options_from_form(playlist_title: str | None = None) -> dict[str, 
 def _selected_download_profile(value: object) -> dict[str, Any]:
     key = str(value or "manual")
     return DOWNLOAD_PROFILES.get(key, DOWNLOAD_PROFILES["manual"])
+
+
+def _localized_download_profiles() -> dict[str, dict[str, Any]]:
+    profiles: dict[str, dict[str, Any]] = {}
+    for key, profile in DOWNLOAD_PROFILES.items():
+        label_key, description_key = DOWNLOAD_PROFILE_TRANSLATION_KEYS[key]
+        profiles[key] = {
+            **profile,
+            "label": _t(label_key),
+            "description": _t(description_key),
+        }
+    return profiles
 
 
 def _profile_download_type(
@@ -786,9 +825,11 @@ def index():
     """Main panel with URL form and recent completed jobs."""
 
     file_service = _file_service()
+    history = _completed_job_records(limit=10)
     return render_template(
         "index.html",
-        history=_completed_job_records(limit=10),
+        history=history,
+        platform_chips=_platform_chips(history),
         files=file_service.list_files(),
         storage=file_service.storage_usage(),
         options=current_app.config["APP_SETTINGS"],
@@ -811,7 +852,7 @@ def _completed_job_records(limit: int | None = None) -> list[dict[str, Any]]:
     for job in manager.list_jobs():
         if job.status != "completed" or not job.output_file:
             continue
-        payload = manager.job_dict(job)
+        payload = localize_job(manager.job_dict(job), _language())
         filename = job.output_file
         try:
             file_service.resolve_download(filename)
@@ -906,6 +947,28 @@ def _history_platform(url: str) -> str:
         return MediaService.detect_platform(MediaService.validate_url(url))
     except MediaServiceError:
         return "unknown"
+
+
+def _platform_chips(records: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Return compact platform chips for the start page hero."""
+
+    platforms = list(DEFAULT_PLATFORM_CHIPS)
+    for item in records:
+        platform = str(item.get("platform") or "").casefold()
+        if not platform or platform == "unknown" or platform in platforms:
+            continue
+        platforms.append(platform)
+        if len(platforms) >= PLATFORM_CHIP_LIMIT:
+            break
+    chips = [
+        {
+            "label": PLATFORM_LABELS.get(platform, platform.title()),
+            "class": f"platform-{platform}",
+        }
+        for platform in platforms
+    ]
+    chips.append({"label": "i inne przez yt-dlp", "class": "platform-ytdlp"})
+    return chips
 
 
 def _automatic_history_tags(item: dict[str, Any]) -> list[str]:
@@ -1147,7 +1210,7 @@ def analyze():
             str(media.get("title") or ""),
         )
         return render_template(
-            "result.html", media=media, download_profiles=DOWNLOAD_PROFILES
+            "result.html", media=media, download_profiles=_localized_download_profiles()
         )
     except MediaServiceError as error:
         return render_template("error.html", message=str(error)), 400
@@ -1526,7 +1589,7 @@ def jobs():
     job_filter = requested_filter if requested_filter in allowed_filters else "all"
     return render_template(
         "jobs.html",
-        jobs=[manager.job_dict(job) for job in manager.list_jobs()],
+        jobs=[localize_job(manager.job_dict(job), _language()) for job in manager.list_jobs()],
         job_filter=job_filter,
     )
 
@@ -1539,7 +1602,7 @@ def job_details(job_id: str):
         job = _job_manager().get_job(job_id)
     except KeyError:
         return render_template("error.html", message="Nie znaleziono zadania."), 404
-    payload = _job_manager().job_dict(job, include_full_log=True)
+    payload = localize_job(_job_manager().job_dict(job, include_full_log=True), _language())
     parameters = _job_parameter_snapshot(payload)
     return render_template(
         "job_details.html",
@@ -1568,7 +1631,7 @@ def job_log(job_id: str):
         return render_template("error.html", message="Nie znaleziono zadania."), 404
     return render_template(
         "job_log.html",
-        job=_job_manager().job_dict(job, include_full_log=True),
+        job=localize_job(_job_manager().job_dict(job, include_full_log=True), _language()),
     )
 
 

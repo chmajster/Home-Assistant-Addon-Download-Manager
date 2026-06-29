@@ -14,6 +14,7 @@ OPTIONS_FILE = Path("/data/options.json")
 DEFAULT_DOWNLOAD_DIR = Path("/share/youtube_downloader")
 ALLOWED_DOWNLOAD_ROOTS = (Path("/share"), Path("/media"))
 PREFERRED_FORMATS = {"best", "audio", "video", "video-360", "video-720", "video-1080"}
+UI_LANGUAGES = {"pl", "en"}
 
 DEFAULT_OPTIONS: dict[str, Any] = {
     "storage_mode": "local",
@@ -29,6 +30,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "external_port": 999,
     "debug": False,
     "preferred_format": "best",
+    "ui_language": "pl",
 }
 
 
@@ -49,6 +51,7 @@ class HomeAssistantOptions:
     external_port: int
     debug: bool
     preferred_format: str
+    ui_language: str
 
 
 def _read_json() -> dict[str, Any]:
@@ -164,6 +167,9 @@ def load_options() -> HomeAssistantOptions:
         preferred_format = str(DEFAULT_OPTIONS["preferred_format"])
     elif preferred_format == "video":
         preferred_format = "best"
+    ui_language = str(values["ui_language"]).lower()
+    if ui_language not in UI_LANGUAGES:
+        ui_language = str(DEFAULT_OPTIONS["ui_language"])
 
     return HomeAssistantOptions(
         storage_mode=storage_mode,
@@ -179,4 +185,5 @@ def load_options() -> HomeAssistantOptions:
         external_port=_validated_int(values["external_port"], 999, 1, 65535),
         debug=_validated_bool(values["debug"], False),
         preferred_format=preferred_format,
+        ui_language=ui_language,
     )

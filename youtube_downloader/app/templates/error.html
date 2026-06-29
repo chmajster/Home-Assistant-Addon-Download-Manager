@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Błąd | Media Web Downloader{% endblock %}
+{% block title %}{{ t('error.title') }}{% endblock %}
 {% block content %}
   <section class="card app-card error-card">
     <div class="card-body p-4">
-      <span class="eyebrow">Wystąpił problem</span>
-      <h1 class="h4 text-danger">Nie udało się wykonać operacji</h1>
+      <span class="eyebrow">{{ t('error.eyebrow') }}</span>
+      <h1 class="h4 text-danger">{{ t('error.heading') }}</h1>
       <p class="mb-3">{{ message }}</p>
-      <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">Wróć na stronę główną</a>
+      <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">{{ t('common.back_home') }}</a>
     </div>
   </section>
 {% endblock %}

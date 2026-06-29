@@ -1,8 +1,8 @@
 # Media Web Downloader
 
-Dodatek Home Assistant udostępnia przez Ingress panel do analizy i legalnego pobierania publicznych materiałów przez `yt-dlp`. Interfejs obsługuje YouTube, Instagram, Kick oraz Twitch zgodnie z możliwościami bieżących extractorów.
+Dodatek Home Assistant udostępnia przez Ingress panel do analizy i legalnego pobierania publicznych materiałów przez `yt-dlp`. Interfejs obsługuje YouTube, Instagram, Kick, Twitch oraz inne serwisy, dla których bieżący `yt-dlp` udostępnia konkretny extractor.
 
-Obsługiwane są między innymi filmy, Shorts, playlisty, publiczne posty i reels Instagram oraz kanały live, VOD i klipy Kick oraz Twitch. W bieżącej wersji `yt-dlp` zapis publicznego live działa dla YouTube, Kick i Twitch. `yt-dlp` nie udostępnia osobnego extractora Instagram live, więc dodatek nie obiecuje zapisu transmisji Instagram.
+Obsługiwane są między innymi filmy, Shorts, playlisty, publiczne posty i reels Instagram, kanały live, VOD i klipy Kick oraz Twitch, a także inne publiczne materiały wykrywane przez extractory `yt-dlp`, np. Vimeo lub SoundCloud. W bieżącej wersji `yt-dlp` zapis publicznego live działa dla YouTube, Kick i Twitch. `yt-dlp` nie udostępnia osobnego extractora Instagram live, więc dodatek nie obiecuje zapisu transmisji Instagram.
 
 Obraz korzysta z oficjalnego wieloplatformowego `ghcr.io/home-assistant/base-python:3.14-alpine3.23` i wspiera aktualne architektury Home Assistant: `amd64` oraz `aarch64`. Platforma `armv7` nie jest już wspierana przez Home Assistant.
 
@@ -25,6 +25,7 @@ Opcje ustawia się na karcie **Konfiguracja** dodatku w Home Assistant:
 | `external_port` | `999` | Port dodatkowego dostępu bez Ingress; domyślnie mapowany jako `999/tcp` |
 | `debug` | `false` | Rozszerzone logowanie aplikacji |
 | `preferred_format` | `best` | Domyślna jakość: `best`, `video-1080`, `video-720`, `video-360` albo `audio` |
+| `ui_language` | `pl` | Język panelu aplikacji: `pl` albo `en` |
 
 Przykład:
 
@@ -42,6 +43,7 @@ allow_external_port: false
 external_port: 999
 debug: false
 preferred_format: best
+ui_language: pl
 ```
 
 Supervisor zapisuje opcje w `/data/options.json`. Aplikacja odczytuje ten plik przy uruchomieniu i stosuje bezpieczne wartości domyślne dla błędnych danych. Po zmianie opcji uruchom dodatek ponownie.
@@ -164,5 +166,5 @@ Dodatek wysyła trwałe powiadomienia Home Assistant po zakończeniu pobierania 
 
 ## Bezpieczeństwo
 
-Dodatek akceptuje wyłącznie adresy HTTP i HTTPS z jawnie obsługiwanych domen YouTube, Instagram, Kick i Twitch. Nie implementuje logowania, cookies, dostępu do prywatnych materiałów, omijania DRM ani paywalli. Pliki trafiają wyłącznie do skonfigurowanego katalogu w `/share` lub `/media`.
+Dodatek akceptuje wyłącznie adresy HTTP i HTTPS bez danych logowania i niestandardowego portu. Poza znanymi domenami YouTube, Instagram, Kick i Twitch URL musi pasować do konkretnego extractora `yt-dlp`; ogólny extractor `Generic` nie jest traktowany jako wystarczające wsparcie. Dodatek nie implementuje logowania, cookies, dostępu do prywatnych materiałów, omijania DRM ani paywalli. Pliki trafiają wyłącznie do skonfigurowanego katalogu w `/share` lub `/media`.
 

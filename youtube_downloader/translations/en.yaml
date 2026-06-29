@@ -38,6 +38,9 @@ configuration:
   preferred_format:
     name: "Preferred format"
     description: "Default video quality or audio variant presented by the application."
+  ui_language:
+    name: "Interface language"
+    description: "Language used by the Media Web Downloader panel: Polish or English."
 network:
   8099/tcp: "Optional external access to the web interface"
   999/tcp: "Public access without Ingress after enabling the option"

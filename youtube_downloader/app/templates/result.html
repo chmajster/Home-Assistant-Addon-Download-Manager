@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Analiza | Media Web Downloader{% endblock %}
+{% block title %}{{ t('result.title') }}{% endblock %}
 {% block content %}
   {% set download_profiles = download_profiles|default({
     "best-quality": {"label": "Najlepsza jakość", "download_type": "best", "description": "Najlepszy dostępny wariant audio i wideo."},
@@ -11,50 +11,50 @@
   }) %}
   <div class="page-heading d-flex justify-content-between align-items-center mb-4 gap-2">
     <div>
-      <span class="eyebrow">Gotowe do pobrania</span>
-      <h1 class="h2 mb-0">Wynik analizy</h1>
+      <span class="eyebrow">{{ t('result.ready') }}</span>
+      <h1 class="h2 mb-0">{{ t('result.heading') }}</h1>
     </div>
-    <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">Nowy adres</a>
+    <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">{{ t('common.new_url') }}</a>
   </div>
   {% if media.is_live %}
-    <div class="alert alert-danger">To jest transmisja na żywo</div>
+    <div class="alert alert-danger">{{ t('result.live_active') }}</div>
   {% elif media.live_status == "was_live" %}
-    <div class="alert alert-info">To zapis zakończonej transmisji live. Możesz pobrać go jak zwykły film.</div>
+    <div class="alert alert-info">{{ t('result.was_live') }}</div>
   {% elif media.content_type == "live" %}
-    <div class="alert alert-info">Transmisja live nie jest obecnie aktywna. Status: {{ media.live_status or "brak danych" }}.</div>
+    <div class="alert alert-info">{{ t('result.live_inactive', status=media.live_status or t('common.no_data')) }}</div>
   {% endif %}
   {% if media.duplicate_warnings %}
     <div class="alert alert-warning">
-      <strong>Możliwy duplikat</strong>
+      <strong>{{ t('result.duplicate') }}</strong>
       <ul class="mb-1 mt-2">
         {% for warning in media.duplicate_warnings %}
           <li>
             {% if warning.kind == "url" %}
-              Ten URL jest już {% if warning.source == "queue" %}w kolejce{% else %}w zadaniach{% endif %}: {{ warning.title }}{% if warning.detail %} ({{ warning.detail }}){% endif %}.
+              {{ t('result.duplicate_url', source=(t('result.in_queue') if warning.source == "queue" else t('result.in_jobs')), title=warning.title, detail=(" (" ~ warning.detail ~ ")" if warning.detail else "")) }}
             {% else %}
-              Podobny tytuł lub plik jest już {% if warning.source == "queue" %}w kolejce{% else %}w zadaniach{% endif %}: {{ warning.title }}{% if warning.detail %} ({{ warning.detail }}){% endif %}.
+              {{ t('result.duplicate_title', source=(t('result.in_queue') if warning.source == "queue" else t('result.in_jobs')), title=warning.title, detail=(" (" ~ warning.detail ~ ")" if warning.detail else "")) }}
             {% endif %}
           </li>
         {% endfor %}
       </ul>
-      <small>Możesz mimo to uruchomić pobieranie, jeśli chcesz mieć kolejną kopię albo inną jakość.</small>
+      <small>{{ t('result.duplicate_help') }}</small>
     </div>
   {% endif %}
   <div class="row g-4">
     <div class="col-lg-7">
       <section class="card app-card overflow-hidden">
-        {% if media.thumbnail %}<img class="card-img-top media-thumbnail" src="{{ media.thumbnail }}" alt="Miniatura materiału">{% endif %}
+        {% if media.thumbnail %}<img class="card-img-top media-thumbnail" src="{{ media.thumbnail }}" alt="{{ t('result.media_thumbnail') }}">{% endif %}
         <div class="card-body">
           <h1 class="h4">{{ media.title }}</h1>
           <dl class="row mb-0">
-            <dt class="col-sm-4">Kanał</dt><dd class="col-sm-8">{{ media.channel }}</dd>
-            <dt class="col-sm-4">ID kanału</dt><dd class="col-sm-8">{{ media.channel_id or "brak danych" }}</dd>
-            <dt class="col-sm-4">Serwis</dt><dd class="col-sm-8">{{ media.platform }}</dd>
-            <dt class="col-sm-4">Źródło</dt><dd class="col-sm-8"><a class="text-break" href="{{ media.url }}" target="_blank" rel="noreferrer">{{ media.url }}</a></dd>
-            <dt class="col-sm-4">Typ</dt><dd class="col-sm-8">{{ media.content_type }}</dd>
-            <dt class="col-sm-4">Czas trwania</dt><dd class="col-sm-8">{{ media.duration|duration if media.duration else "brak danych" }}</dd>
-            <dt class="col-sm-4">Status live</dt><dd class="col-sm-8">{{ media.live_status or "nie dotyczy" }}</dd>
-            {% if media.playlist_count is not none %}<dt class="col-sm-4">Elementy playlisty</dt><dd class="col-sm-8">{{ media.playlist_count }}</dd>{% endif %}
+            <dt class="col-sm-4">{{ t('result.channel') }}</dt><dd class="col-sm-8">{{ media.channel }}</dd>
+            <dt class="col-sm-4">{{ t('result.channel_id') }}</dt><dd class="col-sm-8">{{ media.channel_id or t('common.no_data') }}</dd>
+            <dt class="col-sm-4">{{ t('result.platform') }}</dt><dd class="col-sm-8">{{ media.platform }}</dd>
+            <dt class="col-sm-4">{{ t('common.source') }}</dt><dd class="col-sm-8"><a class="text-break" href="{{ media.url }}" target="_blank" rel="noreferrer">{{ media.url }}</a></dd>
+            <dt class="col-sm-4">{{ t('common.type') }}</dt><dd class="col-sm-8">{{ media.content_type }}</dd>
+            <dt class="col-sm-4">{{ t('result.duration') }}</dt><dd class="col-sm-8">{{ media.duration|duration if media.duration else t('common.no_data') }}</dd>
+            <dt class="col-sm-4">{{ t('result.live_status') }}</dt><dd class="col-sm-8">{{ media.live_status or t('common.not_applicable') }}</dd>
+            {% if media.playlist_count is not none %}<dt class="col-sm-4">{{ t('result.playlist_items') }}</dt><dd class="col-sm-8">{{ media.playlist_count }}</dd>{% endif %}
           </dl>
         </div>
       </section>
@@ -62,30 +62,30 @@
     <div class="col-lg-5">
       <section class="card app-card action-panel">
         <div class="card-body">
-          <h2 class="h5">Pobieranie</h2>
+          <h2 class="h5">{{ t('result.download') }}</h2>
           {% if media.is_live %}
-            <p class="text-body-secondary">Rozpocznij zapis aktywnej transmisji. Zatrzymasz go na stronie zadań.</p>
+            <p class="text-body-secondary">{{ t('result.start_live_help') }}</p>
             <form action="{{ ingress_url('web.start_live') }}" method="post">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="url" value="{{ media.url }}">
               <input type="hidden" name="live_from_start" value="0">
               <label class="form-check d-flex gap-2 align-items-start mb-3">
                 <input class="form-check-input" type="checkbox" name="live_from_start" value="1" checked>
-                <span class="form-check-label">Pobieraj od początku</span>
+                <span class="form-check-label">{{ t('result.live_from_start') }}</span>
               </label>
-              <button class="btn btn-accent w-100" type="submit">Rozpocznij zapis live</button>
+              <button class="btn btn-accent w-100" type="submit">{{ t('result.start_live') }}</button>
             </form>
           {% elif media.content_type == "live" %}
-            <p class="text-body-secondary">Transmisja jeszcze się nie rozpoczęła. Włącz oczekiwanie, a zapis ruszy automatycznie po starcie.</p>
+            <p class="text-body-secondary">{{ t('result.watch_live_help') }}</p>
             <form action="{{ ingress_url('web.watch_live') }}" method="post">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="url" value="{{ media.url }}">
               <input type="hidden" name="live_from_start" value="0">
               <label class="form-check d-flex gap-2 align-items-start mb-3">
                 <input class="form-check-input" type="checkbox" name="live_from_start" value="1" checked>
-                <span class="form-check-label">Pobieraj od początku</span>
+                <span class="form-check-label">{{ t('result.live_from_start') }}</span>
               </label>
-              <button class="btn btn-accent w-100" type="submit">Oczekuj na live</button>
+              <button class="btn btn-accent w-100" type="submit">{{ t('result.watch_live') }}</button>
             </form>
           {% else %}
             <form action="{{ ingress_url('web.start_download') }}" method="post" class="download-form" novalidate>
@@ -95,23 +95,23 @@
               {% if media.id %}<input type="hidden" name="source_id" value="{{ media.id }}">{% endif %}
               {% if media.duplicate_warnings %}<input type="hidden" name="allow_duplicate" value="1">{% endif %}
               {% if media.duration %}<input type="hidden" name="duration" value="{{ media.duration }}">{% endif %}
-              <label class="form-label" for="download-profile">Profil pobierania</label>
+              <label class="form-label" for="download-profile">{{ t('result.profile') }}</label>
               <select class="form-select mb-3" id="download-profile" name="download_profile">
                 {% for key, profile in download_profiles.items() %}
                   <option value="{{ key }}" data-download-type="{{ profile.download_type or '' }}"{% if key == "best-quality" %} selected{% endif %}>{{ profile.label }}{% if profile.description %} - {{ profile.description }}{% endif %}</option>
                 {% endfor %}
               </select>
-              <label class="form-label" for="download-type">Wybierz wariant</label>
+              <label class="form-label" for="download-type">{{ t('result.variant') }}</label>
               <select class="form-select mb-3" id="download-type" name="download_type">
-                <option value="best"{% if app_settings.preferred_format == "best" %} selected{% endif %}>Najlepsza dostępna jakość</option>
+                <option value="best"{% if app_settings.preferred_format == "best" %} selected{% endif %}>{{ t('result.best_quality') }}</option>
                 <option value="video-1080"{% if app_settings.preferred_format == "video-1080" %} selected{% endif %}>1080p</option>
                 <option value="video-720"{% if app_settings.preferred_format == "video-720" %} selected{% endif %}>720p</option>
                 <option value="video-360"{% if app_settings.preferred_format == "video-360" %} selected{% endif %}>360p</option>
-                <option value="audio"{% if app_settings.preferred_format == "audio" %} selected{% endif %}>Tylko audio MP3</option>
-                <option value="format">Konkretny format z tabeli</option>
+                <option value="audio"{% if app_settings.preferred_format == "audio" %} selected{% endif %}>{{ t('result.audio_only') }}</option>
+                <option value="format">{{ t('result.specific_format') }}</option>
               </select>
               <div class="audio-options border rounded p-3 mb-3">
-                <label class="form-label" for="audio-format">Format audio</label>
+                <label class="form-label" for="audio-format">{{ t('result.audio_format') }}</label>
                 <select class="form-select mb-3" id="audio-format" name="audio_format">
                   <option value="mp3" selected>MP3</option>
                   <option value="m4a">M4A</option>
@@ -120,54 +120,54 @@
                 <input type="hidden" name="embed_thumbnail" value="0">
                 <label class="form-check d-flex gap-2 align-items-start mb-2">
                   <input class="form-check-input" type="checkbox" name="embed_thumbnail" value="1" checked>
-                  <span class="form-check-label">Zapisz miniaturę jako okładkę</span>
+                  <span class="form-check-label">{{ t('result.embed_thumbnail') }}</span>
                 </label>
                 <input type="hidden" name="add_metadata" value="0">
                 <label class="form-check d-flex gap-2 align-items-start mb-0">
                   <input class="form-check-input" type="checkbox" name="add_metadata" value="1" checked>
-                  <span class="form-check-label">Dodaj tagi ID3: tytuł, kanał, data i adres źródłowy</span>
+                  <span class="form-check-label">{{ t('result.add_metadata') }}</span>
                 </label>
               </div>
-              <label class="form-label" for="format-id">ID konkretnego formatu</label>
+              <label class="form-label" for="format-id">{{ t('result.format_id') }}</label>
               <div class="mb-3">
-                <input class="form-control" id="format-id" name="format_id" maxlength="80" placeholder="np. 137" disabled>
-                <div class="invalid-feedback">Podaj ID konkretnego formatu.</div>
+                <input class="form-control" id="format-id" name="format_id" maxlength="80" placeholder="{{ t('result.format_placeholder') }}" disabled>
+                <div class="invalid-feedback">{{ t('result.format_invalid') }}</div>
               </div>
               {% if media.entries %}
                 <input type="hidden" name="playlist_picker" value="1">
                 <div class="playlist-picker mb-3">
                   <div class="row g-2 mb-3">
                     <div class="col-4">
-                      <label class="form-label" for="playlist-start">Od</label>
+                      <label class="form-label" for="playlist-start">{{ t('result.from') }}</label>
                       <input class="form-control" id="playlist-start" name="playlist_start" type="number" min="1" inputmode="numeric" placeholder="1">
                     </div>
                     <div class="col-4">
-                      <label class="form-label" for="playlist-end">Do</label>
+                      <label class="form-label" for="playlist-end">{{ t('result.to') }}</label>
                       <input class="form-control" id="playlist-end" name="playlist_end" type="number" min="1" inputmode="numeric" placeholder="{{ media.playlist_count or media.entries|length }}">
                     </div>
                     <div class="col-4">
-                      <label class="form-label" for="playlist-limit">Limit</label>
-                      <input class="form-control" id="playlist-limit" name="playlist_limit" type="number" min="1" inputmode="numeric" placeholder="bez limitu">
+                      <label class="form-label" for="playlist-limit">{{ t('result.limit') }}</label>
+                      <input class="form-control" id="playlist-limit" name="playlist_limit" type="number" min="1" inputmode="numeric" placeholder="{{ t('result.no_limit') }}">
                     </div>
                   </div>
                   <input type="hidden" name="skip_existing_ids" value="0">
                   <label class="form-check d-flex gap-2 align-items-start mb-2">
                     <input class="form-check-input" type="checkbox" name="skip_existing_ids" value="1" checked>
-                    <span class="form-check-label">Pomijaj już pobrane elementy po ID</span>
+                    <span class="form-check-label">{{ t('result.skip_existing') }}</span>
                   </label>
                   <input type="hidden" name="download_only_new" value="0">
                   <label class="form-check d-flex gap-2 align-items-start mb-2">
                     <input class="form-check-input" type="checkbox" name="download_only_new" value="1">
-                    <span class="form-check-label">Pobierz tylko nowe</span>
+                    <span class="form-check-label">{{ t('result.only_new') }}</span>
                   </label>
                   <input type="hidden" name="playlist_folder" value="0">
                   <label class="form-check d-flex gap-2 align-items-start mb-3">
                     <input class="form-check-input" type="checkbox" name="playlist_folder" value="1" checked>
-                    <span class="form-check-label">Zapisz w osobnym folderze playlisty</span>
+                    <span class="form-check-label">{{ t('result.playlist_folder') }}</span>
                   </label>
                   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-                    <span class="form-label mb-0">Elementy playlisty</span>
-                    <button class="btn btn-sm btn-soft playlist-select-all" type="button">Odznacz wszystkie</button>
+                    <span class="form-label mb-0">{{ t('result.playlist_entries') }}</span>
+                    <button class="btn btn-sm btn-soft playlist-select-all" type="button">{{ t('result.unselect_all') }}</button>
                   </div>
                   <div class="playlist-list">
                     {% for entry in media.entries %}
@@ -186,7 +186,7 @@
                   </div>
                 </div>
               {% endif %}
-              <button class="btn btn-accent w-100" type="submit">Rozpocznij pobieranie</button>
+              <button class="btn btn-accent w-100" type="submit">{{ t('result.start_download') }}</button>
             </form>
           {% endif %}
         </div>
@@ -197,13 +197,13 @@
   {% if media.formats %}
     <section class="card app-card mt-4">
       <div class="card-body">
-        <h2 class="h5">Dostępne formaty</h2>
+        <h2 class="h5">{{ t('result.available_formats') }}</h2>
         <div class="desktop-only table-responsive">
           <table class="table table-striped align-middle mb-0">
-            <thead><tr><th>ID</th><th>Rozszerzenie</th><th>Rozdzielczość</th><th>FPS</th><th>Wideo</th><th>Audio</th><th>Rozmiar</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>{{ t('result.extension') }}</th><th>{{ t('result.resolution') }}</th><th>FPS</th><th>{{ t('result.video') }}</th><th>{{ t('result.audio') }}</th><th>{{ t('common.size') }}</th><th></th></tr></thead>
             <tbody>
               {% for format in media.formats %}
-                <tr><td>{{ format.format_id }}</td><td>{{ format.ext or "-" }}</td><td>{{ format.resolution or "-" }}</td><td>{{ format.fps or "-" }}</td><td>{{ format.vcodec or "-" }}</td><td>{{ format.acodec or "-" }}</td><td>{{ format.filesize|filesize if format.filesize else "-" }}</td><td><button class="btn btn-sm btn-soft format-download" type="button" data-format-id="{{ format.format_id }}">Pobierz</button></td></tr>
+                <tr><td>{{ format.format_id }}</td><td>{{ format.ext or "-" }}</td><td>{{ format.resolution or "-" }}</td><td>{{ format.fps or "-" }}</td><td>{{ format.vcodec or "-" }}</td><td>{{ format.acodec or "-" }}</td><td>{{ format.filesize|filesize if format.filesize else "-" }}</td><td><button class="btn btn-sm btn-soft format-download" type="button" data-format-id="{{ format.format_id }}">{{ t('common.download') }}</button></td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -212,8 +212,8 @@
           {% for format in media.formats %}
             <article class="format-card mobile-list-card p-3 mb-2">
               <strong>ID {{ format.format_id }} | {{ format.ext or "?" }}</strong>
-              <small class="d-block text-body-secondary">{{ format.resolution or "brak rozdzielczości" }} | audio: {{ format.acodec or "-" }} | wideo: {{ format.vcodec or "-" }}</small>
-              <button class="btn btn-sm btn-soft format-download mt-2" type="button" data-format-id="{{ format.format_id }}">Pobierz</button>
+              <small class="d-block text-body-secondary">{{ format.resolution or t('result.no_resolution') }} | {{ t('result.audio')|lower }}: {{ format.acodec or "-" }} | {{ t('result.video')|lower }}: {{ format.vcodec or "-" }}</small>
+              <button class="btn btn-sm btn-soft format-download mt-2" type="button" data-format-id="{{ format.format_id }}">{{ t('common.download') }}</button>
             </article>
           {% endfor %}
         </div>
