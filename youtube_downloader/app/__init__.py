@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import secrets
+import signal
 import threading
 import time
 from collections import defaultdict, deque
@@ -18,6 +19,8 @@ from .services.file_service import FileService
 from .services.ha_notifications import HomeAssistantNotifier
 from .services.job_manager import JobManager
 from .services.media_service import MediaService
+from .services.startup_checks import assert_startup_ready
+from .services.storage import StorageManager
 from .services.ytdlp_updater import YtDlpUpdater
 
 LOGGER = logging.getLogger(__name__)
@@ -96,14 +99,23 @@ def create_app() -> Flask:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
+    startup_result = assert_startup_ready(settings)
+    for warning in startup_result.warnings:
+        LOGGER.warning("Startup warning: %s", warning)
+
     app = Flask(__name__)
     app.config["APP_SETTINGS"] = settings
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
     app.secret_key = settings.secret_key
 
-    file_service = FileService(settings.download_dir, settings.history_file)
+    storage_manager = StorageManager.from_settings(settings)
+    file_service = FileService(
+        settings.download_dir,
+        settings.history_file,
+        storage_manager=storage_manager,
+    )
     media_service = MediaService(settings.download_dir)
-    notifier = HomeAssistantNotifier()
+    notifier = HomeAssistantNotifier(events_enabled=settings.enable_ha_events)
     ytdlp_updater = YtDlpUpdater(settings.jobs_dir / "ytdlp_update.json")
     job_manager = JobManager(
         media_service=media_service,
@@ -120,6 +132,7 @@ def create_app() -> Flask:
     app.extensions["ytdlp_updater"] = ytdlp_updater
     app.extensions["request_limiter"] = RequestLimiter()
     ytdlp_updater.start_background()
+    _install_shutdown_handlers(job_manager, ytdlp_updater)
 
     from .routes.api import api_bp
     from .routes.web import web_bp
@@ -183,3 +196,30 @@ def create_app() -> Flask:
         settings.max_concurrent_jobs,
     )
     return app
+
+
+def _install_shutdown_handlers(
+    job_manager: JobManager, ytdlp_updater: YtDlpUpdater
+) -> None:
+    """Install idempotent SIGTERM/SIGINT handlers for add-on shutdown."""
+
+    shutdown_once = threading.Lock()
+    completed = {"value": False}
+
+    def shutdown(signum: int | None = None, _frame: object | None = None) -> None:
+        with shutdown_once:
+            if completed["value"]:
+                LOGGER.info("Shutdown juz wykonany; pomijam sygnal %s.", signum)
+                return
+            completed["value"] = True
+        LOGGER.info("Odebrano sygnal %s, zatrzymuje aplikacje.", signum)
+        ytdlp_updater.stop_background()
+        job_manager.shutdown()
+        if signum is not None:
+            raise SystemExit(0)
+
+    try:
+        signal.signal(signal.SIGTERM, shutdown)
+        signal.signal(signal.SIGINT, shutdown)
+    except ValueError:
+        LOGGER.debug("Nie mozna zarejestrowac handlerow sygnalow poza glownym watkiem.")

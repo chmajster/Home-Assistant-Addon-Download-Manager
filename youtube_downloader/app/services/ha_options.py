@@ -12,6 +12,7 @@ from typing import Any
 LOGGER = logging.getLogger(__name__)
 OPTIONS_FILE = Path("/data/options.json")
 DEFAULT_DOWNLOAD_DIR = Path("/share/youtube_downloader")
+DEFAULT_MEDIA_DOWNLOAD_DIR = Path("/media/youtube_downloader")
 ALLOWED_DOWNLOAD_ROOTS = (Path("/share"), Path("/media"))
 PREFERRED_FORMATS = {"best", "audio", "video", "video-360", "video-720", "video-1080"}
 UI_LANGUAGES = {"pl", "en"}
@@ -27,6 +28,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "nfs_mount_options": "vers=4",
     "max_concurrent_jobs": 2,
     "allow_external_port": False,
+    "enable_ha_events": False,
     "external_port": 999,
     "debug": False,
     "preferred_format": "best",
@@ -48,6 +50,7 @@ class HomeAssistantOptions:
     nfs_mount_options: str
     max_concurrent_jobs: int
     allow_external_port: bool
+    enable_ha_events: bool
     external_port: int
     debug: bool
     preferred_format: str
@@ -115,7 +118,7 @@ def _network_mount_root(path: Path) -> Path:
 
 
 def _validated_storage_mode(value: Any) -> str:
-    return str(value) if str(value) in {"local", "nfs"} else "local"
+    return str(value) if str(value) in {"local", "media", "nfs"} else "local"
 
 
 def _validated_int(value: Any, default: int, minimum: int, maximum: int) -> int:
@@ -171,9 +174,21 @@ def load_options() -> HomeAssistantOptions:
     if ui_language not in UI_LANGUAGES:
         ui_language = str(DEFAULT_OPTIONS["ui_language"])
 
+    media_download_dir = DEFAULT_MEDIA_DOWNLOAD_DIR
+    if storage_mode == "media":
+        media_download_dir.mkdir(parents=True, exist_ok=True)
+        if not os.access(media_download_dir, os.W_OK):
+            raise RuntimeError(f"Katalog media {media_download_dir} nie jest zapisywalny.")
+
     return HomeAssistantOptions(
         storage_mode=storage_mode,
-        download_dir=nfs_download_dir if storage_mode == "nfs" else local_download_dir,
+        download_dir=(
+            nfs_download_dir
+            if storage_mode == "nfs"
+            else media_download_dir
+            if storage_mode == "media"
+            else local_download_dir
+        ),
         nfs_download_dir=nfs_download_dir,
         nfs_server=_validated_text(values["nfs_server"]),
         nfs_export_path=_validated_text(values["nfs_export_path"]),
@@ -182,6 +197,7 @@ def load_options() -> HomeAssistantOptions:
         nfs_mount_options=_validated_text(values["nfs_mount_options"], "vers=4"),
         max_concurrent_jobs=_validated_int(values["max_concurrent_jobs"], 2, 1, 5),
         allow_external_port=_validated_bool(values["allow_external_port"], False),
+        enable_ha_events=_validated_bool(values["enable_ha_events"], False),
         external_port=_validated_int(values["external_port"], 999, 1, 65535),
         debug=_validated_bool(values["debug"], False),
         preferred_format=preferred_format,

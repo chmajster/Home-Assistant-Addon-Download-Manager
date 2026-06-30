@@ -7,6 +7,8 @@ import os
 import shutil
 import subprocess
 import threading
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,6 +16,7 @@ from typing import Any
 
 from .error_messages import thumbnail_warning_message
 from .state_store import SQLiteStateStore
+from .storage import StorageManager, STORAGE_LOCAL
 
 LOGGER = logging.getLogger(__name__)
 THUMBNAIL_DIRNAME = ".thumbnails"
@@ -74,8 +77,18 @@ class ThumbnailResult:
 class FileService:
     """Manage persistent downloads without allowing arbitrary filesystem access."""
 
-    def __init__(self, download_dir: Path, history_file: Path) -> None:
+    def __init__(
+        self,
+        download_dir: Path,
+        history_file: Path,
+        storage_manager: StorageManager | None = None,
+    ) -> None:
+        self.storage_manager = storage_manager or StorageManager(
+            {STORAGE_LOCAL: download_dir}, STORAGE_LOCAL
+        )
+        self.storage_manager.validate(self.storage_manager.default_name)
         self.download_dir = download_dir.resolve()
+        self.storage_name = self.storage_manager.default_name
         self.thumbnail_dir = self.download_dir / THUMBNAIL_DIRNAME
         self.history_file = history_file
         self.state_store = SQLiteStateStore(history_file.parent / "state.sqlite3")
@@ -179,6 +192,12 @@ class FileService:
             "free_percent": free_percent,
         }
 
+    def validate_storage(self, storage_name: str | None = None) -> str:
+        """Validate a named storage target and return its normalized name."""
+
+        target = self.storage_manager.validate(storage_name)
+        return target.name
+
     def delete_file(self, filename: str) -> None:
         """Delete one managed file and update history."""
 
@@ -247,6 +266,52 @@ class FileService:
             return ThumbnailResult(
                 warning_message=thumbnail_warning_message(str(error))
             )
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def download_source_thumbnail(
+        self, filename: str, thumbnail_url: str | None
+    ) -> ThumbnailResult:
+        """Fetch the source thumbnail from yt-dlp metadata without replacing ffmpeg output."""
+
+        if not thumbnail_url:
+            return ThumbnailResult()
+        source = self.resolve_download(filename)
+        if source.suffix.lower() not in VIDEO_EXTENSIONS:
+            return ThumbnailResult()
+        thumbnail_key = self._thumbnail_key(filename)
+        thumbnail = self.resolve_thumbnail(
+            f"{thumbnail_key}.source.jpg", require_exists=False
+        )
+        if thumbnail.is_file():
+            return ThumbnailResult(filename=thumbnail.name)
+        temporary = self.resolve_thumbnail(
+            f"{thumbnail_key}.source.{os.getpid()}.{threading.get_ident()}.tmp",
+            require_exists=False,
+        )
+        try:
+            request = urllib.request.Request(
+                thumbnail_url,
+                method="GET",
+                headers={"User-Agent": "Media Web Downloader"},
+            )
+            with urllib.request.urlopen(request, timeout=10) as response:
+                content_type = str(response.headers.get("Content-Type") or "")
+                if content_type and not content_type.startswith("image/"):
+                    return ThumbnailResult()
+                data = response.read(5 * 1024 * 1024)
+            if not data:
+                return ThumbnailResult()
+            temporary.write_bytes(data)
+            os.replace(temporary, thumbnail)
+            return ThumbnailResult(filename=thumbnail.name)
+        except (OSError, urllib.error.URLError, TimeoutError) as error:
+            LOGGER.warning(
+                "Nie mozna pobrac miniatury zrodlowej dla %s: %s",
+                filename,
+                error,
+            )
+            return ThumbnailResult()
         finally:
             temporary.unlink(missing_ok=True)
 
@@ -331,6 +396,10 @@ class FileService:
         thumbnail_key = self._thumbnail_key(filename)
         thumbnail = self.resolve_thumbnail(f"{thumbnail_key}.jpg", require_exists=False)
         thumbnail.unlink(missing_ok=True)
+        source_thumbnail = self.resolve_thumbnail(
+            f"{thumbnail_key}.source.jpg", require_exists=False
+        )
+        source_thumbnail.unlink(missing_ok=True)
         prefix = f"{thumbnail_key}.timeline-"
         for timeline_thumbnail in self.thumbnail_dir.iterdir():
             if timeline_thumbnail.is_file() and timeline_thumbnail.name.startswith(prefix):
@@ -363,6 +432,7 @@ class FileService:
             except (FileNotFoundError, UnsafeFilenameError):
                 record["file_exists"] = False
             thumbnail_filename = record.get("thumbnail_filename")
+            source_thumbnail_filename = record.get("source_thumbnail_filename")
             try:
                 record["thumbnail_exists"] = bool(
                     thumbnail_filename
@@ -370,6 +440,13 @@ class FileService:
                 )
             except (FileNotFoundError, UnsafeFilenameError):
                 record["thumbnail_exists"] = False
+            try:
+                record["source_thumbnail_exists"] = bool(
+                    source_thumbnail_filename
+                    and self.resolve_thumbnail(str(source_thumbnail_filename)).is_file()
+                )
+            except (FileNotFoundError, UnsafeFilenameError):
+                record["source_thumbnail_exists"] = False
         return records
 
     def record_download(
@@ -383,6 +460,10 @@ class FileService:
         format_id: str | None = None,
         warning_message: str | None = None,
         duration: int | None = None,
+        source_thumbnail_filename: str | None = None,
+        auto_tags: list[str] | None = None,
+        error_code: str | None = None,
+        storage_name: str | None = None,
     ) -> None:
         """Append a completed or partial output to persistent history."""
 
@@ -397,10 +478,18 @@ class FileService:
             "status": status,
             "file_exists": True,
             "thumbnail_filename": thumbnail_filename,
+            "source_thumbnail_filename": source_thumbnail_filename,
+            "thumbnail_types": {
+                "video": bool(thumbnail_filename),
+                "source": bool(source_thumbnail_filename),
+            },
             "format_id": format_id,
             "warning_message": warning_message,
             "duration": duration,
             "tags": [],
+            "auto_tags": list(auto_tags or []),
+            "error_code": error_code,
+            "storage_name": storage_name or self.storage_name,
         }
         with self._history_lock:
             records = self._read_history()

@@ -28,6 +28,7 @@
         <input type="hidden" name="url" value="{{ item.url }}">
         <input type="hidden" name="title" value="{{ item.title }}">
         <input type="hidden" name="download_type" value="{{ item.type }}">
+        <input type="hidden" name="storage_name" value="{{ item.storage_name or app_settings.storage_mode or 'local' }}">
         <input type="hidden" name="allow_duplicate" value="1">
         {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
         {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
@@ -79,6 +80,7 @@
       <form action="{{ ingress_url('web.analyze') }}" method="post" class="url-form needs-validation" novalidate>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="download_type" value="{{ app_settings.preferred_format or 'best' }}">
+        <input type="hidden" name="storage_name" value="{{ app_settings.storage_mode or 'local' }}">
         <label class="visually-hidden" for="media-url">{{ t('index.url_label') }}</label>
         <div class="input-group input-group-lg hero-input-group">
           <span class="input-group-text" aria-hidden="true">URL</span>

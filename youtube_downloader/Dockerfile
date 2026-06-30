@@ -4,7 +4,7 @@ FROM mwader/static-ffmpeg:8.1.1 AS ffmpeg
 
 FROM ${BUILD_FROM}
 
-ARG BUILD_VERSION="1.3.76"
+ARG BUILD_VERSION="1.3.77"
 ARG BUILD_ARCH="amd64"
 
 COPY --from=ffmpeg /ffmpeg /usr/local/bin/ffmpeg
@@ -40,4 +40,4 @@ LABEL \
     io.hass.arch="${BUILD_ARCH}" \
     org.opencontainers.image.title="Media Web Downloader" \
     org.opencontainers.image.description="Legal YouTube downloads through yt-dlp and Home Assistant Ingress" \
-    org.opencontainers.image.source="https://github.com/example/home-assistant-media-web-downloader-addon"
+    org.opencontainers.image.source="https://github.com/chmajster/Home-Assistant-Download-Manager"

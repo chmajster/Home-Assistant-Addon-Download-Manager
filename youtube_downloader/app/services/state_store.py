@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 JOB_PAYLOAD_LOG_LINE_LIMIT = 40
 
 
@@ -21,9 +21,18 @@ class SQLiteStateStore:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
         self._lock = threading.RLock()
+        self._log_connection: sqlite3.Connection | None = None
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
             self._initialize(connection)
+
+    def close(self) -> None:
+        """Close long-lived SQLite handles held for append-heavy log writes."""
+
+        with self._lock:
+            if self._log_connection is not None:
+                self._log_connection.close()
+                self._log_connection = None
 
     def migrate_history_json(self, history_file: Path) -> None:
         """Import legacy history.json records when the SQLite table is still empty."""
@@ -77,9 +86,10 @@ class SQLiteStateStore:
                 """
                 INSERT INTO history_records (
                     position, downloaded_at, filename, title, url, source,
-                    download_type, status, size, duration, tags, payload
+                    download_type, status, size, duration, tags, error_code,
+                    storage_name, source_thumbnail_filename, auto_tags, payload
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     self._history_row(position, record)
@@ -115,9 +125,10 @@ class SQLiteStateStore:
                 """
                 INSERT INTO jobs (
                     job_id, created_at, status, title, url, download_type, is_live,
-                    finished_at, error_message, updated_at, payload
+                    finished_at, error_message, error_code, storage_name,
+                    source_thumbnail_filename, auto_tags, updated_at, payload
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
             )
@@ -158,7 +169,8 @@ class SQLiteStateStore:
     def append_job_log(self, job_id: str, message: str) -> None:
         """Append one log line to the durable full job log."""
 
-        with self._lock, self._connection() as connection:
+        with self._lock:
+            connection = self._append_connection()
             row = connection.execute(
                 """
                 SELECT COALESCE(MAX(line_number), -1) + 1 AS next_line
@@ -175,6 +187,7 @@ class SQLiteStateStore:
                 """,
                 (job_id, next_line, message),
             )
+            connection.commit()
 
     def replace_job_logs(self, job_id: str, lines: object) -> None:
         """Replace the durable full job log for one job."""
@@ -186,8 +199,15 @@ class SQLiteStateStore:
         connection = sqlite3.connect(self.db_path, timeout=30)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA busy_timeout = 30000")
-        connection.execute("PRAGMA journal_mode = DELETE")
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("PRAGMA synchronous = NORMAL")
+        connection.execute("PRAGMA foreign_keys = ON")
         return connection
+
+    def _append_connection(self) -> sqlite3.Connection:
+        if self._log_connection is None:
+            self._log_connection = self._connect()
+        return self._log_connection
 
     @contextmanager
     def _connection(self):
@@ -222,6 +242,10 @@ class SQLiteStateStore:
                 size INTEGER,
                 duration INTEGER,
                 tags TEXT,
+                error_code TEXT,
+                storage_name TEXT,
+                source_thumbnail_filename TEXT,
+                auto_tags TEXT,
                 payload TEXT NOT NULL
             );
 
@@ -235,6 +259,10 @@ class SQLiteStateStore:
                 is_live INTEGER,
                 finished_at TEXT,
                 error_message TEXT,
+                error_code TEXT,
+                storage_name TEXT,
+                source_thumbnail_filename TEXT,
+                auto_tags TEXT,
                 updated_at TEXT,
                 payload TEXT NOT NULL
             );
@@ -309,6 +337,8 @@ class SQLiteStateStore:
     ) -> None:
         if previous_version < 2:
             self._migrate_to_v2(connection)
+        if previous_version < 3:
+            self._migrate_to_v3(connection)
 
     def _migrate_to_v2(self, connection: sqlite3.Connection) -> None:
         history_columns = self._table_columns(connection, "history_records")
@@ -333,6 +363,29 @@ class SQLiteStateStore:
             )
         self._backfill_normalized_columns(connection)
         self._backfill_job_logs(connection)
+
+    def _migrate_to_v3(self, connection: sqlite3.Connection) -> None:
+        history_columns = self._table_columns(connection, "history_records")
+        for column_name in (
+            "error_code",
+            "storage_name",
+            "source_thumbnail_filename",
+            "auto_tags",
+        ):
+            self._add_column_if_missing(
+                connection, "history_records", history_columns, column_name, "TEXT"
+            )
+        job_columns = self._table_columns(connection, "jobs")
+        for column_name in (
+            "error_code",
+            "storage_name",
+            "source_thumbnail_filename",
+            "auto_tags",
+        ):
+            self._add_column_if_missing(
+                connection, "jobs", job_columns, column_name, "TEXT"
+            )
+        self._backfill_v3_columns(connection)
 
     @staticmethod
     def _table_columns(
@@ -407,6 +460,44 @@ class SQLiteStateStore:
             self._replace_job_logs_connection(
                 connection, str(row["job_id"]), record.get("log_lines")
             )
+
+    def _backfill_v3_columns(self, connection: sqlite3.Connection) -> None:
+        for row in connection.execute(
+            "SELECT position, payload FROM history_records"
+        ).fetchall():
+            record = self._decode_payload(row["payload"], "historii")
+            connection.execute(
+                """
+                UPDATE history_records
+                SET error_code = ?, storage_name = ?, source_thumbnail_filename = ?,
+                    auto_tags = ?
+                WHERE position = ?
+                """,
+                (
+                    self._text_or_none(record.get("error_code")),
+                    self._text_or_none(record.get("storage_name")) or "local",
+                    self._text_or_none(record.get("source_thumbnail_filename")),
+                    self._tags_text(record.get("auto_tags")),
+                    row["position"],
+                ),
+            )
+        for row in connection.execute("SELECT job_id, payload FROM jobs").fetchall():
+            record = self._decode_payload(row["payload"], "kolejki zadaĹ„")
+            connection.execute(
+                """
+                UPDATE jobs
+                SET error_code = ?, storage_name = ?, source_thumbnail_filename = ?,
+                    auto_tags = ?
+                WHERE job_id = ?
+                """,
+                (
+                    self._text_or_none(record.get("error_code")),
+                    self._text_or_none(record.get("storage_name")) or "local",
+                    self._text_or_none(record.get("source_thumbnail_filename")),
+                    self._tags_text(record.get("auto_tags")),
+                    row["job_id"],
+                ),
+            )
             record["log_lines"] = self._recent_log_lines(record.get("log_lines"))
             connection.execute(
                 "UPDATE jobs SET payload = ? WHERE job_id = ?",
@@ -461,6 +552,10 @@ class SQLiteStateStore:
             SQLiteStateStore._int_or_none(record.get("size")),
             SQLiteStateStore._int_or_none(record.get("duration")),
             SQLiteStateStore._tags_text(record.get("tags")),
+            SQLiteStateStore._text_or_none(record.get("error_code")),
+            SQLiteStateStore._text_or_none(record.get("storage_name")) or "local",
+            SQLiteStateStore._text_or_none(record.get("source_thumbnail_filename")),
+            SQLiteStateStore._tags_text(record.get("auto_tags")),
             json.dumps(record, ensure_ascii=False, separators=(",", ":")),
         )
 
@@ -486,6 +581,10 @@ class SQLiteStateStore:
             SQLiteStateStore._bool_int(record.get("is_live")),
             SQLiteStateStore._text_or_none(record.get("finished_at")),
             SQLiteStateStore._text_or_none(record.get("error_message")),
+            SQLiteStateStore._text_or_none(record.get("error_code")),
+            SQLiteStateStore._text_or_none(record.get("storage_name")) or "local",
+            SQLiteStateStore._text_or_none(record.get("source_thumbnail_filename")),
+            SQLiteStateStore._tags_text(record.get("auto_tags")),
             SQLiteStateStore._text_or_none(record.get("finished_at"))
             or SQLiteStateStore._text_or_none(record.get("started_at"))
             or SQLiteStateStore._text_or_none(record.get("created_at")),

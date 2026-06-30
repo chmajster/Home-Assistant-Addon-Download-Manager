@@ -60,6 +60,13 @@ class YtDlpUpdater:
         )
         self._thread.start()
 
+    def stop_background(self, timeout: float = 5.0) -> None:
+        """Stop the background updater thread."""
+
+        self._stop.set()
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=timeout)
+
     def ensure_recent(self) -> bool:
         """Update yt-dlp if the last successful update is stale or failed."""
 

@@ -83,6 +83,9 @@
         </div>
         {% if job.error_message %}
           <p class="job-error-box text-danger mb-3">{{ job.error_message }}</p>
+          {% if job.error_code %}
+            <p class="mb-3"><span class="badge text-bg-danger">{{ job.error_code }}</span></p>
+          {% endif %}
         {% else %}
           <p class="text-body-secondary mb-3">{{ t('details.no_error') }}</p>
         {% endif %}
@@ -114,6 +117,14 @@
           <dd>{{ job.download_type }}</dd>
           <dt>{{ t('details.format') }}</dt>
           <dd>{{ job.format_id or "-" }}</dd>
+          <dt>Storage</dt>
+          <dd>{{ job.storage_name or "local" }}</dd>
+          <dt>Tagi reczne</dt>
+          <dd>{{ job.tags|join(", ") if job.tags else "-" }}</dd>
+          <dt>Tagi automatyczne</dt>
+          <dd>{{ job.auto_tags|join(", ") if job.auto_tags else "-" }}</dd>
+          <dt>Kod bledu</dt>
+          <dd>{{ job.error_code or "-" }}</dd>
           <dt>{{ t('details.live') }}</dt>
           <dd>{{ t('common.yes') if job.is_live else t('common.no') }}</dd>
           <dt>{{ t('details.created') }}</dt>

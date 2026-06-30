@@ -58,6 +58,30 @@
 
   <section class="preview-details app-card mt-4">
     <div class="card-body">
+      <span class="eyebrow">Miniatury</span>
+      <div class="thumbnail-switcher">
+        <div>
+          <strong>Miniatura z filmu</strong>
+          {% if file_info.thumbnail_exists %}
+            <img class="history-thumbnail d-block mt-2" src="{{ ingress_url('web.thumbnail', filename=file_info.thumbnail_filename) }}" alt="" loading="lazy">
+          {% else %}
+            <p class="text-body-secondary mb-0 mt-2">Brak miniatury z filmu.</p>
+          {% endif %}
+        </div>
+        <div>
+          <strong>Miniatura zrodlowa</strong>
+          {% if file_info.source_thumbnail_exists %}
+            <img class="history-thumbnail d-block mt-2" src="{{ ingress_url('web.thumbnail', filename=file_info.source_thumbnail_filename) }}" alt="" loading="lazy">
+          {% else %}
+            <p class="text-body-secondary mb-0 mt-2">Brak miniatury z metadanych zrodla.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="preview-details app-card mt-4">
+    <div class="card-body">
       <span class="eyebrow">{{ t('preview.file_info') }}</span>
       <dl class="preview-info-grid mb-0">
         <dt>{{ t('common.size') }}</dt>

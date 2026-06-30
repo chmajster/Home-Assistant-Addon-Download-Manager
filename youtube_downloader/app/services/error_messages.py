@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+INVALID_URL = "INVALID_URL"
+UNSUPPORTED_FORMAT = "UNSUPPORTED_FORMAT"
+NO_DISK_SPACE = "NO_DISK_SPACE"
+NETWORK_ERROR = "NETWORK_ERROR"
+SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"
+DOWNLOAD_STOPPED = "DOWNLOAD_STOPPED"
+POSTPROCESSING_FAILED = "POSTPROCESSING_FAILED"
+
 INTERNET_ERROR_MESSAGE = (
     "Nie udało się połączyć z internetem lub serwisem źródłowym. "
     "Sprawdź połączenie sieciowe i spróbuj ponownie."
@@ -70,6 +78,37 @@ def operational_error_message(message: str) -> str | None:
     if any(marker in lowered for marker in FFMPEG_ERROR_MARKERS):
         return FFMPEG_ERROR_MESSAGE
     return None
+
+
+def error_code_for_message(message: object, default: str | None = None) -> str | None:
+    """Map a user-facing or low-level error message to a stable diagnostic code."""
+
+    lowered = str(message or "").casefold()
+    if any(marker in lowered for marker in DISK_ERROR_MARKERS) or "brak wolnego miejsca" in lowered:
+        return NO_DISK_SPACE
+    if any(marker in lowered for marker in INTERNET_ERROR_MARKERS):
+        return NETWORK_ERROR
+    if any(marker in lowered for marker in FFMPEG_ERROR_MARKERS):
+        return POSTPROCESSING_FAILED
+    if "nieobsĹ‚ugiwany format" in lowered or "format" in lowered and "niepoprawny" in lowered:
+        return UNSUPPORTED_FORMAT
+    if "adres url" in lowered or "link" in lowered and "nie" in lowered:
+        return INVALID_URL
+    if any(
+        marker in lowered
+        for marker in (
+            "niedostÄ™pny",
+            "usuniÄ™ty",
+            "prywatny",
+            "wymaga dodatkowego dostÄ™pu",
+            "nie rozpoczÄ™Ĺ‚a",
+            "source unavailable",
+        )
+    ):
+        return SOURCE_UNAVAILABLE
+    if "zatrzym" in lowered or "przerwan" in lowered:
+        return DOWNLOAD_STOPPED
+    return default
 
 
 def thumbnail_warning_message(message: str) -> str:

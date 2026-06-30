@@ -25,6 +25,7 @@ class AppConfig:
     history_file: Path
     max_concurrent_jobs: int
     allow_external_port: bool
+    enable_ha_events: bool
     external_port: int
     debug: bool
     preferred_format: str
@@ -52,6 +53,7 @@ class AppConfig:
             history_file=jobs_dir / "history.json",
             max_concurrent_jobs=options.max_concurrent_jobs,
             allow_external_port=options.allow_external_port,
+            enable_ha_events=options.enable_ha_events,
             external_port=options.external_port,
             debug=options.debug,
             preferred_format=options.preferred_format,

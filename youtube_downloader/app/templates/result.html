@@ -67,6 +67,7 @@
             <p class="text-body-secondary">{{ t('result.start_live_help') }}</p>
             <form action="{{ ingress_url('web.start_live') }}" method="post">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="storage_name" value="{{ app_settings.storage_mode or 'local' }}">
               <input type="hidden" name="url" value="{{ media.url }}">
               <input type="hidden" name="live_from_start" value="0">
               <label class="form-check d-flex gap-2 align-items-start mb-3">
@@ -79,6 +80,7 @@
             <p class="text-body-secondary">{{ t('result.watch_live_help') }}</p>
             <form action="{{ ingress_url('web.watch_live') }}" method="post">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="storage_name" value="{{ app_settings.storage_mode or 'local' }}">
               <input type="hidden" name="url" value="{{ media.url }}">
               <input type="hidden" name="live_from_start" value="0">
               <label class="form-check d-flex gap-2 align-items-start mb-3">
@@ -90,6 +92,7 @@
           {% else %}
             <form action="{{ ingress_url('web.start_download') }}" method="post" class="download-form" novalidate>
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="storage_name" value="{{ app_settings.storage_mode or 'local' }}">
               <input type="hidden" name="url" value="{{ media.url }}">
               <input type="hidden" name="title" value="{{ media.title }}">
               {% if media.id %}<input type="hidden" name="source_id" value="{{ media.id }}">{% endif %}

@@ -27,6 +27,10 @@ KNOWN_PLATFORM_DOMAINS = {
     "www.twitch.tv": "twitch",
     "m.twitch.tv": "twitch",
     "clips.twitch.tv": "twitch",
+    "vimeo.com": "vimeo",
+    "www.vimeo.com": "vimeo",
+    "soundcloud.com": "soundcloud",
+    "www.soundcloud.com": "soundcloud",
 }
 FORMAT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,80}$")
 STORYBOARD_FORMAT_RE = re.compile(r"^sb\d+$", re.IGNORECASE)

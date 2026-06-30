@@ -17,12 +17,14 @@ from unittest.mock import patch
 
 from app import create_app
 from app.services.error_messages import (
+    DOWNLOAD_STOPPED,
     FFMPEG_ERROR_MESSAGE,
     INTERNET_ERROR_MESSAGE,
     STORAGE_ERROR_MESSAGE,
     THUMBNAIL_FFMPEG_WARNING,
     THUMBNAIL_STORAGE_WARNING,
 )
+from app.services.auto_tags import generate_auto_tags
 from app.services.file_service import FileService, ThumbnailResult, UnsafeFilenameError
 from app.services.ha_options import (
     _network_mount_root,
@@ -34,6 +36,8 @@ from app.services.job_manager import JobManager, now_iso
 from app.services.media_service import MediaService, MediaServiceError
 from app.routes.web import _automatic_download_type
 from app.services.state_store import SQLiteStateStore
+from app.services.startup_checks import run_startup_checks
+from app.services.storage import StorageManager
 from app.services.ytdlp_updater import YtDlpUpdater
 
 
@@ -196,7 +200,7 @@ class SQLiteStateStoreTestCase(unittest.TestCase):
             finally:
                 connection.close()
 
-            self.assertEqual(schema_version, "2")
+            self.assertEqual(schema_version, "3")
             self.assertEqual(history_row["source"], "youtube")
             self.assertEqual(history_row["tags"], "music,video")
             self.assertEqual(job_row["title"], "Legacy job")
@@ -207,6 +211,77 @@ class SQLiteStateStoreTestCase(unittest.TestCase):
             self.assertEqual(store.job_logs("legacy-job")[0], "line 00")
             self.assertEqual(store.job_logs("legacy-job")[-1], "line 44")
             self.assertEqual(len(json.loads(job_row["payload"])["log_lines"]), 40)
+
+    def test_v2_schema_is_migrated_to_v3_without_losing_payloads(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "state.sqlite3"
+            job_payload = {
+                "job_id": "v2-job",
+                "url": "https://youtu.be/abc",
+                "title": "V2 job",
+                "status": "error",
+                "download_type": "best",
+                "created_at": "2026-01-01T10:00:00+00:00",
+                "error_message": "No space left on device",
+                "error_code": "NO_DISK_SPACE",
+                "storage_name": "media",
+                "auto_tags": ["youtube", "video", "1080p"],
+            }
+            connection = sqlite3.connect(db_path)
+            try:
+                connection.executescript(
+                    """
+                    CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                    INSERT INTO schema_meta (key, value) VALUES ('schema_version', '2');
+                    CREATE TABLE history_records (
+                        position INTEGER PRIMARY KEY, downloaded_at TEXT, filename TEXT,
+                        title TEXT, url TEXT, source TEXT, download_type TEXT, status TEXT,
+                        size INTEGER, duration INTEGER, tags TEXT, payload TEXT NOT NULL
+                    );
+                    CREATE TABLE jobs (
+                        job_id TEXT PRIMARY KEY, created_at TEXT, status TEXT, title TEXT,
+                        url TEXT, download_type TEXT, is_live INTEGER, finished_at TEXT,
+                        error_message TEXT, updated_at TEXT, payload TEXT NOT NULL
+                    );
+                    CREATE TABLE job_log_lines (
+                        job_id TEXT NOT NULL, line_number INTEGER NOT NULL,
+                        message TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (job_id, line_number)
+                    );
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO jobs (
+                        job_id, created_at, status, title, url, download_type,
+                        is_live, error_message, updated_at, payload
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        "v2-job",
+                        job_payload["created_at"],
+                        job_payload["status"],
+                        job_payload["title"],
+                        job_payload["url"],
+                        job_payload["download_type"],
+                        0,
+                        job_payload["error_message"],
+                        job_payload["created_at"],
+                        json.dumps(job_payload),
+                    ),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            store = SQLiteStateStore(db_path)
+            migrated = store.jobs_all()[0]
+
+            self.assertEqual(migrated["job_id"], "v2-job")
+            self.assertEqual(migrated["error_code"], "NO_DISK_SPACE")
+            self.assertEqual(migrated["storage_name"], "media")
+            self.assertEqual(migrated["auto_tags"], ["youtube", "video", "1080p"])
 
 
 class ApplicationTestCase(unittest.TestCase):
@@ -228,13 +303,17 @@ class ApplicationTestCase(unittest.TestCase):
             history_file=root / "jobs" / "history.json",
             max_concurrent_jobs=2,
             allow_external_port=False,
+            enable_ha_events=False,
             external_port=999,
             debug=False,
             preferred_format="best",
             ui_language="pl",
             secret_key="test-secret",
         )
-        with patch("app.AppConfig.load", return_value=settings):
+        with patch("app.AppConfig.load", return_value=settings), patch(
+            "app.assert_startup_ready",
+            return_value=SimpleNamespace(warnings=[]),
+        ):
             self.app = create_app()
         self.app.config["TESTING"] = True
         self.client = self.app.test_client()
@@ -2982,6 +3061,38 @@ class FileServiceThumbnailTestCase(unittest.TestCase):
         self.assertIsNone(result.warning_message)
         ffmpeg.assert_not_called()
 
+    def test_source_thumbnail_is_stored_separately(self) -> None:
+        video = self.files.download_dir / "example.mp4"
+        video.write_bytes(b"video")
+        generated = self.files.thumbnail_dir / "example.mp4.jpg"
+        generated.write_bytes(b"generated")
+
+        class FakeResponse:
+            headers = {"Content-Type": "image/jpeg"}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self, _limit):
+                return b"source"
+
+        with patch(
+            "app.services.file_service.urllib.request.urlopen",
+            return_value=FakeResponse(),
+        ):
+            result = self.files.download_source_thumbnail(
+                video.name, "https://img.example/thumb.jpg"
+            )
+
+        self.assertEqual(result.filename, "example.mp4.source.jpg")
+        self.assertEqual(generated.read_bytes(), b"generated")
+        self.assertEqual(
+            self.files.resolve_thumbnail(result.filename).read_bytes(), b"source"
+        )
+
     def test_playlist_subfolder_file_is_managed_safely(self) -> None:
         playlist_dir = self.files.download_dir / "Playlist"
         playlist_dir.mkdir()
@@ -3212,12 +3323,73 @@ class FakeNotifier:
     def __init__(self) -> None:
         self.jobs = []
         self.storage = []
+        self.lifecycle = []
+        self.events = []
 
     def notify_job(self, job) -> None:
         self.jobs.append(job)
 
     def notify_storage(self, storage) -> None:
         self.storage.append(storage)
+
+    def notify_lifecycle(self, job, event_type: str) -> None:
+        self.lifecycle.append((event_type, job))
+
+    def emit_job_event(self, job, event_override: str | None = None) -> None:
+        self.events.append((event_override, job))
+
+
+class AutoTagsTestCase(unittest.TestCase):
+    """Automatic tags are deterministic and separate from manual tags."""
+
+    def test_auto_tags_include_platform_type_resolution_codec_and_year(self) -> None:
+        tags = generate_auto_tags(
+            "https://www.youtube.com/watch?v=abc",
+            "best",
+            {
+                "height": 2160,
+                "vcodec": "av01.0.08M.08",
+                "upload_date": "20260501",
+            },
+        )
+
+        self.assertEqual(tags, ["youtube", "video", "4k", "av1", "2026"])
+
+    def test_audio_tag_is_generated_independently(self) -> None:
+        tags = generate_auto_tags(
+            "https://soundcloud.com/example/track",
+            "audio",
+            {"upload_date": "20240101"},
+        )
+
+        self.assertEqual(tags, ["soundcloud", "audio", "2024"])
+
+
+class StartupChecksTestCase(unittest.TestCase):
+    """Configuration validation should fail clearly before app startup."""
+
+    def test_invalid_setting_type_is_critical(self) -> None:
+        temp_path = Path(tempfile.gettempdir())
+        settings = SimpleNamespace(
+            download_dir=temp_path,
+            jobs_dir=temp_path,
+            history_file=temp_path / "history.json",
+            max_concurrent_jobs="bad",
+            debug="false",
+            preferred_format="best",
+            ui_language="pl",
+        )
+
+        with patch("app.services.startup_checks._check_ffmpeg"), patch(
+            "app.services.startup_checks._check_ytdlp_import"
+        ), patch("app.services.startup_checks._check_sqlite"), patch(
+            "app.services.startup_checks._check_writable_dir"
+        ):
+            result = run_startup_checks(settings)
+
+        self.assertFalse(result.ok)
+        self.assertTrue(any("max_concurrent_jobs" in error for error in result.errors))
+        self.assertTrue(any("debug" in error for error in result.errors))
 
 
 class JobManagerTestCase(unittest.TestCase):
@@ -3442,6 +3614,38 @@ class JobManagerTestCase(unittest.TestCase):
         self.assertIn('"source_id": "abc"', full_log)
         self.assertIn('"audio_format": "opus"', full_log)
 
+    def test_named_storage_is_recorded_on_job(self) -> None:
+        storage_manager = StorageManager(
+            {
+                "local": self.download_dir,
+                "media": self.download_dir,
+                "nfs": self.download_dir,
+            },
+            "media",
+        )
+        files = FileService(
+            self.download_dir,
+            self.files.history_file.parent / "storage-history.json",
+            storage_manager=storage_manager,
+        )
+        manager = JobManager(
+            FakeMediaService(self.download_dir),
+            files,
+            max_concurrent_jobs=1,
+        )
+        try:
+            job = manager.start_download(
+                "https://youtu.be/abc",
+                "Example",
+                "best",
+                download_options={"storage_name": "media"},
+            )
+            completed = self._wait_for_status(job.job_id, "completed", manager)
+            self.assertEqual(completed.storage_name, "media")
+            self.assertEqual(manager.state_store.jobs_all()[0]["storage_name"], "media")
+        finally:
+            manager.shutdown()
+
     def test_corrupted_persistent_queue_does_not_break_startup(self) -> None:
         self.manager.jobs_file.write_text("{", encoding="utf-8")
         restored = JobManager(
@@ -3614,6 +3818,19 @@ class JobManagerTestCase(unittest.TestCase):
             media.release.set()
             manager._executor.shutdown()
 
+    def test_shutdown_marks_active_download_interrupted(self) -> None:
+        media = BlockingMediaService(self.download_dir)
+        manager = JobManager(media, self.files, max_concurrent_jobs=1)
+        job = manager.start_download("https://youtu.be/abc", "Example", "best")
+        try:
+            self.assertTrue(media.started.wait(timeout=2))
+            manager.shutdown()
+            interrupted = manager.get_job(job.job_id)
+            self.assertEqual(interrupted.status, "interrupted")
+            self.assertEqual(interrupted.error_code, DOWNLOAD_STOPPED)
+        finally:
+            media.release.set()
+
     def test_storage_usage_reports_capacity(self) -> None:
         storage = self.files.storage_usage()
         self.assertGreater(storage["total"], 0)
@@ -3644,6 +3861,111 @@ class JobManagerTestCase(unittest.TestCase):
             self.assertEqual(stopped.status, "stopped")
         finally:
             self.manager._slots.release()
+
+    def test_orphaned_live_process_blocks_duplicate_recording(self) -> None:
+        orphan_args = [
+            "/venv/bin/python",
+            "-m",
+            "yt_dlp",
+            "--output",
+            str(self.download_dir / "%(title)s.%(ext)s"),
+            "https://youtu.be/live",
+        ]
+        process_patch = patch.object(
+            JobManager,
+            "_list_process_command_lines",
+            return_value=[(4242, orphan_args)],
+        )
+        with process_patch:
+            manager = JobManager(
+                FakeMediaService(self.download_dir),
+                self.files,
+                max_concurrent_jobs=1,
+            )
+            with self.assertRaises(MediaServiceError):
+                manager.start_live("https://youtu.be/live", "Live")
+            self.assertIn("https://youtu.be/live", manager._orphan_live_urls)
+            self.assertEqual(manager.list_jobs(), [])
+        manager.shutdown()
+
+    def test_orphaned_live_process_is_rechecked_before_blocking(self) -> None:
+        orphan_args = [
+            "/venv/bin/python",
+            "-m",
+            "yt_dlp",
+            "--output",
+            str(self.download_dir / "%(title)s.%(ext)s"),
+            "https://youtu.be/live",
+        ]
+        with patch.object(
+            JobManager,
+            "_list_process_command_lines",
+            return_value=[(4242, orphan_args)],
+        ):
+            manager = JobManager(
+                FakeMediaService(self.download_dir),
+                self.files,
+                max_concurrent_jobs=1,
+            )
+        manager._slots.acquire()
+        try:
+            with patch.object(
+                JobManager, "_list_process_command_lines", return_value=[]
+            ):
+                job = manager.start_live("https://youtu.be/live", "Live")
+            self.assertEqual(job.status, "pending")
+            self.assertEqual(manager.stop_live(job.job_id).status, "stopped")
+        finally:
+            manager._slots.release()
+            manager.shutdown()
+
+    def test_orphaned_live_process_does_not_make_old_job_active(self) -> None:
+        orphan_args = [
+            "/venv/bin/python",
+            "-m",
+            "yt_dlp",
+            "--output",
+            str(self.download_dir / "%(title)s.%(ext)s"),
+            "https://youtu.be/live",
+        ]
+        self.manager.state_store.jobs_replace(
+            [
+                {
+                    "job_id": "old-live",
+                    "url": "https://youtu.be/live",
+                    "title": "Old live",
+                    "status": "downloading",
+                    "download_type": "live",
+                    "is_live": True,
+                    "created_at": now_iso(),
+                    "log_lines": [],
+                }
+            ],
+            replace_logs=True,
+        )
+
+        with patch.object(
+            JobManager,
+            "_list_process_command_lines",
+            return_value=[(4242, orphan_args)],
+        ):
+            restored = JobManager(
+                FakeMediaService(self.download_dir),
+                self.files,
+                max_concurrent_jobs=1,
+            )
+        try:
+            job = restored.get_job("old-live")
+            self.assertEqual(job.status, "interrupted")
+            self.assertEqual(job.error_code, DOWNLOAD_STOPPED)
+            self.assertTrue(
+                any(
+                    "osierocony proces yt-dlp" in line
+                    for line in restored.state_store.job_logs("old-live")
+                )
+            )
+        finally:
+            restored.shutdown()
 
     def _wait_for_status(self, job_id: str, expected: str, manager=None):
         manager = manager or self.manager

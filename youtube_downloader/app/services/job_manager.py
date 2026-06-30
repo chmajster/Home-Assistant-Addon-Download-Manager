@@ -18,8 +18,15 @@ from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
-from .error_messages import INTERNET_ERROR_MESSAGE, operational_error_message
+from .auto_tags import generate_auto_tags
+from .error_messages import (
+    DOWNLOAD_STOPPED,
+    INTERNET_ERROR_MESSAGE,
+    error_code_for_message,
+    operational_error_message,
+)
 from .file_service import FileService
 from .media_service import MediaService, MediaServiceError
 
@@ -38,6 +45,15 @@ JOB_LOG_PREVIEW_LINE_LIMIT = 40
 
 class DownloadStoppedError(RuntimeError):
     """Raised inside a yt-dlp hook when the user stops a regular download."""
+
+
+@dataclass(frozen=True)
+class OrphanedYtDlpProcess:
+    """A yt-dlp process that looks like it was started by this add-on."""
+
+    pid: int
+    command_line: str
+    urls: tuple[str, ...]
 
 
 def now_iso() -> str:
@@ -71,7 +87,13 @@ class Job:
     output_file: str | None = None
     output_files: list[str] = field(default_factory=list)
     thumbnail_filename: str | None = None
+    source_thumbnail_filename: str | None = None
+    thumbnail_types: dict[str, bool] = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)
+    auto_tags: list[str] = field(default_factory=list)
+    error_code: str | None = None
+    storage_name: str = "local"
+    metadata: dict[str, Any] = field(default_factory=dict)
     is_live: bool = False
     live_from_start: bool = True
     duration: int | None = None
@@ -119,6 +141,11 @@ class JobManager:
         self._live_processes: dict[str, subprocess.Popen[str]] = {}
         self._stop_events: dict[str, threading.Event] = {}
         self._retry_timers: dict[str, threading.Timer] = {}
+        self._orphaned_processes: list[OrphanedYtDlpProcess] = []
+        self._orphan_live_urls: set[str] = set()
+        self._shutdown_event = threading.Event()
+        self._shutdown_lock = threading.Lock()
+        self._shutdown_complete = False
         self._lock = threading.RLock()
         self._slots = threading.BoundedSemaphore(max_concurrent_jobs)
         self._executor = ThreadPoolExecutor(
@@ -126,8 +153,50 @@ class JobManager:
         )
         self.state_store.migrate_jobs_json(self.jobs_file)
         self._migrate_history_records_into_jobs()
+        self._detect_orphaned_ytdlp_processes()
         self._load_jobs()
         self._restore_auto_retries()
+
+    def shutdown(self, timeout: float = 20.0) -> None:
+        """Stop timers, workers and live processes, marking active jobs interrupted."""
+
+        with self._shutdown_lock:
+            if self._shutdown_complete:
+                LOGGER.info("Shutdown zadan juz wykonany; pomijam ponowne wywolanie.")
+                return
+            self._shutdown_complete = True
+        LOGGER.info("Rozpoczynam graceful shutdown managera zadan.")
+        self._shutdown_event.set()
+        processes: list[subprocess.Popen[str]] = []
+        with self._lock:
+            timer_count = len(self._retry_timers)
+            for timer in self._retry_timers.values():
+                timer.cancel()
+            self._retry_timers.clear()
+            for event in self._stop_events.values():
+                event.set()
+            for job in self._jobs.values():
+                if job.status in self.ACTIVE_STATUSES:
+                    job.status = "interrupted"
+                    job.finished_at = now_iso()
+                    job.speed = None
+                    job.eta = None
+                    job.error_code = DOWNLOAD_STOPPED
+                    job.error_message = "Zadanie zostalo przerwane przez zatrzymanie aplikacji."
+                    self._append_log_line(job, "[shutdown] Zadanie przerwane przez zatrzymanie aplikacji.")
+            processes = [
+                process for process in self._live_processes.values()
+                if process.poll() is None
+            ]
+            self._persist_jobs()
+        LOGGER.info("Zatrzymano timery retry: %s.", timer_count)
+        LOGGER.info("Ustawiono stop eventy dla aktywnych zadan: %s.", len(self._stop_events))
+        for process in processes:
+            self._interrupt_process(process)
+        LOGGER.info("Przerwano aktywne procesy live: %s.", len(processes))
+        self._executor.shutdown(wait=True, cancel_futures=True)
+        self.state_store.close()
+        LOGGER.info("ThreadPoolExecutor i SQLite state store zamkniete.")
 
     def start_download(
         self,
@@ -141,8 +210,14 @@ class JobManager:
     ) -> Job:
         """Queue one regular yt-dlp download."""
 
+        if self._shutdown_event.is_set():
+            raise MediaServiceError("Aplikacja jest zatrzymywana. Nie mozna dodac nowego zadania.")
         validated_url = self.media_service.validate_url(url)
         normalized_options = dict(download_options or {})
+        storage_name = self.file_service.validate_storage(
+            normalized_options.get("storage_name")
+        )
+        normalized_options["storage_name"] = storage_name
         self.media_service.download_options(download_type, format_id, normalized_options)
         job = self._new_job(
             validated_url,
@@ -153,11 +228,12 @@ class JobManager:
             duration=duration,
             source_id=source_id,
             download_options=normalized_options,
+            storage_name=storage_name,
         )
         stop_event = threading.Event()
         with self._lock:
             self._stop_events[job.job_id] = stop_event
-        self._executor.submit(self._run_download, job.job_id, stop_event)
+        self._submit_download(job.job_id, stop_event)
         LOGGER.info("Dodano zadanie pobierania %s", job.job_id)
         return job
 
@@ -208,7 +284,7 @@ class JobManager:
             self._stop_events[job_id] = stop_event
             self._persist_jobs()
             snapshot = Job(**asdict(job))
-        self._executor.submit(self._run_download, job_id, stop_event)
+        self._submit_download(job_id, stop_event)
         LOGGER.info("Wznowiono pobieranie %s", job_id)
         return snapshot
 
@@ -224,14 +300,7 @@ class JobManager:
                 if job.status != "error":
                     continue
                 if job.is_live:
-                    duplicate = any(
-                        other.job_id != job.job_id
-                        and other.url == job.url
-                        and other.is_live
-                        and other.status in self.ACTIVE_STATUSES
-                        for other in self._jobs.values()
-                    )
-                    if duplicate:
+                    if self._live_recording_exists(job.url, exclude_job_id=job.job_id):
                         skipped += 1
                         continue
                     self._cancel_retry_timer(job.job_id)
@@ -258,7 +327,7 @@ class JobManager:
                 self._persist_jobs()
 
         for job_id, stop_event in downloads:
-            self._executor.submit(self._run_download, job_id, stop_event)
+            self._submit_download(job_id, stop_event)
         for job_id in live_jobs:
             thread = threading.Thread(
                 target=self._run_live,
@@ -283,14 +352,7 @@ class JobManager:
                 )
             self._cancel_retry_timer(job_id)
             if job.is_live:
-                duplicate = any(
-                    other.job_id != job.job_id
-                    and other.url == job.url
-                    and other.is_live
-                    and other.status in self.ACTIVE_STATUSES
-                    for other in self._jobs.values()
-                )
-                if duplicate:
+                if self._live_recording_exists(job.url, exclude_job_id=job.job_id):
                     raise MediaServiceError(
                         "Nagrywanie tej transmisji jest już uruchomione."
                     )
@@ -318,22 +380,18 @@ class JobManager:
             )
             thread.start()
         else:
-            self._executor.submit(self._run_download, snapshot.job_id, stop_event)
+            self._submit_download(snapshot.job_id, stop_event)
         LOGGER.info("Ponowiono błędne zadanie %s", job_id)
         return snapshot
 
     def start_live(self, url: str, title: str, live_from_start: bool = True) -> Job:
         """Queue a uniquely identified live stream recording process."""
 
+        if self._shutdown_event.is_set():
+            raise MediaServiceError("Aplikacja jest zatrzymywana. Nie mozna dodac nowego zadania.")
         validated_url = self.media_service.validate_url(url)
         with self._lock:
-            duplicate = any(
-                job.url == validated_url
-                and job.is_live
-                and job.status in self.ACTIVE_STATUSES
-                for job in self._jobs.values()
-            )
-            if duplicate:
+            if self._live_recording_exists(validated_url):
                 raise MediaServiceError(
                     "Nagrywanie tej transmisji jest już uruchomione."
                 )
@@ -362,15 +420,11 @@ class JobManager:
     ) -> Job:
         """Queue a live stream monitor that starts recording when live begins."""
 
+        if self._shutdown_event.is_set():
+            raise MediaServiceError("Aplikacja jest zatrzymywana. Nie mozna dodac nowego zadania.")
         validated_url = self.media_service.validate_url(url)
         with self._lock:
-            duplicate = any(
-                job.url == validated_url
-                and job.is_live
-                and job.status in self.ACTIVE_STATUSES
-                for job in self._jobs.values()
-            )
-            if duplicate:
+            if self._live_recording_exists(validated_url):
                 raise MediaServiceError(
                     "Nagrywanie tej transmisji jest już uruchomione."
                 )
@@ -492,6 +546,171 @@ class JobManager:
         removed, _ = self.delete_jobs(job_ids)
         return removed, skipped
 
+    def _live_recording_exists(
+        self, validated_url: str, exclude_job_id: str | None = None
+    ) -> bool:
+        normalized_url = self._process_url_key(validated_url)
+        for job in self._jobs.values():
+            if (
+                job.job_id != exclude_job_id
+                and job.is_live
+                and job.status in self.ACTIVE_STATUSES
+                and self._process_url_key(job.url) == normalized_url
+            ):
+                return True
+        if normalized_url not in self._orphan_live_urls:
+            return False
+        self._detect_orphaned_ytdlp_processes(log_empty=False)
+        return normalized_url in self._orphan_live_urls
+
+    def _detect_orphaned_ytdlp_processes(self, log_empty: bool = True) -> None:
+        """Find live yt-dlp processes that survived a previous add-on process."""
+
+        processes: list[OrphanedYtDlpProcess] = []
+        urls: set[str] = set()
+        for pid, args in self._list_process_command_lines():
+            if pid == os.getpid() or not self._is_addon_ytdlp_process(args):
+                continue
+            process_urls = tuple(
+                dict.fromkeys(
+                    self._process_url_key(arg)
+                    for arg in args
+                    if self._looks_like_http_url(arg)
+                )
+            )
+            if not process_urls:
+                continue
+            command_line = " ".join(args)
+            processes.append(
+                OrphanedYtDlpProcess(
+                    pid=pid,
+                    command_line=command_line[:2000],
+                    urls=process_urls,
+                )
+            )
+            urls.update(process_urls)
+        self._orphaned_processes = processes
+        self._orphan_live_urls = urls
+        if processes:
+            LOGGER.warning(
+                "Wykryto %s osieroconych procesow yt-dlp dodatku; URL-e live beda blokowane przed duplikacja.",
+                len(processes),
+            )
+            for process in processes:
+                LOGGER.warning(
+                    "Osierocony yt-dlp pid=%s urls=%s",
+                    process.pid,
+                    ", ".join(process.urls),
+                )
+        elif log_empty:
+            LOGGER.info("Nie wykryto osieroconych procesow yt-dlp dodatku.")
+
+    def _annotate_interrupted_orphans(self) -> bool:
+        changed = False
+        if not self._orphan_live_urls:
+            return changed
+        for job in self._jobs.values():
+            if (
+                job.is_live
+                and job.status == "interrupted"
+                and self._process_url_key(job.url) in self._orphan_live_urls
+            ):
+                self._append_log_line(
+                    job,
+                    "[startup] Wykryto osierocony proces yt-dlp dla tego URL. "
+                    "Zadanie pozostaje interrupted; nowy start live jest blokowany, aby nie nagrywac podwojnie.",
+                )
+                changed = True
+        return changed
+
+    def _list_process_command_lines(self) -> list[tuple[int, list[str]]]:
+        proc = Path("/proc")
+        if proc.is_dir():
+            processes: list[tuple[int, list[str]]] = []
+            for entry in proc.iterdir():
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    raw = (entry / "cmdline").read_bytes()
+                except OSError:
+                    continue
+                if not raw:
+                    continue
+                args = [
+                    part.decode("utf-8", errors="replace")
+                    for part in raw.split(b"\0")
+                    if part
+                ]
+                if args:
+                    processes.append((int(entry.name), args))
+            return processes
+        try:
+            result = subprocess.run(
+                ["ps", "-eo", "pid=,args="],
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return []
+        if result.returncode != 0:
+            return []
+        processes = []
+        for line in result.stdout.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            pid_text, _, command = stripped.partition(" ")
+            try:
+                pid = int(pid_text)
+            except ValueError:
+                continue
+            processes.append((pid, command.split()))
+        return processes
+
+    def _is_addon_ytdlp_process(self, args: list[str]) -> bool:
+        command_line = " ".join(args)
+        lowered = command_line.casefold()
+        if "yt_dlp" not in lowered and "yt-dlp" not in lowered:
+            return False
+        managed_root = str(self.file_service.download_dir)
+        return managed_root in command_line
+
+    @staticmethod
+    def _looks_like_http_url(value: object) -> bool:
+        cleaned = str(value or "").strip("\"'")
+        return cleaned.startswith(("http://", "https://"))
+
+    @staticmethod
+    def _process_url_key(value: object) -> str:
+        cleaned = str(value or "").strip("\"'")
+        try:
+            parts = urlsplit(cleaned)
+        except ValueError:
+            return cleaned
+        host = (parts.hostname or "").lower().rstrip(".")
+        if parts.scheme.lower() not in {"http", "https"} or not host:
+            return cleaned
+        return urlunsplit((parts.scheme.lower(), host, parts.path, parts.query, ""))
+
+    def _submit_download(self, job_id: str, stop_event: threading.Event) -> None:
+        if self._shutdown_event.is_set():
+            stop_event.set()
+            with self._lock:
+                job = self._jobs.get(job_id)
+                if job:
+                    self._finish(job, "interrupted", error_code=DOWNLOAD_STOPPED)
+            return
+        try:
+            self._executor.submit(self._run_download, job_id, stop_event)
+        except RuntimeError:
+            stop_event.set()
+            with self._lock:
+                job = self._jobs.get(job_id)
+                if job:
+                    self._finish(job, "interrupted", error_code=DOWNLOAD_STOPPED)
+
     def _migrate_history_records_into_jobs(self) -> None:
         """Fold legacy download history into the durable job list."""
 
@@ -548,6 +767,12 @@ class JobManager:
                     "output_file": filename or None,
                     "output_files": [filename] if filename else [],
                     "thumbnail_filename": record.get("thumbnail_filename"),
+                    "source_thumbnail_filename": record.get("source_thumbnail_filename"),
+                    "thumbnail_types": record.get("thumbnail_types") if isinstance(record.get("thumbnail_types"), dict) else {},
+                    "auto_tags": record.get("auto_tags") if isinstance(record.get("auto_tags"), list) else [],
+                    "error_code": record.get("error_code"),
+                    "storage_name": str(record.get("storage_name") or "local"),
+                    "metadata": record.get("metadata") if isinstance(record.get("metadata"), dict) else {},
                     "is_live": False,
                     "live_from_start": True,
                     "duration": record.get("duration"),
@@ -598,6 +823,12 @@ class JobManager:
         else:
             payload["log_lines"] = recent_log_lines
         payload["thumbnail_exists"] = False
+        payload["source_thumbnail_exists"] = False
+        payload["thumbnail_types"] = {
+            "video": bool(job.thumbnail_filename),
+            "source": bool(job.source_thumbnail_filename),
+            **dict(job.thumbnail_types or {}),
+        }
         if job.thumbnail_filename:
             try:
                 payload["thumbnail_exists"] = self.file_service.resolve_thumbnail(
@@ -605,6 +836,13 @@ class JobManager:
                 ).is_file()
             except (FileNotFoundError, OSError, ValueError):
                 payload["thumbnail_exists"] = False
+        if job.source_thumbnail_filename:
+            try:
+                payload["source_thumbnail_exists"] = self.file_service.resolve_thumbnail(
+                    job.source_thumbnail_filename
+                ).is_file()
+            except (FileNotFoundError, OSError, ValueError):
+                payload["source_thumbnail_exists"] = False
         return payload
 
     def _new_job(
@@ -618,6 +856,7 @@ class JobManager:
         live_from_start: bool = True,
         source_id: str | None = None,
         download_options: dict[str, Any] | None = None,
+        storage_name: str | None = None,
     ) -> Job:
         job = Job(
             job_id=uuid.uuid4().hex,
@@ -632,6 +871,8 @@ class JobManager:
             live_from_start=live_from_start,
             duration=duration,
             auto_retry_max_attempts=AUTO_RETRY_MAX_ATTEMPTS,
+            storage_name=storage_name or self.file_service.storage_name,
+            auto_tags=generate_auto_tags(url, download_type, is_live=is_live),
         )
         with self._lock:
             self._jobs[job.job_id] = job
@@ -652,6 +893,10 @@ class JobManager:
         job.output_file = None
         job.output_files = []
         job.thumbnail_filename = None
+        job.source_thumbnail_filename = None
+        job.thumbnail_types = {}
+        job.auto_tags = generate_auto_tags(job.url, job.download_type, job.metadata, job.is_live)
+        job.error_code = None
         job.next_retry_at = None
         if reset_auto_retry:
             job.auto_retry_attempts = 0
@@ -677,6 +922,9 @@ class JobManager:
         timer.start()
 
     def _schedule_auto_retry(self, job: Job) -> None:
+        if self._shutdown_event.is_set():
+            job.next_retry_at = None
+            return
         if job.auto_retry_max_attempts <= 0:
             return
         if job.auto_retry_attempts >= job.auto_retry_max_attempts:
@@ -721,6 +969,8 @@ class JobManager:
                 self._persist_jobs()
 
     def _run_scheduled_retry(self, job_id: str, expected_attempt: int) -> None:
+        if self._shutdown_event.is_set():
+            return
         with self._lock:
             self._retry_timers.pop(job_id, None)
             job = self._jobs.get(job_id)
@@ -732,14 +982,7 @@ class JobManager:
             ):
                 return
             if job.is_live:
-                duplicate = any(
-                    other.job_id != job.job_id
-                    and other.url == job.url
-                    and other.is_live
-                    and other.status in self.ACTIVE_STATUSES
-                    for other in self._jobs.values()
-                )
-                if duplicate:
+                if self._live_recording_exists(job.url, exclude_job_id=job.job_id):
                     job.next_retry_at = None
                     self._append_log_line(
                         job,
@@ -783,7 +1026,7 @@ class JobManager:
             )
             thread.start()
         else:
-            self._executor.submit(self._run_download, snapshot.job_id, stop_event)
+            self._submit_download(snapshot.job_id, stop_event)
 
     def _append_log_line(
         self,
@@ -868,6 +1111,19 @@ class JobManager:
 
                 def collect_path(data: dict[str, Any]) -> None:
                     info = data.get("info_dict") or {}
+                    if isinstance(info, dict):
+                        metadata = self._metadata_snapshot(info)
+                        if metadata:
+                            with self._lock:
+                                active = self._jobs.get(job_id)
+                                if active:
+                                    active.metadata.update(metadata)
+                                    active.auto_tags = generate_auto_tags(
+                                        active.url,
+                                        active.download_type,
+                                        active.metadata,
+                                        active.is_live,
+                                    )
                     values = [
                         data.get("filename"),
                         info.get("filepath"),
@@ -946,14 +1202,40 @@ class JobManager:
                         active.downloaded_bytes = self._output_size(files)
                         active.total_bytes = active.downloaded_bytes
                         active.progress = 100.0
+                        active.auto_tags = generate_auto_tags(
+                            active.url,
+                            active.download_type,
+                            active.metadata,
+                            active.is_live,
+                        )
                         self._finish(active, "completed")
                 except DownloadStoppedError:
                     with self._lock:
-                        self._finish(self._jobs[job_id], "stopped")
+                        self._finish(
+                            self._jobs[job_id],
+                            "interrupted" if self._shutdown_event.is_set() else "stopped",
+                            error_code=DOWNLOAD_STOPPED if self._shutdown_event.is_set() else None,
+                        )
                 except MediaServiceError as error:
+                    if self._shutdown_event.is_set() or stop_event.is_set():
+                        with self._lock:
+                            self._finish(
+                                self._jobs[job_id],
+                                "interrupted",
+                                error_code=DOWNLOAD_STOPPED,
+                            )
+                        return
                     self._fail(job_id, str(error))
                 except Exception as error:
                     LOGGER.exception("Nieoczekiwany błąd zadania %s", job_id)
+                    if self._shutdown_event.is_set() or stop_event.is_set():
+                        with self._lock:
+                            self._finish(
+                                self._jobs[job_id],
+                                "interrupted",
+                                error_code=DOWNLOAD_STOPPED,
+                            )
+                        return
                     self._fail(
                         job_id,
                         operational_error_message(str(error))
@@ -1010,7 +1292,7 @@ class JobManager:
                         self._interrupt_process(process)
                 return_code = process.wait()
                 status = (
-                    "stopped"
+                    ("interrupted" if self._shutdown_event.is_set() else "stopped")
                     if stop_event.is_set()
                     else ("completed" if return_code == 0 else "error")
                 )
@@ -1026,9 +1308,21 @@ class JobManager:
                             operational_error_message("".join(output_lines))
                             or "yt-dlp nie mógł zapisać transmisji live. Sprawdź logi dodatku."
                         )
-                    self._finish(active, status)
+                    self._finish(
+                        active,
+                        status,
+                        error_code=DOWNLOAD_STOPPED if status == "interrupted" else None,
+                    )
             except Exception as error:
                 LOGGER.exception("Błąd procesu live %s", job_id)
+                if self._shutdown_event.is_set() or stop_event.is_set():
+                    with self._lock:
+                        self._finish(
+                            self._jobs[job_id],
+                            "interrupted",
+                            error_code=DOWNLOAD_STOPPED,
+                        )
+                    return
                 self._fail(
                     job_id,
                     operational_error_message(str(error))
@@ -1075,7 +1369,12 @@ class JobManager:
             with self._lock:
                 job = self._jobs.get(job_id)
                 if job and job.status == "waiting":
-                    self._finish(job, "stopped")
+                    status = "interrupted" if self._shutdown_event.is_set() else "stopped"
+                    self._finish(
+                        job,
+                        status,
+                        error_code=DOWNLOAD_STOPPED if status == "interrupted" else None,
+                    )
         finally:
             if not handed_off:
                 with self._lock:
@@ -1115,6 +1414,15 @@ class JobManager:
                         job.thumbnail_filename = thumbnail.filename
                     if thumbnail.warning_message and not job.warning_message:
                         job.warning_message = thumbnail.warning_message
+                    source_thumbnail = self.file_service.download_source_thumbnail(
+                        files[-1], str(job.metadata.get("thumbnail") or "")
+                    )
+                    if source_thumbnail.filename and not job.source_thumbnail_filename:
+                        job.source_thumbnail_filename = source_thumbnail.filename
+                    job.thumbnail_types = {
+                        "video": bool(job.thumbnail_filename),
+                        "source": bool(job.source_thumbnail_filename),
+                    }
                 except (FileNotFoundError, ValueError):
                     LOGGER.warning("Pominięto wynik poza katalogiem pobrań: %s", path)
         return files
@@ -1155,6 +1463,45 @@ class JobManager:
             return None
         return title[:300]
 
+    @staticmethod
+    def _metadata_snapshot(info: dict[str, Any]) -> dict[str, Any]:
+        keys = (
+            "id",
+            "title",
+            "fulltitle",
+            "platform",
+            "extractor_key",
+            "webpage_url",
+            "thumbnail",
+            "duration",
+            "height",
+            "resolution",
+            "vcodec",
+            "upload_date",
+            "release_date",
+            "release_year",
+            "live_status",
+            "is_live",
+            "content_type",
+        )
+        snapshot: dict[str, Any] = {}
+        for key in keys:
+            value = info.get(key)
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                snapshot[key] = value
+        requested = info.get("requested_downloads")
+        if isinstance(requested, list):
+            snapshot["requested_downloads"] = [
+                {
+                    item_key: item.get(item_key)
+                    for item_key in ("height", "resolution", "vcodec", "acodec")
+                    if isinstance(item.get(item_key), (str, int, float, bool))
+                }
+                for item in requested
+                if isinstance(item, dict)
+            ]
+        return {key: value for key, value in snapshot.items() if value not in (None, "")}
+
     def _output_size(self, filenames: list[str]) -> int | None:
         size = 0
         for filename in filenames:
@@ -1192,26 +1539,46 @@ class JobManager:
         job.status = "downloading"
         job.started_at = now_iso()
         self._persist_jobs()
+        if job.is_live and self.notifier and hasattr(self.notifier, "notify_lifecycle"):
+            self.notifier.notify_lifecycle(Job(**asdict(job)), "live_started")
 
-    def _finish(self, job: Job, status: str) -> None:
+    def _finish(
+        self, job: Job, status: str, error_code: str | None = None
+    ) -> None:
+        if self._shutdown_event.is_set() and job.status == "interrupted" and status == "error":
+            return
         job.status = status
         job.finished_at = now_iso()
         job.speed = None
         job.eta = None
+        if error_code:
+            job.error_code = error_code
+        elif status == "error":
+            job.error_code = error_code_for_message(job.error_message)
         self._persist_jobs()
         if status in {"completed", "error"} and self.notifier:
             self.notifier.notify_job(Job(**asdict(job)))
+            if hasattr(self.notifier, "emit_job_event"):
+                self.notifier.emit_job_event(Job(**asdict(job)))
             try:
                 self.notifier.notify_storage(self.file_service.storage_usage())
             except Exception as error:
                 LOGGER.warning("Nie udało się sprawdzić miejsca na dysku: %s", error)
 
+        if job.is_live and status in {"completed", "stopped", "interrupted"} and self.notifier:
+            snapshot = Job(**asdict(job))
+            if hasattr(self.notifier, "notify_lifecycle"):
+                self.notifier.notify_lifecycle(snapshot, "live_finished")
+
     def _fail(self, job_id: str, message: str) -> None:
         with self._lock:
             job = self._jobs[job_id]
+            if self._shutdown_event.is_set() and job.status == "interrupted":
+                LOGGER.info("Pomijam oznaczenie %s jako error podczas shutdownu.", job_id)
+                return
             self._append_log_line(job, f"[error] {message}")
             job.error_message = message
-            self._finish(job, "error")
+            self._finish(job, "error", error_code=error_code_for_message(message))
             self._schedule_auto_retry(job)
 
     def _load_jobs(self) -> None:
@@ -1244,9 +1611,11 @@ class JobManager:
                 job.speed = None
                 job.eta = None
                 job.error_message = "Zadanie zostało przerwane przez restart aplikacji."
+                job.error_code = DOWNLOAD_STOPPED
                 interrupted = True
             self._jobs[job.job_id] = job
-        if interrupted:
+        orphan_notes = self._annotate_interrupted_orphans()
+        if interrupted or orphan_notes:
             self._persist_jobs()
         LOGGER.info("Odtworzono %s zadań z trwałej kolejki", len(self._jobs))
 

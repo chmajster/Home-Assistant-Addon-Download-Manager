@@ -2098,6 +2098,9 @@
     const header = document.createElement("div");
     header.className = "d-flex flex-wrap gap-2 justify-content-between align-items-start";
     const message = text("strong", job.error_message || t("js.job_failed"), "text-danger");
+    if (job.error_code) {
+      message.append(" ", text("span", job.error_code, "badge text-bg-danger ms-1"));
+    }
     const copyButton = text("button", "Kopiuj błąd", "btn btn-sm btn-soft job-error-copy");
     copyButton.type = "button";
     copyButton.dataset.copyText = job.error_message || t("js.job_failed");
