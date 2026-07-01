@@ -23,7 +23,7 @@ def delete_history_record():
         request.form.get("downloaded_at", ""),
     )
     if deleted:
-        flash("Wpis zostaĹ‚ usuniÄ™ty z historii.", "success")
+        flash("Wpis został usunięty z historii.", "success")
     else:
         flash("Nie znaleziono wpisu w historii.", "warning")
     if request.form.get("return_to") == "history":
@@ -42,7 +42,7 @@ def update_history_tags():
         request.form.get("tags", ""),
     )
     if updated:
-        flash("Tagi wpisu zostaĹ‚y zapisane.", "success")
+        flash("Tagi wpisu zostały zapisane.", "success")
     else:
         flash("Nie znaleziono wpisu do otagowania.", "warning")
     return _history_redirect()
@@ -58,7 +58,7 @@ def bulk_history():
         _file_service().history(), request.form.getlist("history_keys")
     )
     if not records:
-        flash("Zaznacz wpisy, dla ktĂłrych chcesz wykonaÄ‡ akcjÄ™.", "warning")
+        flash("Zaznacz wpisy, dla których chcesz wykonać akcję.", "warning")
         return _history_redirect()
 
     if action == "delete_entries":
@@ -85,7 +85,7 @@ def bulk_history():
             except FileNotFoundError:
                 skipped += 1
             except UnsafeFilenameError:
-                LOGGER.warning("Odrzucono prĂłbÄ™ masowego usuniÄ™cia %s", filename)
+                LOGGER.warning("Odrzucono próbę masowego usunięcia %s", filename)
                 skipped += 1
         _flash_bulk_history_result(action, done, skipped)
     elif action == "repeat":
@@ -114,9 +114,9 @@ def bulk_history():
                 )
                 done += 1
             except MediaServiceError as error:
-                LOGGER.warning("Nie moĹĽna ponowiÄ‡ pobierania: %s", error)
+                LOGGER.warning("Nie można ponowić pobierania: %s", error)
                 skipped += 1
         _flash_bulk_history_result(action, done, skipped)
     else:
-        flash("Wybierz poprawnÄ… akcjÄ™ dla zaznaczonych wpisĂłw.", "warning")
+        flash("Wybierz poprawną akcję dla zaznaczonych wpisów.", "warning")
     return _history_redirect()

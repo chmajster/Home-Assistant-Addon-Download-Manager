@@ -90,18 +90,18 @@ def error_code_for_message(message: object, default: str | None = None) -> str |
         return NETWORK_ERROR
     if any(marker in lowered for marker in FFMPEG_ERROR_MARKERS):
         return POSTPROCESSING_FAILED
-    if "nieobsĹ‚ugiwany format" in lowered or "format" in lowered and "niepoprawny" in lowered:
+    if "nieobsługiwany format" in lowered or "format" in lowered and "niepoprawny" in lowered:
         return UNSUPPORTED_FORMAT
     if "adres url" in lowered or "link" in lowered and "nie" in lowered:
         return INVALID_URL
     if any(
         marker in lowered
         for marker in (
-            "niedostÄ™pny",
-            "usuniÄ™ty",
+            "niedostępny",
+            "usunięty",
             "prywatny",
-            "wymaga dodatkowego dostÄ™pu",
-            "nie rozpoczÄ™Ĺ‚a",
+            "wymaga dodatkowego dostępu",
+            "nie rozpoczęła",
             "source unavailable",
         )
     ):

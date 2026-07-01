@@ -12,7 +12,7 @@ def delete_job(job_id: str):
         return redirect(ingress_url("web.jobs"))
     try:
         _job_manager().delete_job(job_id)
-        flash("Zadanie zostaĹ‚o usuniÄ™te.", "success")
+        flash("Zadanie zostało usunięte.", "success")
     except KeyError:
         flash("Nie znaleziono zadania.", "warning")
     except MediaServiceError as error:
@@ -27,7 +27,7 @@ def delete_jobs():
         return redirect(ingress_url("web.jobs"))
     job_ids = request.form.getlist("job_ids")
     if not job_ids:
-        flash("Zaznacz zadania, ktĂłre chcesz usunÄ…Ä‡.", "warning")
+        flash("Zaznacz zadania, które chcesz usunąć.", "warning")
         return redirect(ingress_url("web.jobs"))
     removed, skipped = _job_manager().delete_jobs(job_ids)
     _flash_deleted_jobs(removed, skipped)
@@ -42,7 +42,7 @@ def bulk_history_jobs():
     action = str(request.form.get("action") or "")
     job_ids = list(dict.fromkeys(request.form.getlist("job_ids")))
     if not job_ids:
-        flash("Zaznacz wpisy, dla ktĂłrych chcesz wykonaÄ‡ akcjÄ™.", "warning")
+        flash("Zaznacz wpisy, dla których chcesz wykonać akcję.", "warning")
         return redirect(ingress_url("web.index"))
 
     manager = _job_manager()
@@ -53,7 +53,7 @@ def bulk_history_jobs():
         if job_id in jobs_by_id and jobs_by_id[job_id].status == "completed"
     ]
     if not selected_jobs:
-        flash("Nie znaleziono zakoĹ„czonych wpisĂłw do obsĹ‚uĹĽenia.", "warning")
+        flash("Nie znaleziono zakończonych wpisów do obsłużenia.", "warning")
         return redirect(ingress_url("web.index"))
 
     if action == "delete_jobs":
@@ -74,7 +74,7 @@ def bulk_history_jobs():
             except FileNotFoundError:
                 skipped += 1
             except UnsafeFilenameError:
-                LOGGER.warning("Odrzucono prĂłbÄ™ masowego usuniÄ™cia %s", filename)
+                LOGGER.warning("Odrzucono próbę masowego usunięcia %s", filename)
                 skipped += 1
         skipped += len(selected_jobs) - len(filenames)
         _flash_bulk_history_result("delete_files", done, skipped)
@@ -105,11 +105,11 @@ def bulk_history_jobs():
                 )
                 done += 1
             except MediaServiceError as error:
-                LOGGER.warning("Nie moĹĽna ponowiÄ‡ pobierania: %s", error)
+                LOGGER.warning("Nie można ponowić pobierania: %s", error)
                 skipped += 1
         _flash_bulk_history_result("repeat", done, skipped)
     else:
-        flash("Wybierz poprawnÄ… akcjÄ™ dla zaznaczonych wpisĂłw.", "warning")
+        flash("Wybierz poprawną akcję dla zaznaczonych wpisów.", "warning")
     return redirect(ingress_url("web.index"))
 
 @web_bp.post("/jobs/clear")
@@ -129,7 +129,7 @@ def retry_failed_jobs():
     if not _valid_form():
         return redirect(ingress_url("web.jobs"))
     if _limited("jobs-retry-failed", 6):
-        flash("Zbyt wiele prĂłb ponawiania zadaĹ„. Odczekaj chwilÄ™.", "warning")
+        flash("Zbyt wiele prób ponawiania zadań. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
         _ensure_ytdlp_recent()
@@ -140,9 +140,9 @@ def retry_failed_jobs():
     if retried:
         flash(f"Ponowiono nieudane zadania: {retried}.", "success")
     else:
-        flash("Brak nieudanych zadaĹ„ do ponowienia.", "warning")
+        flash("Brak nieudanych zadań do ponowienia.", "warning")
     if skipped:
-        flash(f"PominiÄ™to zadania: {skipped}.", "warning")
+        flash(f"Pominięto zadania: {skipped}.", "warning")
     return redirect(ingress_url("web.jobs"))
 
 @web_bp.post("/jobs/retry/<job_id>")
@@ -152,7 +152,7 @@ def retry_job(job_id: str):
     if not _valid_form():
         return redirect(ingress_url("web.jobs", filter="errors"))
     if _limited("jobs-retry-one", 20):
-        flash("Zbyt wiele prĂłb ponawiania zadaĹ„. Odczekaj chwilÄ™.", "warning")
+        flash("Zbyt wiele prób ponawiania zadań. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs", filter="errors"))
     try:
         _ensure_ytdlp_recent()

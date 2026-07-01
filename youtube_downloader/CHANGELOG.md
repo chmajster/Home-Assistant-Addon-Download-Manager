@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.78
+
+- Naprawiono kodowanie polskich komunikatów w interfejsie i logach.
+
 ## 1.3.77
 
 - Dodano graceful shutdown, wykrywanie osieroconych procesow yt-dlp po restarcie, rozszerzony stan SQLite, nazwane storage, automatyczne tagi, miniatury zrodlowe, bezpieczniejsze integracje Home Assistant i dokumentacje operacyjna.

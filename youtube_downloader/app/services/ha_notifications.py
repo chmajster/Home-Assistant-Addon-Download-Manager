@@ -44,9 +44,9 @@ class HomeAssistantNotifier:
             output_files = payload.get("output_files") or []
             self._send_async(
                 (
-                    "Media Web Downloader: playlista zakoĹ„czona"
+                    "Media Web Downloader: playlista zakończona"
                     if len(output_files) > 1
-                    else "Media Web Downloader: pobieranie zakoĹ„czone"
+                    else "Media Web Downloader: pobieranie zakończone"
                 ),
                 self._completed_message(payload),
                 self._notification_id(payload, "completed"),
@@ -57,7 +57,7 @@ class HomeAssistantNotifier:
                 (
                     "Media Web Downloader: brak miejsca na dysku"
                     if storage_error
-                    else "Media Web Downloader: bĹ‚Ä…d pobierania"
+                    else "Media Web Downloader: błąd pobierania"
                 ),
                 self._error_message(payload),
                 self._notification_id(
@@ -71,14 +71,14 @@ class HomeAssistantNotifier:
         payload = self._job_payload(job)
         if event_type == "live_started":
             self._send_async(
-                "Media Web Downloader: live rozpoczÄ™ty",
+                "Media Web Downloader: live rozpoczęty",
                 self._status_message(payload),
                 self._notification_id(payload, "live_started"),
             )
             self.emit_job_event(payload, "live_started")
         elif event_type == "live_finished":
             self._send_async(
-                "Media Web Downloader: live zakoĹ„czony",
+                "Media Web Downloader: live zakończony",
                 self._status_message(payload),
                 self._notification_id(payload, "live_finished"),
             )
@@ -93,7 +93,7 @@ class HomeAssistantNotifier:
             free_percent = 0.0
         if free_percent >= 15:
             return
-        severity = "krytycznie maĹ‚o miejsca" if free_percent < 5 else "maĹ‚o miejsca"
+        severity = "krytycznie mało miejsca" if free_percent < 5 else "mało miejsca"
         self._send_async(
             f"Media Web Downloader: {severity}",
             self._storage_message(storage),

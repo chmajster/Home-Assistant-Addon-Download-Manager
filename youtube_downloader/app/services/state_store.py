@@ -482,7 +482,7 @@ class SQLiteStateStore:
                 ),
             )
         for row in connection.execute("SELECT job_id, payload FROM jobs").fetchall():
-            record = self._decode_payload(row["payload"], "kolejki zadaĹ„")
+            record = self._decode_payload(row["payload"], "kolejki zadań")
             connection.execute(
                 """
                 UPDATE jobs

@@ -41,19 +41,19 @@ web_bp = Blueprint("web", __name__)
 BULK_URL_IMPORT_LIMIT = 50
 DOWNLOAD_PROFILES = {
     "best-quality": {
-        "label": "Najlepsza jakoĹ›Ä‡",
+        "label": "Najlepsza jakość",
         "download_type": "best",
-        "description": "Najlepszy dostÄ™pny wariant audio i wideo.",
+        "description": "Najlepszy dostępny wariant audio i wideo.",
     },
     "manual": {
-        "label": "RÄ™czny wybĂłr",
+        "label": "Ręczny wybór",
         "download_type": None,
-        "description": "WĹ‚asny wariant jakoĹ›ci lub konkretny format.",
+        "description": "Własny wariant jakości lub konkretny format.",
     },
     "audio-mp3": {
         "label": "Audio MP3",
         "download_type": "audio",
-        "description": "Tylko Ĺ›cieĹĽka audio i konwersja do MP3.",
+        "description": "Tylko ścieżka audio i konwersja do MP3.",
     },
     "video-1080": {
         "label": "1080p",
@@ -63,13 +63,13 @@ DOWNLOAD_PROFILES = {
     "live-archive": {
         "label": "Archiwum live",
         "download_type": "best",
-        "description": "Najlepsza jakoĹ›Ä‡ dla zapisanych transmisji.",
+        "description": "Najlepsza jakość dla zapisanych transmisji.",
     },
     "twitch-only": {
         "label": "Tylko Twitch",
         "download_type": "best",
         "platform": "twitch",
-        "description": "Preset dla VOD-Ăłw, klipĂłw i transmisji Twitch.",
+        "description": "Preset dla VOD-ów, klipów i transmisji Twitch.",
     },
 }
 HISTORY_VIEW_LABELS = {
@@ -79,8 +79,8 @@ HISTORY_VIEW_LABELS = {
 HISTORY_SORT_LABELS = {
     "date": "data",
     "size": "rozmiar",
-    "duration": "dĹ‚ugoĹ›Ä‡",
-    "title": "tytuĹ‚",
+    "duration": "długość",
+    "title": "tytuł",
     "platform": "serwis",
 }
 DOWNLOAD_PROFILE_TRANSLATION_KEYS = {
@@ -175,7 +175,7 @@ def _directory_write_test(path: object) -> dict[str, Any]:
             handle.write(b"ok")
             temporary_name = handle.name
         os.unlink(temporary_name)
-        return {"available": True, "message": "Zapis i usuwanie pliku dziaĹ‚a."}
+        return {"available": True, "message": "Zapis i usuwanie pliku działa."}
     except OSError as error:
         return {"available": False, "message": str(error)}
 
@@ -185,7 +185,7 @@ def _network_test(host: str = "github.com", port: int = 443) -> dict[str, Any]:
         with socket.create_connection((host, port), timeout=3.0):
             return {
                 "available": True,
-                "message": f"PoĹ‚Ä…czono z {host}:{port}.",
+                "message": f"Połączono z {host}:{port}.",
             }
     except OSError as error:
         return {"available": False, "message": str(error)}
@@ -217,7 +217,7 @@ def _nfs_test(settings: Any, download_dir: object) -> dict[str, Any]:
             "available": True,
             "status": "ok",
             "value": "lokalny",
-            "message": "Tryb NFS jest wyĹ‚Ä…czony.",
+            "message": "Tryb NFS jest wyłączony.",
         }
     if not os.path.isdir(download_dir):
         return {
@@ -232,28 +232,28 @@ def _nfs_test(settings: Any, download_dir: object) -> dict[str, Any]:
             "available": True,
             "status": "ok",
             "value": mount_type,
-            "message": f"UdziaĹ‚ NFS jest zamontowany w {download_dir}.",
+            "message": f"Udział NFS jest zamontowany w {download_dir}.",
         }
     if mount_type:
         return {
             "available": True,
             "status": "warning",
             "value": mount_type,
-            "message": "Katalog dziaĹ‚a, ale typ montowania nie wyglÄ…da na NFS.",
+            "message": "Katalog działa, ale typ montowania nie wygląda na NFS.",
         }
     return {
         "available": True,
         "status": "warning",
         "value": "niezweryfikowany",
-        "message": "Nie moĹĽna odczytaÄ‡ typu montowania z /proc/mounts.",
+        "message": "Nie można odczytać typu montowania z /proc/mounts.",
     }
 
 
 def _diagnostic_status_label(status: str) -> str:
     return {
         "ok": _t("common.ok"),
-        "warning": "ostrzeĹĽenie",
-        "error": "bĹ‚Ä…d",
+        "warning": "ostrzeżenie",
+        "error": "błąd",
     }.get(status, status)
 
 
@@ -317,12 +317,12 @@ def _diagnostic_rows(
             _t("diag.free_space"),
             f"{_filesize_label(storage.get('free'))} ({storage.get('free_percent')}%)",
             storage_status,
-            f"ZajÄ™te: {_filesize_label(storage.get('used'))} z {_filesize_label(storage.get('total'))}.",
+            f"Zajęte: {_filesize_label(storage.get('used'))} z {_filesize_label(storage.get('total'))}.",
         ),
-        _diagnostic_row("Katalog pobraĹ„", paths.get("download_dir")),
+        _diagnostic_row("Katalog pobrań", paths.get("download_dir")),
         _diagnostic_row(
             _t("diag.ha_api"),
-            "poĹ‚Ä…czono" if home_assistant.get("available") else "problem",
+            "połączono" if home_assistant.get("available") else "problem",
             ha_status,
             home_assistant.get("message"),
         ),
@@ -373,13 +373,13 @@ def _diagnostics_snapshot() -> dict[str, Any]:
         [
             _diagnostic_row(
                 _t("diag.write_test"),
-                "dziaĹ‚a" if write_test.get("available") else "problem",
+                "działa" if write_test.get("available") else "problem",
                 "ok" if write_test.get("available") else "error",
                 write_test.get("message"),
             ),
             _diagnostic_row(
                 _t("diag.ffmpeg_test"),
-                "dziaĹ‚a" if ffmpeg.get("available") else "problem",
+                "działa" if ffmpeg.get("available") else "problem",
                 "ok" if ffmpeg.get("available") else "error",
                 ffmpeg.get("error") or ffmpeg.get("version"),
             ),
@@ -391,7 +391,7 @@ def _diagnostics_snapshot() -> dict[str, Any]:
             ),
             _diagnostic_row(
                 _t("diag.network_test"),
-                "poĹ‚Ä…czono" if network.get("available") else "problem",
+                "połączono" if network.get("available") else "problem",
                 "ok" if network.get("available") else "error",
                 network.get("message"),
             ),
@@ -412,19 +412,19 @@ def _diagnostics_snapshot() -> dict[str, Any]:
         ),
         _diagnostic_row(
             "ffmpeg",
-            "dziaĹ‚a" if ffmpeg.get("available") else "problem",
+            "działa" if ffmpeg.get("available") else "problem",
             "ok" if ffmpeg.get("available") else "error",
             ffmpeg.get("error") or ffmpeg.get("version"),
         ),
         _diagnostic_row(
             _t("diag.write_test"),
-            "dziaĹ‚a" if write_test.get("available") else "problem",
+            "działa" if write_test.get("available") else "problem",
             "ok" if write_test.get("available") else "error",
             write_test.get("message"),
         ),
         _diagnostic_row(
-            "SieÄ‡",
-            "poĹ‚Ä…czono" if network.get("available") else "problem",
+            "Sieć",
+            "połączono" if network.get("available") else "problem",
             "ok" if network.get("available") else "error",
             network.get("message"),
         ),
@@ -500,7 +500,7 @@ def _job_timeline(job: dict[str, Any]) -> list[dict[str, str]]:
         )
 
     add("Dodano do kolejki", job.get("created_at"), job.get("url"))
-    add("RozpoczÄ™to", job.get("started_at"), job.get("status_label"))
+    add("Rozpoczęto", job.get("started_at"), job.get("status_label"))
     for line in job.get("log_lines") or []:
         line_text = str(line)
         if line_text.startswith("[retry]"):
@@ -512,14 +512,14 @@ def _job_timeline(job: dict[str, Any]) -> list[dict[str, str]]:
             )
         elif line_text.startswith("[error]"):
             add(
-                "BĹ‚Ä…d",
+                "Błąd",
                 job.get("finished_at") or job.get("created_at"),
                 line_text.removeprefix("[error] ").strip(),
                 "error",
             )
-    add("NastÄ™pna prĂłba", job.get("next_retry_at"), "Automatyczne ponowienie", "warning")
+    add("Następna próba", job.get("next_retry_at"), "Automatyczne ponowienie", "warning")
     add(
-        "ZakoĹ„czono",
+        "Zakończono",
         job.get("finished_at"),
         job.get("status_label"),
         "error" if job.get("status") == "error" else "ok",
@@ -536,7 +536,7 @@ def _job_retry_history(job: dict[str, Any]) -> list[str]:
     if not history and (job.get("auto_retry_attempts") or job.get("next_retry_at")):
         history.append(
             (
-                f"Automatyczne prĂłby: {job.get('auto_retry_attempts')}/"
+                f"Automatyczne próby: {job.get('auto_retry_attempts')}/"
                 f"{job.get('auto_retry_max_attempts')}"
             )
         )
@@ -609,7 +609,7 @@ def _profile_download_type(
         validated_url = MediaService.validate_url(str(url or ""))
         if MediaService.detect_platform(validated_url) != expected_platform:
             raise MediaServiceError(
-                f"Profil {profile['label']} dziaĹ‚a tylko dla serwisu {expected_platform}."
+                f"Profil {profile['label']} działa tylko dla serwisu {expected_platform}."
             )
     return str(profile.get("download_type") or download_type or "best")
 
@@ -720,7 +720,7 @@ def _validated_url_candidates(urls: list[str]) -> tuple[list[str], list[str]]:
 
 def _invalid_urls_message(urls: list[str]) -> str:
     visible = ", ".join(urls[:10])
-    suffix = f" oraz {len(urls) - 10} wiÄ™cej" if len(urls) > 10 else ""
+    suffix = f" oraz {len(urls) - 10} więcej" if len(urls) > 10 else ""
     return f"Niepoprawne URL-e: {visible}{suffix}."
 
 
@@ -784,7 +784,7 @@ def _duplicate_download_warnings(url: str, title: str = "") -> list[dict[str, st
             {
                 "kind": kind,
                 "source": source,
-                "title": str(item_title or "Bez tytuĹ‚u"),
+                "title": str(item_title or "Bez tytułu"),
                 "detail": str(detail or ""),
             }
         )
@@ -804,10 +804,10 @@ def _flash_duplicate_warnings(warnings: list[dict[str, str]]) -> None:
         return
     first = warnings[0]
     if first["kind"] == "url":
-        message = "Uwaga: ten URL byĹ‚ juĹĽ pobierany lub jest teraz w kolejce."
+        message = "Uwaga: ten URL był już pobierany lub jest teraz w kolejce."
     else:
-        message = "Uwaga: podobny plik lub tytuĹ‚ byĹ‚ juĹĽ pobrany albo jest teraz w kolejce."
-    flash(f"{message} MoĹĽesz kontynuowaÄ‡, jeĹ›li robisz to celowo.", "warning")
+        message = "Uwaga: podobny plik lub tytuł był już pobrany albo jest teraz w kolejce."
+    flash(f"{message} Możesz kontynuować, jeśli robisz to celowo.", "warning")
 
 
 def _limited(bucket: str, limit: int, window: int = 60) -> bool:
@@ -819,7 +819,7 @@ def _limited(bucket: str, limit: int, window: int = 60) -> bool:
 def _valid_form() -> bool:
     if valid_csrf_token(request.form.get("_csrf_token")):
         return True
-    flash("Sesja formularza wygasĹ‚a. OdĹ›wieĹĽ stronÄ™ i sprĂłbuj ponownie.", "danger")
+    flash("Sesja formularza wygasła. Odśwież stronę i spróbuj ponownie.", "danger")
     return False
 
 
@@ -1116,21 +1116,21 @@ def _history_record_can_repeat(record: dict[str, Any]) -> bool:
 def _flash_bulk_history_result(action: str, done: int, skipped: int) -> None:
     if action == "delete_entries":
         if done:
-            flash(f"UsuniÄ™to wpisy z historii: {done}.", "success")
+            flash(f"Usunięto wpisy z historii: {done}.", "success")
         else:
-            flash("Nie usuniÄ™to ĹĽadnych wpisĂłw z historii.", "warning")
+            flash("Nie usunięto żadnych wpisów z historii.", "warning")
     elif action == "delete_files":
         if done:
-            flash(f"UsuniÄ™to pliki: {done}.", "success")
+            flash(f"Usunięto pliki: {done}.", "success")
         else:
-            flash("Nie usuniÄ™to ĹĽadnych plikĂłw.", "warning")
+            flash("Nie usunięto żadnych plików.", "warning")
     elif action == "repeat":
         if done:
             flash(f"Uruchomiono ponowne pobrania: {done}.", "success")
         else:
-            flash("Nie uruchomiono ĹĽadnego ponownego pobierania.", "warning")
+            flash("Nie uruchomiono żadnego ponownego pobierania.", "warning")
     if skipped:
-        flash(f"PominiÄ™to pozycje: {skipped}.", "warning")
+        flash(f"Pominięto pozycje: {skipped}.", "warning")
 
 
 def _filesize_label(value: object) -> str:
@@ -1160,11 +1160,11 @@ def _duration_label(value: object) -> str:
 
 def _flash_deleted_jobs(removed: int, skipped: int) -> None:
     if removed:
-        flash(f"UsuniÄ™to zadania: {removed}.", "success")
+        flash(f"Usunięto zadania: {removed}.", "success")
     elif not skipped:
-        flash("Brak zakoĹ„czonych zadaĹ„ do usuniÄ™cia.", "warning")
+        flash("Brak zakończonych zadań do usunięcia.", "warning")
     if skipped:
-        flash(f"PominiÄ™to aktywne zadania: {skipped}.", "warning")
+        flash(f"Pominięto aktywne zadania: {skipped}.", "warning")
 
 
 def _subtitle_label(subtitle_path, media_path) -> str:

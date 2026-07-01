@@ -37,7 +37,7 @@ def analyze():
 
     if len(valid_urls) > 1:
         if _limited("download-import", 3):
-            flash("Zbyt wiele prĂłb importu listy URL. Odczekaj chwilÄ™.", "warning")
+            flash("Zbyt wiele prób importu listy URL. Odczekaj chwilę.", "warning")
             return redirect(ingress_url("web.index"))
         try:
             _ensure_ytdlp_recent()
@@ -49,7 +49,7 @@ def analyze():
         return redirect(ingress_url("web.jobs"))
 
     if _limited("analyze", 6):
-        flash("Zbyt wiele prĂłb analizy. Odczekaj chwilÄ™ i sprĂłbuj ponownie.", "warning")
+        flash("Zbyt wiele prób analizy. Odczekaj chwilę i spróbuj ponownie.", "warning")
         return redirect(ingress_url("web.index"))
     try:
         _ensure_ytdlp_recent()
@@ -75,10 +75,10 @@ def start_download():
         flash("Wklej co najmniej jeden adres URL.", "warning")
         return redirect(ingress_url("web.index"))
     if len(urls) > 1 and not request.form.get("playlist_picker"):
-        flash("Szybkie pobieranie obsĹ‚uguje jeden link naraz.", "warning")
+        flash("Szybkie pobieranie obsługuje jeden link naraz.", "warning")
         return redirect(ingress_url("web.index"))
     if _limited("download", 10):
-        flash("Zbyt wiele prĂłb uruchomienia pobierania. Odczekaj chwilÄ™.", "warning")
+        flash("Zbyt wiele prób uruchomienia pobierania. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
         _ensure_ytdlp_recent()
@@ -108,14 +108,14 @@ def start_download():
         if request.form.get("playlist_picker") and not playlist_entries:
             if skipped_existing:
                 flash(
-                    f"PominiÄ™to istniejÄ…ce elementy playlisty: {skipped_existing}.",
+                    f"Pominięto istniejące elementy playlisty: {skipped_existing}.",
                     "warning",
                 )
                 return redirect(ingress_url("web.jobs"))
             raise MediaServiceError("Zaznacz co najmniej jeden element playlisty.")
         if playlist_entries and download_type == "format":
             raise MediaServiceError(
-                "Konkretny format nie jest obsĹ‚ugiwany dla wielu elementĂłw playlisty. Wybierz profil albo jakoĹ›Ä‡."
+                "Konkretny format nie jest obsługiwany dla wielu elementów playlisty. Wybierz profil albo jakość."
             )
         if not request.form.get("allow_duplicate"):
             _flash_duplicate_warnings(
@@ -142,11 +142,11 @@ def start_download():
             flash(f"Uruchomiono zadania z playlisty: {len(playlist_entries)}.", "success")
             if skipped_existing:
                 flash(
-                    f"PominiÄ™to istniejÄ…ce elementy po ID: {skipped_existing}.",
+                    f"Pominięto istniejące elementy po ID: {skipped_existing}.",
                     "info",
                 )
             if automatic_rule:
-                flash(f"Zastosowano reguĹ‚Ä™ automatycznÄ…: {automatic_rule}", "info")
+                flash(f"Zastosowano regułę automatyczną: {automatic_rule}", "info")
             return redirect(ingress_url("web.jobs"))
         job = _job_manager().start_download(
             url=validated_url,
@@ -159,7 +159,7 @@ def start_download():
         )
         flash(f"Uruchomiono zadanie {job.job_id[:8]}.", "success")
         if automatic_rule:
-            flash(f"Zastosowano reguĹ‚Ä™ automatycznÄ…: {automatic_rule}", "info")
+            flash(f"Zastosowano regułę automatyczną: {automatic_rule}", "info")
     except MediaServiceError as error:
         flash(str(error), "danger")
     return redirect(ingress_url("web.jobs"))
@@ -171,7 +171,7 @@ def import_downloads():
     if not _valid_form():
         return redirect(ingress_url("web.index"))
     if _limited("download-import", 3):
-        flash("Zbyt wiele prÄ‚Ĺ‚b importu listy URL. Odczekaj chwilĂ„â„˘.", "warning")
+        flash("Zbyt wiele prób importu listy URL. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.index"))
 
     urls = _bulk_url_candidates(request.form.get("urls", ""))
@@ -212,9 +212,9 @@ def import_downloads():
     if created:
         flash(f"Zaimportowano zadania z listy URL: {created}.", "success")
     if skipped:
-        flash(f"PominiĂ„â„˘to niepoprawne linki: {skipped}.", "warning")
+        flash(f"Pominięto niepoprawne linki: {skipped}.", "warning")
     if not created and not skipped:
-        flash("Nie znaleziono linkÄ‚Ĺ‚w do importu.", "warning")
+        flash("Nie znaleziono linków do importu.", "warning")
         return redirect(ingress_url("web.index"))
     return redirect(ingress_url("web.jobs"))
 
@@ -225,7 +225,7 @@ def start_live():
     if not _valid_form():
         return redirect(ingress_url("web.index"))
     if _limited("live-start", 6):
-        flash("Zbyt wiele prĂłb uruchomienia zapisu live. Odczekaj chwilÄ™.", "warning")
+        flash("Zbyt wiele prób uruchomienia zapisu live. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
         _ensure_ytdlp_recent()
@@ -233,7 +233,7 @@ def start_live():
         if media["content_type"] != "live":
             raise MediaServiceError("Podany adres nie prowadzi do transmisji live.")
         if not media["is_live"]:
-            raise MediaServiceError("Ta transmisja jeszcze siÄ™ nie rozpoczÄ™Ĺ‚a.")
+            raise MediaServiceError("Ta transmisja jeszcze się nie rozpoczęła.")
         job = _job_manager().start_live(
             media["url"], media["title"], live_from_start=_live_from_start_value()
         )
@@ -249,7 +249,7 @@ def watch_live():
     if not _valid_form():
         return redirect(ingress_url("web.index"))
     if _limited("live-watch", 6):
-        flash("Zbyt wiele prĂłb uruchomienia oczekiwania live. Odczekaj chwilÄ™.", "warning")
+        flash("Zbyt wiele prób uruchomienia oczekiwania live. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
         _ensure_ytdlp_recent()
@@ -266,7 +266,7 @@ def watch_live():
                 media["url"], media["title"], live_from_start=_live_from_start_value()
             )
             flash(
-                f"RozpoczÄ™to oczekiwanie na transmisjÄ™ {job.job_id[:8]}.",
+                f"Rozpoczęto oczekiwanie na transmisję {job.job_id[:8]}.",
                 "success",
             )
     except MediaServiceError as error:
@@ -293,7 +293,7 @@ def resume_download(job_id: str):
     if not _valid_form():
         return redirect(ingress_url("web.jobs"))
     if _limited("download-resume", 10):
-        flash("Zbyt wiele prĂłb wznowienia pobierania. Odczekaj chwilÄ™.", "warning")
+        flash("Zbyt wiele prób wznowienia pobierania. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
         _ensure_ytdlp_recent()
@@ -433,14 +433,14 @@ def download_subtitle(filename: str):
     if not _valid_form():
         return {
             "ok": False,
-            "message": "Sesja wygasĹ‚a. OdĹ›wieĹĽ stronÄ™ i sprĂłbuj ponownie.",
+            "message": "Sesja wygasła. Odśwież stronę i spróbuj ponownie.",
         }, 400
     try:
         media_path = _file_service().resolve_download(filename)
     except (FileNotFoundError, UnsafeFilenameError):
         return {"ok": False, "message": "Nie znaleziono pliku wideo."}, 404
     if not (mimetypes.guess_type(media_path.name)[0] or "").startswith("video/"):
-        return {"ok": False, "message": "Napisy sÄ… dostÄ™pne tylko dla plikĂłw wideo."}, 400
+        return {"ok": False, "message": "Napisy są dostępne tylko dla plików wideo."}, 400
 
     source_url = ""
     for record in _completed_job_records():
@@ -448,7 +448,7 @@ def download_subtitle(filename: str):
             source_url = str(record.get("url") or "")
             break
     if not source_url:
-        return {"ok": False, "message": "Nie znaleziono adresu ĹşrĂłdĹ‚owego dla tego pliku."}, 404
+        return {"ok": False, "message": "Nie znaleziono adresu źródłowego dla tego pliku."}, 404
 
     try:
         _ensure_ytdlp_recent()
@@ -485,7 +485,7 @@ def subtitle(filename: str):
     try:
         path = _file_service().resolve_download(filename)
         if path.suffix.casefold() != ".vtt":
-            raise UnsafeFilenameError("Niepoprawny format napisĂłw.")
+            raise UnsafeFilenameError("Niepoprawny format napisów.")
         return send_file(
             path,
             mimetype="text/vtt; charset=utf-8",
@@ -493,7 +493,7 @@ def subtitle(filename: str):
             download_name=path.name,
         )
     except (FileNotFoundError, UnsafeFilenameError):
-        return render_template("error.html", message="Nie znaleziono napisĂłw."), 404
+        return render_template("error.html", message="Nie znaleziono napisów."), 404
 
 @web_bp.get("/thumbnails/<filename>")
 def thumbnail(filename: str):
@@ -513,11 +513,11 @@ def delete(filename: str):
         return redirect(ingress_url("web.index"))
     try:
         _file_service().delete_file(filename)
-        flash("Plik zostaĹ‚ usuniÄ™ty.", "success")
+        flash("Plik został usunięty.", "success")
     except FileNotFoundError:
-        flash("Plik juĹĽ nie istnieje.", "warning")
+        flash("Plik już nie istnieje.", "warning")
     except UnsafeFilenameError:
-        LOGGER.warning("Odrzucono prĂłbÄ™ usuniÄ™cia niepoprawnej Ĺ›cieĹĽki")
+        LOGGER.warning("Odrzucono próbę usunięcia niepoprawnej ścieżki")
         flash("Niepoprawna nazwa pliku.", "danger")
     if request.form.get("return_to") == "history":
         return _history_redirect()

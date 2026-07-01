@@ -12,11 +12,11 @@ def diagnostics():
 
 @web_bp.app_errorhandler(404)
 def not_found(_: Any):
-    return render_template("error.html", message="Nie znaleziono ĹĽÄ…danej strony."), 404
+    return render_template("error.html", message="Nie znaleziono żądanej strony."), 404
 
 @web_bp.app_errorhandler(500)
 def server_error(error: Exception):
-    LOGGER.exception("BĹ‚Ä…d serwera", exc_info=error)
+    LOGGER.exception("Błąd serwera", exc_info=error)
     return render_template(
-        "error.html", message="WystÄ…piĹ‚ wewnÄ™trzny bĹ‚Ä…d aplikacji."
+        "error.html", message="Wystąpił wewnętrzny błąd aplikacji."
     ), 500
