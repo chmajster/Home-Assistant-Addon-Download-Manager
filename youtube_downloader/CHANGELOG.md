@@ -2,6 +2,9 @@
 
 ## 1.3.78
 
+- Szybkie `Pobierz` dla aktywnego live uruchamia teraz zapis od poczatku transmisji.
+- Rozszerzono status zapisu live o czas nagrywania, zapisany rozmiar i okresowe wpisy w logu.
+
 - Naprawiono kodowanie polskich komunikatów w interfejsie i logach.
 
 ## 1.3.77

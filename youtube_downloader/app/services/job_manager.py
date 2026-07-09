@@ -11,6 +11,7 @@ import signal
 import sqlite3
 import subprocess
 import threading
+import time
 import uuid
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
@@ -97,6 +98,8 @@ class Job:
     is_live: bool = False
     live_from_start: bool = True
     duration: int | None = None
+    live_elapsed_seconds: int | None = None
+    live_status_message: str | None = None
     log_lines: list[str] = field(default_factory=list)
     auto_retry_attempts: int = 0
     auto_retry_max_attempts: int = AUTO_RETRY_MAX_ATTEMPTS
@@ -815,6 +818,13 @@ class JobManager:
             and job.status == "completed"
             and (job.download_type != "format" or bool(job.format_id))
         )
+        if job.is_live and job.started_at and job.status in self.ACTIVE_STATUSES:
+            job.live_elapsed_seconds = self._seconds_since(job.started_at)
+            payload["live_elapsed_seconds"] = job.live_elapsed_seconds
+            payload["live_status_message"] = self._live_status_message(job)
+        payload["live_elapsed_label"] = self._duration_label(
+            payload.get("live_elapsed_seconds")
+        )
         recent_log_lines = payload["log_lines"][-JOB_LOG_PREVIEW_LINE_LIMIT:]
         payload["recent_log_lines"] = recent_log_lines
         if include_full_log:
@@ -1265,6 +1275,7 @@ class JobManager:
                 self._start(job)
             paths: set[Path] = set()
             output_lines: deque[str] = deque(maxlen=40)
+            last_status_log = 0.0
             try:
                 command = self.media_service.live_command(
                     job.url, live_from_start=job.live_from_start
@@ -1288,6 +1299,15 @@ class JobManager:
                         if active:
                             self._append_log_line(active, line)
                     self._parse_live_line(job_id, line, paths)
+                    now_monotonic = time.monotonic()
+                    should_log_status = now_monotonic - last_status_log >= 30
+                    self._refresh_live_progress(
+                        job_id,
+                        paths,
+                        append_status_log=should_log_status,
+                    )
+                    if should_log_status:
+                        last_status_log = now_monotonic
                     if stop_event.is_set() and process.poll() is None:
                         self._interrupt_process(process)
                 return_code = process.wait()
@@ -1395,6 +1415,30 @@ class JobManager:
             if self.file_service.is_managed_file(path):
                 paths.add(path)
 
+    def _refresh_live_progress(
+        self,
+        job_id: str,
+        paths: set[Path],
+        append_status_log: bool = False,
+    ) -> None:
+        """Update live size and elapsed time while yt-dlp is still running."""
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job or not job.is_live:
+                return
+            if paths:
+                size = self._paths_size(paths)
+                if size is not None:
+                    job.downloaded_bytes = size
+                    job.total_bytes = size
+            if job.started_at:
+                job.live_elapsed_seconds = self._seconds_since(job.started_at)
+            job.live_status_message = self._live_status_message(job)
+            if append_status_log:
+                self._append_log_line(job, f"[live] {job.live_status_message}")
+            self._persist_jobs()
+
     def _record_existing_outputs(
         self, job_id: str, paths: set[Path], status: str
     ) -> list[str]:
@@ -1426,6 +1470,48 @@ class JobManager:
                 except (FileNotFoundError, ValueError):
                     LOGGER.warning("Pominięto wynik poza katalogiem pobrań: %s", path)
         return files
+
+    @staticmethod
+    def _paths_size(paths: set[Path]) -> int | None:
+        total = 0
+        seen = False
+        for path in paths:
+            try:
+                if path.is_file():
+                    total += path.stat().st_size
+                    seen = True
+            except OSError:
+                continue
+        return total if seen else None
+
+    @staticmethod
+    def _seconds_since(value: str) -> int | None:
+        try:
+            started_at = datetime.fromisoformat(value)
+        except (TypeError, ValueError):
+            return None
+        if started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=UTC)
+        return max(0, int((datetime.now(UTC) - started_at).total_seconds()))
+
+    @staticmethod
+    def _duration_label(seconds: int | None) -> str:
+        if seconds is None:
+            return "-"
+        minutes, second = divmod(max(0, int(seconds)), 60)
+        hours, minute = divmod(minutes, 60)
+        return f"{hours:02d}:{minute:02d}:{second:02d}"
+
+    def _live_status_message(self, job: Job) -> str:
+        parts = [f"czas zapisu {self._duration_label(job.live_elapsed_seconds)}"]
+        size = self._display_size(job.downloaded_bytes)
+        if size:
+            parts.append(f"zapisano {size}")
+        if job.speed:
+            parts.append(f"predkosc {job.speed}")
+        if job.live_from_start:
+            parts.append("tryb od poczatku live")
+        return "; ".join(parts)
 
     @staticmethod
     def _interrupt_process(process: subprocess.Popen[str]) -> None:

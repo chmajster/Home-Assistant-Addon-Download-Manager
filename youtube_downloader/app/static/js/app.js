@@ -2067,11 +2067,28 @@
     return null;
   };
 
+  const durationLabel = (value) => {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds) || seconds < 0) return "";
+    const whole = Math.floor(seconds);
+    const hours = Math.floor(whole / 3600);
+    const minutes = Math.floor((whole % 3600) / 60);
+    const secs = whole % 60;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
   const jobSize = (job) => {
     const downloaded = fileSize(job.downloaded_bytes);
     const total = fileSize(job.total_bytes);
     if (downloaded && total && job.downloaded_bytes !== job.total_bytes) return `${downloaded} / ${total}`;
     return downloaded || total || "-";
+  };
+
+  const liveInfo = (job) => {
+    if (!job.is_live) return "";
+    if (job.live_status_message) return job.live_status_message;
+    const elapsed = durationLabel(job.live_elapsed_seconds);
+    return elapsed ? `czas zapisu ${elapsed}` : "";
   };
 
   const jobErrorHint = (job) => {
@@ -2420,6 +2437,7 @@
       const titleCell = document.createElement("td");
       titleCell.append(
         jobTitle(job),
+        text("small", liveInfo(job), "d-block text-body-secondary"),
         jobErrorBlock(job),
         jobAutoRetryBlock(job),
         text("small", job.warning_message || "", "job-error d-block text-warning"),
@@ -2451,7 +2469,8 @@
       card.className = "mobile-list-card p-3 mb-3";
       const heading = jobTitle(job);
       heading.classList.add("d-block");
-      const meta = text("small", `${downloadTypeLabel(job.download_type)} | ${jobSize(job)} | ${job.speed || "-"} | ETA ${job.eta || "-"}`, "d-block text-body-secondary mb-2");
+      const liveMeta = liveInfo(job);
+      const meta = text("small", `${downloadTypeLabel(job.download_type)} | ${jobSize(job)} | ${job.speed || "-"} | ETA ${job.eta || "-"}${liveMeta ? ` | ${liveMeta}` : ""}`, "d-block text-body-secondary mb-2");
       const status = statusBadge(job);
       const progress = progressBar(job);
       progress.classList.add("my-2");

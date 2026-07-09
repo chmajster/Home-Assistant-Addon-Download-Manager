@@ -1191,6 +1191,45 @@ class ApplicationTestCase(unittest.TestCase):
             "https://youtu.be/live", "Live", live_from_start=False
         )
 
+    def test_quick_download_active_live_starts_recording_from_start(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        media = {
+            "url": "https://youtu.be/live",
+            "title": "Live",
+            "content_type": "live",
+            "is_live": True,
+        }
+        manager = self.app.extensions["job_manager"]
+        with (
+            patch.object(self.app.extensions["media_service"], "analyze", return_value=media),
+            patch.object(
+                manager,
+                "start_live",
+                return_value=SimpleNamespace(job_id="12345678"),
+            ) as start_live,
+            patch.object(manager, "start_download") as start_download,
+        ):
+            response = self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/live",
+                    "download_type": "best",
+                    "quick_download": "1",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        start_live.assert_called_once_with(
+            "https://youtu.be/live", "Live", live_from_start=True
+        )
+        start_download.assert_not_called()
+
     def test_watch_live_defaults_to_live_from_start(self) -> None:
         class FakeUpdater:
             def ensure_recent(self) -> bool:
@@ -3447,6 +3486,24 @@ class JobManagerTestCase(unittest.TestCase):
         )
         self.assertEqual(restored.get_job(job.job_id).status, "completed")
         self.assertTrue(restored.get_job(job.job_id).log_lines)
+
+    def test_live_job_dict_includes_recording_status_details(self) -> None:
+        job = self.manager._new_job(
+            "https://youtu.be/live", "Live", "live", is_live=True, live_from_start=True
+        )
+        with self.manager._lock:
+            active = self.manager._jobs[job.job_id]
+            active.status = "downloading"
+            active.started_at = (datetime.now(UTC) - timedelta(seconds=7)).isoformat()
+            active.downloaded_bytes = 2048
+            active.total_bytes = 2048
+
+        payload = self.manager.job_dict(self.manager.get_job(job.job_id))
+
+        self.assertEqual(payload["live_elapsed_label"], "00:00:07")
+        self.assertIn("czas zapisu", payload["live_status_message"])
+        self.assertIn("zapisano 2.0 KB", payload["live_status_message"])
+        self.assertIn("tryb od poczatku live", payload["live_status_message"])
 
     def test_download_updates_url_fallback_title_from_extractor_metadata(self) -> None:
         manager = JobManager(

@@ -38,6 +38,12 @@
       <span>{{ t('details.retries') }}</span>
       <strong>{{ job.auto_retry_attempts }}/{{ job.auto_retry_max_attempts }}</strong>
     </article>
+    {% if job.is_live %}
+      <article class="job-detail-kpi">
+        <span>Czas zapisu live</span>
+        <strong>{{ job.live_elapsed_label or "00:00:00" }}</strong>
+      </article>
+    {% endif %}
     <article class="job-detail-kpi">
       <span>{{ t('common.result') }}</span>
       {% if job.output_file %}
@@ -127,6 +133,12 @@
           <dd>{{ job.error_code or "-" }}</dd>
           <dt>{{ t('details.live') }}</dt>
           <dd>{{ t('common.yes') if job.is_live else t('common.no') }}</dd>
+          {% if job.is_live %}
+            <dt>Live od poczatku</dt>
+            <dd>{{ t('common.yes') if job.live_from_start else t('common.no') }}</dd>
+            <dt>Status zapisu live</dt>
+            <dd>{{ job.live_status_message or "-" }}</dd>
+          {% endif %}
           <dt>{{ t('details.created') }}</dt>
           <dd>{{ job.created_at|replace("T", " ")|truncate(19, True, "") }}</dd>
         </dl>

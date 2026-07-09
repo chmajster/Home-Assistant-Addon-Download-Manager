@@ -81,6 +81,7 @@
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="download_type" value="{{ app_settings.preferred_format or 'best' }}">
         <input type="hidden" name="storage_name" value="{{ app_settings.storage_mode or 'local' }}">
+        <input type="hidden" name="quick_download" value="1">
         <label class="visually-hidden" for="media-url">{{ t('index.url_label') }}</label>
         <div class="input-group input-group-lg hero-input-group">
           <span class="input-group-text" aria-hidden="true">URL</span>
