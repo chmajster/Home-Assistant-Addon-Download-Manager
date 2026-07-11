@@ -17,10 +17,10 @@ jobs:
     env:
       IMAGE: ghcr.io/${{ github.repository_owner }}/home-assistant-addon-download-manager
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
       - run: python -m pip install PyYAML
@@ -33,16 +33,16 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then EXPECTED_ARGS=(--expected "$GITHUB_REF_NAME"); fi
           python youtube_downloader/scripts/bump_version.py --check "${EXPECTED_ARGS[@]}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and publish multi-architecture image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: youtube_downloader
           platforms: linux/amd64,linux/arm64
@@ -55,7 +55,7 @@ jobs:
           build-args: BUILD_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=release
           cache-to: type=gha,mode=max,scope=release
-      - uses: sigstore/cosign-installer@v4.1.0
+      - uses: sigstore/cosign-installer@v4.1.2
       - name: Sign image by digest with GitHub OIDC
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
@@ -77,7 +77,7 @@ jobs:
           ' youtube_downloader/CHANGELOG.md > release-notes.md
           test -s release-notes.md
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
