@@ -57,17 +57,29 @@ class ReleaseToolTestCase(unittest.TestCase):
     def test_bump_version_updates_manifest_dockerfile_and_changelog(self) -> None:
         module = load_bump_version_module()
         with tempfile.TemporaryDirectory() as temp_dir:
-            root = Path(temp_dir)
+            repository_root = Path(temp_dir)
+            root = repository_root / "youtube_downloader"
+            root.mkdir()
             (root / "config.yaml").write_text(
                 'name: "Media Web Downloader"\nversion: "1.3.54"\n',
                 encoding="utf-8",
             )
             (root / "Dockerfile").write_text(
-                'FROM scratch\nARG BUILD_VERSION="1.3.54"\n',
+                'FROM scratch\nARG BUILD_VERSION="1.3.54"\n'
+                'LABEL io.hass.version="${BUILD_VERSION}" '
+                'org.opencontainers.image.version="${BUILD_VERSION}"\n',
                 encoding="utf-8",
             )
             (root / "CHANGELOG.md").write_text(
                 "# Changelog\n\n## 1.3.54\n\n- Previous.\n",
+                encoding="utf-8",
+            )
+            workflows = repository_root / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "release.yml").write_text(
+                "scripts/bump_version.py --check\n"
+                "steps.version.outputs.version\n"
+                "BUILD_VERSION=${{ steps.version.outputs.version }}\n",
                 encoding="utf-8",
             )
 
@@ -200,7 +212,7 @@ class SQLiteStateStoreTestCase(unittest.TestCase):
             finally:
                 connection.close()
 
-            self.assertEqual(schema_version, "3")
+            self.assertEqual(schema_version, "5")
             self.assertEqual(history_row["source"], "youtube")
             self.assertEqual(history_row["tags"], "music,video")
             self.assertEqual(job_row["title"], "Legacy job")
@@ -638,7 +650,7 @@ class ApplicationTestCase(unittest.TestCase):
             )
 
         retry.assert_called_once_with()
-        self.assertEqual(updater.calls, 1)
+        self.assertEqual(updater.calls, 0)
         body = response.get_data(as_text=True)
         self.assertIn("Ponowiono nieudane zadania: 2.", body)
         self.assertIn("Pomini", body)
@@ -665,7 +677,7 @@ class ApplicationTestCase(unittest.TestCase):
             )
 
         retry.assert_called_once_with(job.job_id)
-        self.assertEqual(updater.calls, 1)
+        self.assertEqual(updater.calls, 0)
         self.assertEqual(response.status_code, 302)
         self.assertIn("filter=errors", response.headers["Location"])
 
@@ -844,7 +856,7 @@ class ApplicationTestCase(unittest.TestCase):
                 follow_redirects=False,
             )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(updater.calls, 1)
+        self.assertEqual(updater.calls, 0)
 
     def test_start_download_applies_download_profile(self) -> None:
         class FakeUpdater:
@@ -1105,7 +1117,7 @@ class ApplicationTestCase(unittest.TestCase):
                 follow_redirects=True,
             ).get_data(as_text=True)
 
-        self.assertEqual(updater.calls, 1)
+        self.assertEqual(updater.calls, 0)
         self.assertEqual(start_download.call_count, 2)
         self.assertEqual(
             start_download.call_args_list[0].kwargs["url"], "https://youtu.be/one"
@@ -1529,7 +1541,7 @@ class ApplicationTestCase(unittest.TestCase):
                 follow_redirects=True,
             )
 
-        self.assertEqual(updater.calls, 1)
+        self.assertEqual(updater.calls, 0)
         start_download.assert_called_once_with(
             url="https://youtu.be/example",
             title="Example video",
@@ -2011,7 +2023,7 @@ class ApplicationTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("q=Example", response.headers["Location"])
-        self.assertEqual(updater.calls, 1)
+        self.assertEqual(updater.calls, 0)
         start_download.assert_called_once_with(
             url="https://youtu.be/example",
             title="Example",
