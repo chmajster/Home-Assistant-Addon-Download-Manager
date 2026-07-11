@@ -308,7 +308,7 @@ class HomeAssistantNotifier:
             or ""
         ).rstrip("/")
         if not base_url:
-            return ""
+            return path
         parts = urlsplit(base_url)
         if parts.scheme not in {"http", "https"} or parts.username or parts.password or parts.query:
             return ""

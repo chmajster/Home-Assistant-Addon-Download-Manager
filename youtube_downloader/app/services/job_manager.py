@@ -894,12 +894,6 @@ class JobManager:
         )
         with self._lock:
             self._jobs[job.job_id] = job
-            comparable = asdict(job)
-            comparable.pop("log_lines", None)
-            self._persisted_jobs[job.job_id] = json.dumps(
-                comparable, sort_keys=True, default=str
-            )
-            self._persisted_status[job.job_id] = job.status
             self._persist_jobs()
         return Job(**asdict(job))
 
@@ -1533,7 +1527,7 @@ class JobManager:
 
     def _live_status_message(self, job: Job) -> str:
         parts = [f"czas zapisu {self._duration_label(job.live_elapsed_seconds)}"]
-        size = self._display_size(job.downloaded_bytes)
+        size = self._filesize_label(job.downloaded_bytes)
         if size:
             parts.append(f"zapisano {size}")
         if job.speed:
@@ -1541,6 +1535,17 @@ class JobManager:
         if job.live_from_start:
             parts.append("tryb od poczatku live")
         return "; ".join(parts)
+
+    @staticmethod
+    def _filesize_label(value: int | None) -> str | None:
+        if value is None:
+            return None
+        size = float(value)
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if size < 1024 or unit == "TB":
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return None
 
     @staticmethod
     def _interrupt_process(process: subprocess.Popen[str]) -> None:

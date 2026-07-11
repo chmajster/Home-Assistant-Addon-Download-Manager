@@ -1,0 +1,531 @@
+﻿2026-07-12 00:12:30,475 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:30,485 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpr6esb1xo\downloads, max_concurrent_jobs=2
+F2026-07-12 00:12:30,539 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:30,554 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmphaj1anby\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:31,239 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:31,251 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpusyh4qse\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:31,337 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:31,349 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp0hpuyx_n\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:31,422 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:31,431 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp1qgcvasw\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:31,500 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:31,510 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpn3f3w_au\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:31,572 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:31,580 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmphoqdod_w\downloads, max_concurrent_jobs=2
+2026-07-12 00:12:31,587 INFO app.services.job_manager: Zlecono zatrzymanie pobierania 1f464e5c27d847fcbad216880ce614dd
+2026-07-12 00:12:31,609 INFO app.services.job_manager: Usuni�to 1 zada�, pomini�to aktywnych: 0
+.2026-07-12 00:12:31,635 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:31,644 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpcya3jnif\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:32,390 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,401 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpnbskvx_n\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:32,427 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,436 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpt1rubr16\downloads, max_concurrent_jobs=2
+F2026-07-12 00:12:32,479 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,488 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpwe2qbk3t\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:32,561 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,569 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp4u838jlu\downloads, max_concurrent_jobs=2
+C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py:1410: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\Chris\\Documents\\GitHub\\Home-Assistant-Addon-Download-Manager\\youtube_downloader\\app\\static/js/app.js'>
+  script = self.client.get("/static/js/app.js").get_data(as_text=True)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.ss2026-07-12 00:12:32,622 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,633 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpwawwu9dn\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:32,657 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,668 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpam5kfjj0\downloads, max_concurrent_jobs=2
+Fssss2026-07-12 00:12:32,695 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,704 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp2ag74dwy\downloads, max_concurrent_jobs=2
+Fs2026-07-12 00:12:32,774 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,784 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpk4_h1bdc\downloads, max_concurrent_jobs=2
+C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py:1833: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\Chris\\Documents\\GitHub\\Home-Assistant-Addon-Download-Manager\\youtube_downloader\\app\\static/js/app.js'>
+  script = self.client.get("/static/js/app.js").get_data(as_text=True)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.2026-07-12 00:12:32,807 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,815 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpgsum04h8\downloads, max_concurrent_jobs=2
+C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py:1770: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\Chris\\Documents\\GitHub\\Home-Assistant-Addon-Download-Manager\\youtube_downloader\\app\\static/js/app.js'>
+  script = self.client.get("/static/js/app.js").get_data(as_text=True)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.sssssssssssssss2026-07-12 00:12:32,840 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,848 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp68cfxifl\downloads, max_concurrent_jobs=2
+2026-07-12 00:12:32,855 INFO app.services.job_manager: Zlecono zatrzymanie pobierania 41d6745750f740159e00505889a77a3f
+2026-07-12 00:12:32,876 INFO app.services.job_manager: Usuni�to zadanie 41d6745750f740159e00505889a77a3f
+.2026-07-12 00:12:32,900 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,909 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpq_24_jh0\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:32,984 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:32,993 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpv6i1ycah\downloads, max_concurrent_jobs=2
+2026-07-12 00:12:33,009 INFO app.services.job_manager: Przeniesiono 1 wpis�w historii pobra� do widoku zada�.
+2026-07-12 00:12:33,016 INFO app.services.job_manager: Odtworzono 1 zada� z trwa�ej kolejki
+.2026-07-12 00:12:33,075 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,085 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpusabt61j\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:33,147 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,157 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp534ht2hb\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:33,217 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,226 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpiqzi0hwb\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:33,284 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,293 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp9nhukpd2\downloads, max_concurrent_jobs=2
+2026-07-12 00:12:33,324 INFO app.services.file_service: Usuni�to plik example.mp4
+.2026-07-12 00:12:33,377 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,385 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpbfidpxon\downloads, max_concurrent_jobs=2
+F2026-07-12 00:12:33,462 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,470 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp1p3jpqbh\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:33,722 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,731 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpzpq3jyfh\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:33,798 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,807 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpfw5kji9z\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:33,903 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:33,911 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmput6dc8x0\downloads, max_concurrent_jobs=2
+E2026-07-12 00:12:34,254 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,262 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp9siyxitq\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,288 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,299 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpn24coa2u\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,335 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,344 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpbymfa34t\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,383 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,392 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpalfl6ddn\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,429 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,438 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpwenbqwfy\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,473 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,481 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpbi13z2m5\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,505 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,513 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpvwdxcrnv\downloads, max_concurrent_jobs=2
+F2026-07-12 00:12:34,563 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,572 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpgxbd6xon\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,595 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,604 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp_69v10c1\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,642 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,651 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmphf5jw47y\downloads, max_concurrent_jobs=2
+F2026-07-12 00:12:34,689 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,698 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpj__nb89p\downloads, max_concurrent_jobs=2
+2026-07-12 00:12:34,713 INFO app.services.job_manager: Usuni�to zadanie c2b3ad5cbe3249b497d52ea397660b46
+.2026-07-12 00:12:34,737 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,747 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpwl1fzixd\downloads, max_concurrent_jobs=2
+2026-07-12 00:12:34,778 INFO app.services.file_service: Usuni�to plik example.mp4
+.2026-07-12 00:12:34,849 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,858 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpc6aezd1y\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,905 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,913 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpuohk4thm\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:34,952 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:34,960 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp5j_apd0y\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:35,011 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,020 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpgc1hoiog\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:35,071 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,079 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp2bfs9qqj\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:35,130 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,139 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp5epnmixn\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:35,190 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,199 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpj80olxee\downloads, max_concurrent_jobs=2
+2026-07-12 00:12:35,206 INFO app.services.job_manager: Zlecono zatrzymanie pobierania f859279f20be479aaae55aa7fb126323
+2026-07-12 00:12:35,213 INFO app.services.job_manager: Zlecono zatrzymanie pobierania 84bfbc8c60ec41298f177c968a05f1a7
+2026-07-12 00:12:35,242 INFO app.services.job_manager: Usuni�to 2 zada�, pomini�to aktywnych: 0
+.2026-07-12 00:12:35,267 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,297 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpg4vbo1as\downloads, max_concurrent_jobs=2
+F2026-07-12 00:12:35,339 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,347 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpv_3prec6\downloads, max_concurrent_jobs=2
+F2026-07-12 00:12:35,386 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,395 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpen8fqhxq\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:35,444 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,453 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmp5sz_basx\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:35,492 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,500 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpj6gjfdh6\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:35,538 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,547 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpccxica46\downloads, max_concurrent_jobs=2
+.2026-07-12 00:12:35,585 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,594 INFO app: Aplikacja gotowa: download_dir=C:\Users\Chris\AppData\Local\Temp\tmpae_1x10t\downloads, max_concurrent_jobs=2
+.....2026-07-12 00:12:35,647 WARNING app.services.file_service: Nie mo�na wygenerowa� miniatury dla example.mp4: No space left on device
+.2026-07-12 00:12:35,665 WARNING app.services.file_service: Nie mo�na wygenerowa� miniatury dla example.mp4: ffmpeg conversion failed
+.2026-07-12 00:12:35,709 INFO app.services.state_store: Przeniesiono 1 wpis�w historii z C:\Users\Chris\AppData\Local\Temp\tmpm7ho_bal\jobs\history.json do C:\Users\Chris\AppData\Local\Temp\tmpm7ho_bal\jobs\state.sqlite3
+....2026-07-12 00:12:35,804 INFO app.services.file_service: Usuni�to plik example.mp4
+.2026-07-12 00:12:35,844 INFO app.services.file_service: Usuni�to plik example.mp4
+.FF2026-07-12 00:12:35,848 WARNING app.services.ha_options: Katalog pobra� musi by� �cie�k� bezwzgl�dn�. U�ywam warto�ci domy�lnej.
+2026-07-12 00:12:35,848 WARNING app.services.ha_options: Katalog pobra� musi by� �cie�k� bezwzgl�dn�. U�ywam warto�ci domy�lnej.
+...2026-07-12 00:12:35,849 WARNING app.services.ha_options: Katalog pobra� musi by� �cie�k� bezwzgl�dn�. U�ywam warto�ci domy�lnej.
+2026-07-12 00:12:35,849 WARNING app.services.ha_options: Katalog pobra� musi by� �cie�k� bezwzgl�dn�. U�ywam warto�ci domy�lnej.
+2026-07-12 00:12:35,849 WARNING app.services.ha_options: Katalog pobra� musi by� �cie�k� bezwzgl�dn�. U�ywam warto�ci domy�lnej.
+2026-07-12 00:12:35,849 WARNING app.services.ha_options: Katalog pobra� musi by� �cie�k� bezwzgl�dn�. U�ywam warto�ci domy�lnej.
+..2026-07-12 00:12:35,872 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,876 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:35,878 INFO app.services.job_manager: Dodano zadanie pobierania 17d997ea0bb74c559c681fcb5a73b5ba
+2026-07-12 00:12:36,245 INFO app.services.job_manager: Zlecono zatrzymanie pobierania 17d997ea0bb74c559c681fcb5a73b5ba
+2026-07-12 00:12:36,264 INFO app.services.job_manager: Wznowiono pobieranie 17d997ea0bb74c559c681fcb5a73b5ba
+.2026-07-12 00:12:36,434 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:36,438 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:36,439 INFO app.services.job_manager: Dodano zadanie pobierania 8ef5be4b2a804c20ab770f28894bc9f4
+.2026-07-12 00:12:36,628 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:36,629 INFO app.services.job_manager: Dodano zadanie pobierania 6d4299a6d2cb4335b5a876ebcf1c9745
+.2026-07-12 00:12:36,932 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:36,936 ERROR app.services.state_store: Nie mo�na odczyta� starego pliku kolejki zada�: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+2026-07-12 00:12:36,938 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+.2026-07-12 00:12:36,966 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:36,983 INFO app.services.job_manager: Zlecono zatrzymanie pobierania 3a0fe61f7bd7447191659dfec580769b
+2026-07-12 00:12:36,990 INFO app.services.job_manager: Usuni�to 1 zada�, pomini�to aktywnych: 1
+2026-07-12 00:12:36,990 INFO app.services.job_manager: Usuni�to 0 zada�, pomini�to aktywnych: 0
+.2026-07-12 00:12:37,011 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:37,013 INFO app.services.job_manager: Dodano zadanie pobierania f40b01becfdd4147848f31b0d0419794
+2026-07-12 00:12:37,131 ERROR app.services.job_manager: Nieoczekiwany b��d zadania f40b01becfdd4147848f31b0d0419794
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\app\services\job_manager.py", line 1211, in _run_download
+    paths = self.media_service.download(
+        url=job.url,
+    ...<4 lines>...
+        postprocessor_hook=postprocessor_hook,
+    )
+  File "C:\Users\Chris\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Lib\unittest\mock.py", line 1175, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Chris\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Lib\unittest\mock.py", line 1179, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Chris\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Lib\unittest\mock.py", line 1234, in _execute_mock_call
+    raise effect
+OSError: [Errno 28] No space left on device
+.2026-07-12 00:12:37,182 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:37,186 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:37,188 INFO app.services.job_manager: Dodano zadanie pobierania a20f2282c7ff4d758a000af8331a0576
+.2026-07-12 00:12:37,370 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:37,371 INFO app.services.job_manager: Dodano zapis transmisji live e8b6408eec2946a882a2c2d5c0bbb010
+2026-07-12 00:12:37,378 INFO app.services.job_manager: Zatrzymano zapis transmisji live e8b6408eec2946a882a2c2d5c0bbb010
+.2026-07-12 00:12:37,401 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:37,402 INFO app.services.job_manager: Dodano zadanie pobierania 67ee9bb23c374b8191459fd7cf160dfc
+.2026-07-12 00:12:37,714 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:37,718 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+E2026-07-12 00:12:37,741 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:37,743 INFO app.services.job_manager: Dodano zadanie pobierania f5a2925f59624777bbef5701bb859d16
+2026-07-12 00:12:37,914 INFO app.services.job_manager: Automatycznie ponawiam zadanie f5a2925f59624777bbef5701bb859d16 (1/3)
+.2026-07-12 00:12:38,098 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,115 INFO app.services.job_manager: Ponowiono 1 b��dnych zada�, pomini�to: 0
+.2026-07-12 00:12:38,283 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,310 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,311 INFO app.services.job_manager: Odtworzono 1 zada� z trwa�ej kolejki
+.2026-07-12 00:12:38,335 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,354 INFO app.services.job_manager: Przeniesiono 1 wpis�w historii pobra� do widoku zada�.
+2026-07-12 00:12:38,362 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,363 INFO app.services.job_manager: Odtworzono 1 zada� z trwa�ej kolejki
+.2026-07-12 00:12:38,386 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,396 INFO app.services.state_store: Przeniesiono 1 zada� z C:\Users\Chris\AppData\Local\Temp\tmphxqcet6h\jobs\legacy-queue.json do C:\Users\Chris\AppData\Local\Temp\tmphxqcet6h\jobs\state.sqlite3
+2026-07-12 00:12:38,398 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,406 INFO app.services.job_manager: Odtworzono 1 zada� z trwa�ej kolejki
+.2026-07-12 00:12:38,427 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,428 INFO app.services.job_manager: Dodano zapis transmisji live 1e9cfd5fa2a247b09fddebe967ee4676
+2026-07-12 00:12:38,435 INFO app.services.job_manager: Zatrzymano zapis transmisji live 1e9cfd5fa2a247b09fddebe967ee4676
+.2026-07-12 00:12:38,457 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+E2026-07-12 00:12:38,481 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,502 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,504 INFO app.services.job_manager: Dodano zadanie pobierania 664e9236739f4d27828341611be69764
+2026-07-12 00:12:38,741 WARNING app.services.file_service: Nie mo�na wygenerowa� miniatury dla example.mp4: [in#0 @ 000002a29a6f0c80] moov atom not found
+[in#0 @ 000002a29a6f0b40] Error opening input: Invalid data found when processing input
+Error opening input file C:\Users\Chris\AppData\Local\Temp\tmph5pvzdqr\downloads\example.mp4.
+Error opening input files: Invalid data found when processing input
+2026-07-12 00:12:38,759 INFO app.services.job_manager: Rozpoczynam graceful shutdown managera zadan.
+2026-07-12 00:12:38,759 INFO app.services.job_manager: Zatrzymano timery retry: 0.
+2026-07-12 00:12:38,759 INFO app.services.job_manager: Ustawiono stop eventy dla aktywnych zadan: 0.
+2026-07-12 00:12:38,759 INFO app.services.job_manager: Przerwano aktywne procesy live: 0.
+2026-07-12 00:12:38,759 INFO app.services.job_manager: ThreadPoolExecutor i SQLite state store zamkniete.
+.2026-07-12 00:12:38,781 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,797 INFO app.services.job_manager: Ponowiono b��dne zadanie ad3e5d3bdc694a568169fd13ad68b664
+.2026-07-12 00:12:38,969 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:38,973 WARNING app.services.job_manager: Wykryto 1 osieroconych procesow yt-dlp dodatku; URL-e live beda blokowane przed duplikacja.
+2026-07-12 00:12:38,973 WARNING app.services.job_manager: Osierocony yt-dlp pid=4242 urls=https://youtu.be/live
+2026-07-12 00:12:38,975 WARNING app.services.job_manager: Wykryto 1 osieroconych procesow yt-dlp dodatku; URL-e live beda blokowane przed duplikacja.
+2026-07-12 00:12:38,975 WARNING app.services.job_manager: Osierocony yt-dlp pid=4242 urls=https://youtu.be/live
+2026-07-12 00:12:38,975 INFO app.services.job_manager: Rozpoczynam graceful shutdown managera zadan.
+2026-07-12 00:12:38,975 INFO app.services.job_manager: Zatrzymano timery retry: 0.
+2026-07-12 00:12:38,975 INFO app.services.job_manager: Ustawiono stop eventy dla aktywnych zadan: 0.
+2026-07-12 00:12:38,975 INFO app.services.job_manager: Przerwano aktywne procesy live: 0.
+2026-07-12 00:12:38,975 INFO app.services.job_manager: ThreadPoolExecutor i SQLite state store zamkniete.
+.2026-07-12 00:12:38,998 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,010 WARNING app.services.job_manager: Wykryto 1 osieroconych procesow yt-dlp dodatku; URL-e live beda blokowane przed duplikacja.
+2026-07-12 00:12:39,010 WARNING app.services.job_manager: Osierocony yt-dlp pid=4242 urls=https://youtu.be/live
+2026-07-12 00:12:39,024 INFO app.services.job_manager: Odtworzono 1 zada� z trwa�ej kolejki
+2026-07-12 00:12:39,026 INFO app.services.job_manager: Rozpoczynam graceful shutdown managera zadan.
+2026-07-12 00:12:39,026 INFO app.services.job_manager: Zatrzymano timery retry: 0.
+2026-07-12 00:12:39,026 INFO app.services.job_manager: Ustawiono stop eventy dla aktywnych zadan: 0.
+2026-07-12 00:12:39,026 INFO app.services.job_manager: Przerwano aktywne procesy live: 0.
+2026-07-12 00:12:39,026 INFO app.services.job_manager: ThreadPoolExecutor i SQLite state store zamkniete.
+.2026-07-12 00:12:39,049 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,053 WARNING app.services.job_manager: Wykryto 1 osieroconych procesow yt-dlp dodatku; URL-e live beda blokowane przed duplikacja.
+2026-07-12 00:12:39,053 WARNING app.services.job_manager: Osierocony yt-dlp pid=4242 urls=https://youtu.be/live
+2026-07-12 00:12:39,055 INFO app.services.job_manager: Dodano zapis transmisji live f93cbc7dddbf41f4a48450afbb46bbeb
+2026-07-12 00:12:39,062 INFO app.services.job_manager: Zatrzymano zapis transmisji live f93cbc7dddbf41f4a48450afbb46bbeb
+2026-07-12 00:12:39,062 INFO app.services.job_manager: Rozpoczynam graceful shutdown managera zadan.
+2026-07-12 00:12:39,062 INFO app.services.job_manager: Zatrzymano timery retry: 0.
+2026-07-12 00:12:39,062 INFO app.services.job_manager: Ustawiono stop eventy dla aktywnych zadan: 0.
+2026-07-12 00:12:39,062 INFO app.services.job_manager: Przerwano aktywne procesy live: 0.
+2026-07-12 00:12:39,062 INFO app.services.job_manager: ThreadPoolExecutor i SQLite state store zamkniete.
+.2026-07-12 00:12:39,087 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,093 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+E2026-07-12 00:12:39,119 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,122 INFO app.services.job_manager: Dodano zadanie pobierania 5565c83a6b15427e8280f1aa1d3cfbff
+2026-07-12 00:12:39,129 INFO app.services.job_manager: Zlecono zatrzymanie pobierania 5565c83a6b15427e8280f1aa1d3cfbff
+2026-07-12 00:12:39,136 INFO app.services.job_manager: Wznowiono pobieranie 5565c83a6b15427e8280f1aa1d3cfbff
+.2026-07-12 00:12:39,330 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,332 INFO app.services.job_manager: Dodano zadanie pobierania dd0c02ee6d6a4731ba6297ae58c87104
+2026-07-12 00:12:39,333 INFO app.services.job_manager: Usuni�to zadanie dd0c02ee6d6a4731ba6297ae58c87104
+.2026-07-12 00:12:39,356 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,358 INFO app.services.job_manager: Dodano zadanie pobierania 77ca3e99e0c74cf69d915f6163cc9857
+2026-07-12 00:12:39,536 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,537 INFO app.services.job_manager: Odtworzono 1 zada� z trwa�ej kolejki
+.2026-07-12 00:12:39,561 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,569 INFO app.services.job_manager: Ponowiono 0 b��dnych zada�, pomini�to: 1
+.2026-07-12 00:12:39,592 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,596 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:39,598 INFO app.services.job_manager: Dodano zadanie pobierania fb4ca212ee544fcd934059dd19a2a104
+2026-07-12 00:12:39,730 INFO app.services.job_manager: Rozpoczynam graceful shutdown managera zadan.
+2026-07-12 00:12:39,744 INFO app.services.job_manager: Zatrzymano timery retry: 0.
+2026-07-12 00:12:39,744 INFO app.services.job_manager: Ustawiono stop eventy dla aktywnych zadan: 1.
+2026-07-12 00:12:39,744 INFO app.services.job_manager: Przerwano aktywne procesy live: 0.
+2026-07-12 00:12:41,758 INFO app.services.job_manager: ThreadPoolExecutor i SQLite state store zamkniete.
+.2026-07-12 00:12:41,781 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+.2026-07-12 00:12:41,806 INFO app.services.job_manager: Nie wykryto osieroconych procesow yt-dlp dodatku.
+2026-07-12 00:12:41,808 INFO app.services.job_manager: Dodano zadanie pobierania 608fa6a89cc0429e8a698747e65ea945
+.........................EF..2026-07-12 00:12:42,089 INFO app.services.ytdlp_updater: Aktualizuj� yt-dlp do najnowszej wersji...
+2026-07-12 00:12:42,089 INFO app.services.ytdlp_updater: yt-dlp zosta� zaktualizowany i zweryfikowany.
+F2026-07-12 00:12:42,091 INFO app.services.ytdlp_updater: Aktualizuj� yt-dlp do najnowszej wersji...
+2026-07-12 00:12:42,091 INFO app.services.ytdlp_updater: yt-dlp zosta� zaktualizowany i zweryfikowany.
+FF
+======================================================================
+ERROR: test_job_log_page_displays_full_log (test_app.ApplicationTestCase.test_job_log_page_displays_full_log)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 524, in test_job_log_page_displays_full_log
+    payload = connection.execute(
+              ~~~~~~~~~~~~~~~~~~~
+        "SELECT payload FROM jobs WHERE job_id = ?", (job.job_id,)
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ).fetchone()[0]
+    ~~~~~~~~~~~~^^^
+TypeError: 'NoneType' object is not subscriptable
+System.Management.Automation.RemoteException
+======================================================================
+ERROR: test_explicit_format_is_kept_for_resuming (test_app.JobManagerTestCase.test_explicit_format_is_kept_for_resuming)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 3852, in test_explicit_format_is_kept_for_resuming
+    ).get_job(job.job_id)
+      ~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\app\services\job_manager.py", line 492, in get_job
+    raise KeyError(job_id)
+KeyError: 'd0d30bc07b2a478884611a917250eec3'
+System.Management.Automation.RemoteException
+======================================================================
+ERROR: test_live_job_dict_includes_recording_status_details (test_app.JobManagerTestCase.test_live_job_dict_includes_recording_status_details)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 3501, in test_live_job_dict_includes_recording_status_details
+    payload = self.manager.job_dict(self.manager.get_job(job.job_id))
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\app\services\job_manager.py", line 832, in job_dict
+    payload["live_status_message"] = self._live_status_message(job)
+                                     ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\app\services\job_manager.py", line 1536, in _live_status_message
+    size = self._display_size(job.downloaded_bytes)
+           ^^^^^^^^^^^^^^^^^^
+AttributeError: 'JobManager' object has no attribute '_display_size'. Did you mean: '_display_speed'?
+System.Management.Automation.RemoteException
+======================================================================
+ERROR: test_pending_job_is_restored_as_interrupted (test_app.JobManagerTestCase.test_pending_job_is_restored_as_interrupted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 3534, in test_pending_job_is_restored_as_interrupted
+    ).get_job(job.job_id)
+      ~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\app\services\job_manager.py", line 492, in get_job
+    raise KeyError(job_id)
+KeyError: '16a8e13e9337440aa58d6491b28d099f'
+System.Management.Automation.RemoteException
+======================================================================
+ERROR: test_bump_version_updates_manifest_dockerfile_and_changelog (test_app.ReleaseToolTestCase.test_bump_version_updates_manifest_dockerfile_and_changelog)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 74, in test_bump_version_updates_manifest_dockerfile_and_changelog
+    module.bump_version(root, "1.3.55", ["Dodano automatyzacj� wersji."])
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\scripts\bump_version.py", line 152, in bump_version
+    check_version_consistency(root, version)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\scripts\bump_version.py", line 78, in check_version_consistency
+    raise VersionBumpError("Brak wymaganych plik�w: " + ", ".join(missing))
+bump_version.VersionBumpError: Brak wymaganych plik�w: C:\Users\Chris\AppData\Local\Temp\.github\workflows\release.yml
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_analyze_imports_multiple_unique_valid_urls (test_app.ApplicationTestCase.test_analyze_imports_multiple_unique_valid_urls)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 1108, in test_analyze_imports_multiple_unique_valid_urls
+    self.assertEqual(updater.calls, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_failed_jobs_can_be_retried_from_jobs_page (test_app.ApplicationTestCase.test_failed_jobs_can_be_retried_from_jobs_page)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 641, in test_failed_jobs_can_be_retried_from_jobs_page
+    self.assertEqual(updater.calls, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_healthcheck (test_app.ApplicationTestCase.test_healthcheck)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 368, in test_healthcheck
+    self.assertEqual(response.get_json(), {"status": "ok"})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'checks': {'database': 'ok', 'ffmpeg': 'ok[131 chars]'ok'} != {'status': 'ok'}
+- {'checks': {'database': 'ok',
+-             'ffmpeg': 'ok',
+-             'ffprobe': 'ok',
+-             'job_manager': 'ok',
+-             'shutdown': 'ok',
+-             'storage_read': 'ok',
+-             'storage_write': 'ok',
+-             'yt_dlp': 'ok'},
+-  'status': 'ok'}
+? ^
+System.Management.Automation.RemoteException
++ {'status': 'ok'}
+? ^
+System.Management.Automation.RemoteException
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_history_delete_form_contains_filename_and_size (test_app.ApplicationTestCase.test_history_delete_form_contains_filename_and_size)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 1450, in test_history_delete_form_contains_filename_and_size
+    self.assertIn('data-history-tags="muzyka|tutoriale|youtube|video"', body)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'data-history-tags="muzyka|tutoriale|youtube|video"' not found in '<!doctype html>\n<html lang="pl">\n  <head>\n    <meta charset="utf-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1">\n    <meta name="ingress-path" content="">\n    <meta name="csrf-token" content="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n    <script id="active-job-statuses" type="application/json">["downloading", "pending", "stopping", "waiting"]</script>\n    <script id="ui-translations" type="application/json">{"common.actions": "Akcje", "common.back_home": "Wr\\u00f3\\u0107 na stron\\u0119 g\\u0142\\u00f3wn\\u0105", "common.close": "Zamknij", "common.delete": "Usu\\u0144", "common.delete_file": "Usu\\u0144 plik", "common.delete_job": "Usu\\u0144 zadanie", "common.details": "Szczeg\\u00f3\\u0142y", "common.download": "Pobierz", "common.download_file": "Pobierz plik", "common.error": "b\\u0142\\u0105d", "common.free": "Wolne", "common.new_url": "Nowy adres", "common.no": "nie", "common.no_data": "brak danych", "common.none": "brak", "common.not_applicable": "nie dotyczy", "common.ok": "OK", "common.open_log": "Otw\\u00f3rz log", "common.parameter": "Parametr", "common.progress": "Post\\u0119p", "common.result": "Wynik", "common.retry": "Pon\\u00f3w", "common.size": "Rozmiar", "common.source": "\\u0179r\\u00f3d\\u0142o", "common.speed": "Pr\\u0119dko\\u015b\\u0107", "common.start": "Start", "common.status": "Status", "common.thumbnail": "Miniatura", "common.title": "Tytu\\u0142", "common.type": "Typ", "common.value": "Warto\\u015b\\u0107", "common.warning": "ostrze\\u017cenie", "common.yes": "tak", "download.best": "najlepsza", "download.format": "konkretny format", "download.video": "najlepsza", "index.addon_settings": "Ustawienia dodatku", "index.all": "Wszystkie", "index.all_sources": "Wszystkie \\u017ar\\u00f3d\\u0142a", "index.all_statuses": "Wszystkie statusy", "index.all_tags": "Wszystkie tagi", "index.all_types": "Wszystkie typy", "index.analyze": "Analizuj", "index.available_for": "Dost\\u0119pne dla katalogu pobra\\u0144:", "index.bulk_apply": "Wykonaj", "index.bulk_delete_files": "Usu\\u0144 pliki", "index.bulk_delete_jobs": "Usu\\u0144 wpisy", "index.bulk_repeat": "Pobierz ponownie", "index.config": "Konfiguracja", "index.configured_ha": "skonfigurowany w HA", "index.copy_invalid": "Kopiuj b\\u0142\\u0119dne", "index.default": "domy\\u015blne", "index.default_format": "Format domy\\u015blny", "index.detected_urls": "Wykryte linki", "index.detected_urls_help": "Odznacz pozycje, kt\\u00f3rych nie chcesz uruchamia\\u0107.", "index.disabled": "wy\\u0142\\u0105czony", "index.disk_space": "Miejsce na dysku", "index.download_again": "Pobierz ponownie", "index.download_dir": "Katalog pobra\\u0144", "index.external_access": "Dost\\u0119p bez Ingress", "index.file_deleted": "plik usuni\\u0119ty", "index.filter_empty": "Brak wynik\\u00f3w dla wybranych filtr\\u00f3w", "index.free": "{value}% wolne", "index.hero.copy": "Analizuj i zapisuj publiczne materia\\u0142y, do kt\\u00f3rych masz prawa. Wklej link, wybierz format i obserwuj post\\u0119p bez opuszczania Home Assistant.", "index.hero.eyebrow": "Prywatny panel pobierania", "index.hero.title_a": "Twoje media.", "index.hero.title_b": "Jedno miejsce.", "index.invalid_url": "Wklej poprawny adres HTTP lub HTTPS obs\\u0142ugiwany przez yt-dlp.", "index.job_limit": "Limit zada\\u0144", "index.language": "J\\u0119zyk interfejsu", "index.library": "Biblioteka", "index.loading_analyze": "Analizuj\\u0119 materia\\u0142 przez yt-dlp. To mo\\u017ce potrwa\\u0107 chwil\\u0119.", "index.loading_download": "Dodaj\\u0119 pobieranie do kolejki.", "index.local": "lokalny", "index.newest_first": "Najnowsze najpierw", "index.next_page": "Nast\\u0119pna strona", "index.nfs_dir": "Katalog NFS w dodatku", "index.nfs_export": "Export NFS", "index.nfs_options": "Opcje NFS", "index.nfs_server": "Serwer NFS", "index.no_jobs": "Nie ma jeszcze zako\\u0144czonych zada\\u0144", "index.no_jobs_copy": "Przeanalizuj pierwszy link, aby rozpocz\\u0105\\u0107.", "index.none": "\\u017badne", "index.not_set": "nieustawione", "index.oldest_first": "Najstarsze najpierw", "index.page_count": "Strona {current} z {total}", "index.password": "Has\\u0142o", "index.platforms": "Obs\\u0142ugiwane serwisy", "index.prev_page": "Poprzednia strona", "index.quick_download": "Pobierz", "index.recent_jobs": "Ostatnie zadania", "index.recent_jobs_copy": "10 ostatnich zapisanych plik\\u00f3w z kolejki. Pe\\u0142na lista jest w karcie Zadania.", "index.remove_invalid": "Usu\\u0144 b\\u0142\\u0119dne", "index.select_visible": "Zaznacz widoczne", "index.selected_count": "Zaznaczone:", "index.set": "ustawione", "index.sort": "Sortowanie", "index.status_filter": "Status", "index.storage_mode": "Tryb magazynu", "index.title": "Start | Media Web Downloader", "index.total": "\\u0141\\u0105cznie", "index.type_filter": "Typ", "index.url_label": "Adres materia\\u0142u", "index.url_placeholder": "Wklej jeden lub wiele link\\u00f3w obs\\u0142ugiwanych przez yt-dlp", "index.used": "Zaj\\u0119te", "index.username": "U\\u017cytkownik", "job.resume": "Wzn\\u00f3w", "job.stop": "Zatrzymaj", "jobs.active_stay": "Aktywne zadania pozostaj\\u0105 na li\\u015bcie.", "jobs.add_link": "Dodaj link", "jobs.all": "Wszystkie", "jobs.clear": "Wyczy\\u015b\\u0107 list\\u0119", "jobs.completed": "Uko\\u0144czone", "jobs.delete_selected": "Usu\\u0144 zaznaczone", "jobs.empty": "Kolejka jest pusta", "jobs.empty_copy": "Wklej link na stronie startowej, a post\\u0119p pobierania pojawi si\\u0119 tutaj automatycznie.", "jobs.error_panel": "B\\u0142\\u0119dy pobierania", "jobs.error_summary": "Nieudane zadania: {count}. Sprawd\\u017a kr\\u00f3tki opis przy wpisie, popraw URL lub format i pon\\u00f3w zadanie.", "jobs.error_summary_empty": "Nieudane zadania zwykle oznaczaj\\u0105 problem z URL, sieci\\u0105, miejscem na dysku albo wybranym formatem.", "jobs.errors": "B\\u0142\\u0119dy", "jobs.eta": "ETA", "jobs.filter_empty": "Nie ma zada\\u0144 w tym filtrze", "jobs.filter_empty_copy": "Wr\\u00f3\\u0107 do pe\\u0142nej kolejki, aby zobaczy\\u0107 aktywne i zako\\u0144czone pobrania.", "jobs.filter_label": "Filtr zada\\u0144", "jobs.heading": "Zadania", "jobs.in_progress": "W toku", "jobs.interrupted": "Przerwane", "jobs.live_refresh": "Status od\\u015bwie\\u017ca si\\u0119 na \\u017cywo.", "jobs.queue": "Kolejka operacji", "jobs.retry_failed": "Pon\\u00f3w nieudane", "jobs.select_all_done": "Zaznacz wszystkie zako\\u0144czone zadania", "jobs.select_errors": "Zaznacz b\\u0142\\u0119dy", "jobs.show_all": "Poka\\u017c wszystkie", "jobs.show_errors": "Poka\\u017c b\\u0142\\u0119dy", "jobs.stopped": "Zatrzymane", "jobs.title": "Zadania | Media Web Downloader", "js.adding": "Dodaj\\u0119...", "js.analyzing": "Analizuj\\u0119...", "js.bad_api": "Niepoprawna odpowied\\u017a API", "js.captions": "Napisy", "js.captions_error": "Nie uda\\u0142o si\\u0119 pobra\\u0107 napis\\u00f3w", "js.captions_loaded": "Napisy zosta\\u0142y w\\u0142\\u0105czone", "js.captions_loading": "Sprawdzam i pobieram napisy...", "js.captions_status_error": "B\\u0142\\u0105d pobierania", "js.captions_status_loading": "Sprawdzam...", "js.captions_status_missing": "Brak napis\\u00f3w", "js.captions_status_off": "Wy\\u0142\\u0105czone", "js.captions_status_on": "Napisy w\\u0142\\u0105czone", "js.captions_unavailable": "Nie znaleziono napis\\u00f3w dla tego materia\\u0142u", "js.clear_jobs": "Czy na pewno wyczy\\u015bci\\u0107 list\\u0119 zako\\u0144czonych zada\\u0144? Aktywne zadania pozostan\\u0105 na li\\u015bcie.", "js.close_stats": "Zamknij statystyki", "js.context_menu": "Menu kontekstowe playera", "js.copied": "Skopiowano", "js.copied_debug": "Skopiowano informacje debugowania", "js.copied_embed": "Skopiowano kod osadzenia", "js.copied_time_url": "Skopiowano adres URL bie\\u017c\\u0105cego momentu", "js.copied_video_url": "Skopiowano adres URL filmu", "js.copy_embed": "Skopiuj kod do umieszczenia na stronie", "js.copy_error": "B\\u0142\\u0105d kopiowania", "js.copy_failed": "Nie uda\\u0142o si\\u0119 skopiowa\\u0107 danych", "js.copy_invalid_error": "Nie mo\\u017cna skopiowa\\u0107 b\\u0142\\u0119dnych URL-i:", "js.delete_file_confirm": "Czy na pewno usun\\u0105\\u0107 plik?\\n\\nNazwa: {filename}\\nRozmiar: {size}", "js.delete_job_confirm": "Czy na pewno usun\\u0105\\u0107 zadanie?\\n\\nTytu\\u0142: {title}", "js.delete_selected_jobs": "Czy na pewno usun\\u0105\\u0107 zaznaczone zadania ({count})?", "js.download_progress": "Post\\u0119p pobierania", "js.empty_no_active": "Nie ma zada\\u0144 w toku", "js.empty_no_completed": "Nie ma uko\\u0144czonych zada\\u0144", "js.empty_no_errors": "Nie ma nieudanych zada\\u0144", "js.empty_no_interrupted": "Nie ma przerwanych zada\\u0144", "js.empty_no_jobs": "Nie ma zada\\u0144", "js.empty_no_stopped": "Nie ma zatrzymanych zada\\u0144", "js.exit_fullscreen": "Zamknij pe\\u0142ny ekran", "js.fullscreen": "Pe\\u0142ny ekran", "js.history_action_confirm": "Czy na pewno {action} ({count})?", "js.history_delete_entries": "usun\\u0105\\u0107 wpisy", "js.history_delete_files": "usun\\u0105\\u0107 pliki", "js.history_do_action": "wykona\\u0107 akcj\\u0119", "js.history_repeat": "ponowi\\u0107 pobieranie", "js.invalid_url_item": "Nieobs\\u0142ugiwany lub niepoprawny URL", "js.invalid_urls": "Niepoprawne URL-e: {urls}", "js.job_error_toast": "Zadanie zako\\u0144czy\\u0142o si\\u0119 b\\u0142\\u0119dem: {title}", "js.job_failed": "Zadanie zako\\u0144czy\\u0142o si\\u0119 b\\u0142\\u0119dem.", "js.link": "Link {number}", "js.mute": "Wycisz", "js.no_thumbnail": "Brak miniatury", "js.open_diagnostics": "Otw\\u00f3rz Diagnostyk\\u0119, aby sprawdzi\\u0107 ffmpeg, yt-dlp, sie\\u0107 i miejsce na dysku", "js.open_preview": "Otw\\u00f3rz podgl\\u0105d: {title}", "js.paste_one": "Wklej co najmniej jeden adres URL.", "js.play_pause": "Odtw\\u00f3rz lub pauzuj", "js.playback_progress": "Post\\u0119p odtwarzania", "js.player_settings": "Ustawienia playera", "js.quick_one": "Szybkie pobieranie obs\\u0142uguje jeden link naraz.", "js.refresh_failed": "Nie mo\\u017cna od\\u015bwie\\u017cy\\u0107 listy zada\\u0144:", "js.remove_link": "Usu\\u0144 link {number}", "js.retry_failed_jobs": "Ponowi\\u0107 wszystkie nieudane zadania ({count})?", "js.select_job": "Zaznacz zadanie {title}", "js.speed": "Pr\\u0119dko\\u015b\\u0107 odtwarzania", "js.stats": "Statystyki dla nerd\\u00f3w", "js.unmute": "W\\u0142\\u0105cz d\\u017awi\\u0119k", "js.url_selected": "Wybrano {selected} z {total} link\\u00f3w.", "js.volume": "G\\u0142o\\u015bno\\u015b\\u0107", "nav.jobs": "Zadania", "preview.delete": "Usu\\u0144 nagranie", "preview.download_type": "Typ pobrania", "preview.downloaded_at": "Data pobrania", "preview.eyebrow": "Podgl\\u0105d", "preview.file_info": "Informacje o pliku", "preview.mime": "Format pliku", "preview.no_tags": "brak tag\\u00f3w", "preview.open_external": "Otw\\u00f3rz w nowym oknie", "preview.tags": "Tagi", "preview.unavailable": "Podgl\\u0105d tego typu pliku nie jest dost\\u0119pny", "preview.unavailable_copy": "Mo\\u017cesz pobra\\u0107 plik przyciskiem powy\\u017cej.", "result.select_all": "Zaznacz wszystkie", "result.unselect_all": "Odznacz wszystkie", "theme.change": "Zmie\\u0144 motyw", "theme.change_to": "Zmie\\u0144 motyw na {theme}", "theme.dark": "ciemny", "theme.light": "jasny"}</script>\n    <script>\n      (() => {\n        try {\n          const storedTheme = localStorage.getItem("media-web-downloader-theme");\n          const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";\n          document.documentElement.setAttribute("data-bs-theme", storedTheme || preferredTheme);\n        } catch {\n          document.documentElement.setAttribute("data-bs-theme", "light");\n        }\n      })();\n    </script>\n    <title>Start | Media Web Downloader</title>\n    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">\n    <link href="/static/css/style.css" rel="stylesheet">\n    <link href="/static/css/mobile.css" rel="stylesheet">\n    <link href="/static/css/desktop.css" rel="stylesheet">\n  </head>\n  <body>\n    \n    \n    \n    <nav class="navbar navbar-expand-md sticky-top app-navbar">\n      <div class="container-fluid app-container">\n        <a class="navbar-brand app-brand" href="/">\n          <span class="brand-mark" aria-hidden="true">MWD</span>\n          <span>\n            <strong>Media Web Downloader</strong>\n            <small>Home Assistant</small>\n          </span>\n        </a>\n        <button class="navbar-toggler app-navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#app-navbar-menu" aria-controls="app-navbar-menu" aria-expanded="false" aria-label="Otw�rz menu">\n          <span class="navbar-toggler-icon"></span>\n        </button>\n        <div class="collapse navbar-collapse app-navbar-menu" id="app-navbar-menu">\n          <div class="navbar-nav app-nav ms-md-auto">\n            <a class="nav-link active" href="/" aria-current="page">Start</a>\n            <a class="nav-link" href="/diagnostics">Diagnostyka</a>\n            <a class="nav-link" href="/jobs">\n              Zadania <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="Zadania">0</span>\n            </a>\n            <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="Zmie� motyw" aria-pressed="false" title="Zmie� motyw">\n              <span class="theme-icon theme-icon-sun" aria-hidden="true">\u2600</span>\n              <span class="theme-icon theme-icon-moon" aria-hidden="true">\u263e</span>\n            </button>\n          </div>\n        </div>\n      </div>\n    </nav>\n    <main class="container-fluid app-container py-4">\n      <div id="jobs-refresh-error" class="alert alert-warning app-alert d-none" role="status">\n        Brak po��czenia / nie mo�na od�wie�y� zada�\n      </div>\n      \n        \n      \n      \n  <section class="hero-card card mb-4">\n    <div class="card-body p-4 p-lg-5">\n      <div class="hero-content">\n        <span class="eyebrow hero-eyebrow">Prywatny panel pobierania</span>\n        <h1 class="hero-title display-6 fw-bold mb-3">Twoje media.<br><span class="hero-highlight">Jedno miejsce.</span></h1>\n        <p class="hero-copy mb-3">Analizuj i zapisuj publiczne materia�y, do kt�rych masz prawa. Wklej link, wybierz format i obserwuj post�p bez opuszczania Home Assistant.</p>\n        <div class="platform-list mb-4" aria-label="Obs�ugiwane serwisy">\n          \n            <span class="platform-chip platform-youtube">YouTube</span>\n          \n            <span class="platform-chip platform-twitch">Twitch</span>\n          \n            <span class="platform-chip platform-vimeo">Vimeo</span>\n          \n            <span class="platform-chip platform-soundcloud">SoundCloud</span>\n          \n            <span class="platform-chip platform-ytdlp">i inne przez yt-dlp</span>\n          \n        </div>\n      </div>\n      <form action="/analyze" method="post" class="url-form needs-validation" novalidate>\n        <input type="hidden" name="_csrf_token" value="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n        <input type="hidden" name="download_type" value="best">\n        <input type="hidden" name="storage_name" value="local">\n        <input type="hidden" name="quick_download" value="1">\n        <label class="visually-hidden" for="media-url">Adres materia�u</label>\n        <div class="input-group input-group-lg hero-input-group">\n          <span class="input-group-text" aria-hidden="true">URL</span>\n          <textarea class="form-control media-url" id="media-url" name="url" rows="1" placeholder="Wklej jeden lub wiele link�w obs�ugiwanych przez yt-dlp" required autocomplete="url"></textarea>\n          <button class="btn btn-accent px-4 analyze-submit" type="submit">\n            <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>\n            <span class="analyze-submit-label">Analizuj</span>\n          </button>\n          <button class="btn btn-primary px-4 quick-download-submit" type="submit" formaction="/download" data-quick-download-submit>\n            <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>\n            <span class="quick-download-submit-label">Pobierz</span>\n          </button>\n          <div class="invalid-feedback">Wklej poprawny adres HTTP lub HTTPS obs�ugiwany przez yt-dlp.</div>\n        </div>\n        <div class="bulk-url-review d-none mt-3" data-bulk-url-review>\n          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">\n            <div>\n              <strong>Wykryte linki</strong>\n              <small class="d-block text-body-secondary">Odznacz pozycje, kt�rych nie chcesz uruchamia�.</small>\n            </div>\n            <div class="d-flex flex-wrap gap-2">\n              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-select="all">Wszystkie</button>\n              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-select="none">�adne</button>\n              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-copy-invalid disabled>Kopiuj b��dne</button>\n              <button class="btn btn-sm btn-outline-danger" type="button" data-bulk-url-remove-invalid disabled>Usu� b��dne</button>\n            </div>\n          </div>\n          <div class="bulk-url-list" data-bulk-url-list></div>\n          <small class="bulk-url-summary text-body-secondary mt-2 d-block" data-bulk-url-summary></small>\n        </div>\n        <div class="analyze-loading alert alert-info d-none mt-3 mb-0" role="status" aria-live="polite">\n          <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>\n          Analizuj� materia� przez yt-dlp. To mo�e potrwa� chwil�.\n        </div>\n      </form>\n    </div>\n  </section>\n\n  <section class="row g-4 mb-4 dashboard-grid">\n    <div class="col-12 history-panel">\n      <div class="card app-card h-100">\n        <div class="card-body">\n          <div class="section-heading">\n            <div>\n              <span class="eyebrow">Biblioteka</span>\n              <h2 class="h4 mb-1">Ostatnie zadania</h2>\n              <p class="section-copy mb-0">10 ostatnich zapisanych plik�w z kolejki. Pe�na lista jest w karcie Zadania.</p>\n            </div>\n            <a class="btn btn-sm btn-soft" href="/jobs">Zadania</a>\n          </div>\n          \n            <div class="table-toolbar row g-2 mb-3 history-controls">\n              <div class="col-sm-6 col-lg-3">\n                <label class="form-label small mb-1" for="history-type-filter">Typ</label>\n                <select class="form-select form-select-sm" id="history-type-filter">\n                  <option value="">Wszystkie typy</option>\n                </select>\n              </div>\n              <div class="col-sm-6 col-lg-3">\n                <label class="form-label small mb-1" for="history-status-filter">Status</label>\n                <select class="form-select form-select-sm" id="history-status-filter">\n                  <option value="">Wszystkie statusy</option>\n                </select>\n              </div>\n              <div class="col-sm-6 col-lg-2">\n                <label class="form-label small mb-1" for="history-tag-filter">Tagi</label>\n                <select class="form-select form-select-sm" id="history-tag-filter">\n                  <option value="">Wszystkie tagi</option>\n                </select>\n              </div>\n              <div class="col-sm-6 col-lg-2">\n                <label class="form-label small mb-1" for="history-source-filter">�r�d�o</label>\n                <select class="form-select form-select-sm" id="history-source-filter">\n                  <option value="">Wszystkie �r�d�a</option>\n                </select>\n              </div>\n              <div class="col-sm-6 col-lg-2">\n                <label class="form-label small mb-1" for="history-sort">Sortowanie</label>\n                <select class="form-select form-select-sm" id="history-sort">\n                  <option value="newest">Najnowsze najpierw</option>\n                  <option value="oldest">Najstarsze najpierw</option>\n                </select>\n              </div>\n            </div>\n            <form id="history-bulk-form" class="history-bulk-toolbar d-flex flex-wrap align-items-center gap-2 mb-3" action="/history/jobs/bulk" method="post">\n              <input type="hidden" name="_csrf_token" value="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n              <div class="form-check mb-0">\n                <input class="form-check-input" type="checkbox" id="history-bulk-select-all">\n                <label class="form-check-label small" for="history-bulk-select-all">Zaznacz widoczne</label>\n              </div>\n              <select class="form-select form-select-sm history-bulk-action" name="action" aria-label="Akcje">\n                <option value="delete_files">Usu� pliki</option>\n                <option value="repeat">Pobierz ponownie</option>\n                <option value="delete_jobs">Usu� wpisy</option>\n              </select>\n              <button class="btn btn-sm btn-outline-primary" id="history-bulk-submit" type="submit" disabled>Wykonaj</button>\n              <span class="small text-body-secondary">Zaznaczone: <span id="history-selected-count">0</span></span>\n            </form>\n            <div class="desktop-only table-responsive history-list">\n              <table class="table align-middle mb-0">\n                <thead><tr><th class="history-select-column"><span class="visually-hidden">Zaznacz wszystkie</span></th><th>Miniatura</th><th>Tytu�</th><th>Typ</th><th>Status</th><th>Rozmiar</th><th>Wynik</th><th></th></tr></thead>\n                <tbody class="history-items">\n                  \n                    \n                    <tr class="history-item" data-history-index="0" data-history-key="49dc03dca4434b148953992b0595ba70" data-history-type="best" data-history-status="completed" data-history-tags="muzyka|tutoriale|video" data-history-platform="youtube" data-history-date="2026-07-11T22:12:32.704530+00:00">\n                      <td class="history-select-column">\n                        <input class="form-check-input history-bulk-select" type="checkbox" name="job_ids" value="49dc03dca4434b148953992b0595ba70" form="history-bulk-form" aria-label="Zaznacz zadanie Example video">\n                      </td>\n                      <td>\n                        \n                          <span class="text-body-secondary">-</span>\n                        \n                      </td>\n                      <td>\n                        \n                          <a class="history-title-link d-block" href="/view/example%20video.mp4"><strong>Example video</strong></a>\n                        \n                        \n                      </td>\n                      <td>najlepsza</td>\n                        <td>zako�czone</td>\n                      <td>5.0 B</td>\n                      <td>\n                        \n                          <span class="text-body-secondary">-</span>\n                        \n                      </td>\n                      <td>\n                        \n  <div class="history-quick-actions d-flex flex-wrap gap-2 align-items-center">\n    \n      <a class="btn btn-sm btn-soft history-icon-action" href="/view/example%20video.mp4" aria-label="Otw�rz podgl�d: Example video" title="Podgl�d">\n        <span aria-hidden="true">&#9654;</span>\n        <span class="visually-hidden">Podgl�d</span>\n      </a>\n    \n    \n      <a class="btn btn-sm btn-outline-primary history-icon-action" href="/downloaded/example%20video.mp4" aria-label="Pobierz plik" title="Pobierz plik">\n        <span aria-hidden="true">&#8595;</span>\n        <span class="visually-hidden">Pobierz plik</span>\n      </a>\n    \n    \n      <a class="btn btn-sm btn-soft history-icon-action" href="/view/example%20video.mp4" target="_blank" rel="noreferrer" aria-label="Otw�rz w nowym oknie" title="Otw�rz w nowym oknie">\n        <span aria-hidden="true">&#8599;</span>\n        <span class="visually-hidden">Otw�rz w nowym oknie</span>\n      </a>\n    \n    \n      <form action="/download" method="post" class="repeat-download-form">\n        <input type="hidden" name="_csrf_token" value="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n        <input type="hidden" name="url" value="https://youtu.be/example">\n        <input type="hidden" name="title" value="Example video">\n        <input type="hidden" name="download_type" value="best">\n        <input type="hidden" name="storage_name" value="local">\n        <input type="hidden" name="allow_duplicate" value="1">\n        \n        \n        <button class="btn btn-sm btn-soft history-icon-action" type="submit" aria-label="Pobierz ponownie" title="Pobierz ponownie">\n          <span aria-hidden="true">&#8635;</span>\n          <span class="visually-hidden">Pobierz ponownie</span>\n        </button>\n      </form>\n    \n    \n      <a class="btn btn-sm btn-soft history-icon-action" href="/jobs/49dc03dca4434b148953992b0595ba70" aria-label="Szczeg�y" title="Szczeg�y">\n        <span aria-hidden="true">i</span>\n        <span class="visually-hidden">Szczeg�y</span>\n      </a>\n    \n    \n      <form action="/delete/example%20video.mp4" method="post" class="delete-form" data-filename="example video.mp4" data-filesize-label="5.0 B">\n        <input type="hidden" name="_csrf_token" value="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n        <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="Usu� plik" title="Usu� plik">\n          <span aria-hidden="true">&times;</span>\n          <span class="visually-hidden">Usu� plik</span>\n        </button>\n      </form>\n    \n    \n      <form action="/jobs/delete/49dc03dca4434b148953992b0595ba70" method="post" class="history-delete-form" data-title="Example video">\n        <input type="hidden" name="_csrf_token" value="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n        <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="Usu� zadanie" title="Usu� zadanie">\n          <span aria-hidden="true">&#10005;</span>\n          <span class="visually-hidden">Usu� zadanie</span>\n        </button>\n      </form>\n    \n  </div>\n\n                      </td>\n                    </tr>\n                  \n                </tbody>\n              </table>\n            </div>\n            <div class="mobile-only history-list history-items">\n              \n                \n                <article class="mobile-list-card p-3 mb-2 history-item" data-history-index="0" data-history-key="49dc03dca4434b148953992b0595ba70" data-history-type="best" data-history-status="completed" data-history-tags="muzyka|tutoriale|video" data-history-platform="youtube" data-history-date="2026-07-11T22:12:32.704530+00:00">\n                  <div class="form-check mb-2">\n                    <input class="form-check-input history-bulk-select" type="checkbox" name="job_ids" value="49dc03dca4434b148953992b0595ba70" form="history-bulk-form" aria-label="Zaznacz zadanie Example video">\n                    <label class="form-check-label small text-body-secondary">Akcje</label>\n                  </div>\n                  \n                  \n                    <a class="history-title-link d-block" href="/view/example%20video.mp4"><strong>Example video</strong></a>\n                  \n                  \n                  <small class="text-body-secondary">najlepsza | zako�czone | 5.0 B</small>\n                  <div class="mt-2">\n                    \n  <div class="history-quick-actions history-mobile-actions d-flex flex-wrap gap-2 align-items-center">\n    \n      <a class="btn btn-sm btn-soft history-icon-action" href="/view/example%20video.mp4" aria-label="Otw�rz podgl�d: Example video" title="Podgl�d">\n        <span aria-hidden="true">&#9654;</span>\n        <span class="visually-hidden">Podgl�d</span>\n      </a>\n    \n    \n      <a class="btn btn-sm btn-outline-primary history-icon-action" href="/downloaded/example%20video.mp4" aria-label="Pobierz plik" title="Pobierz plik">\n        <span aria-hidden="true">&#8595;</span>\n        <span class="visually-hidden">Pobierz plik</span>\n      </a>\n    \n    \n      <a class="btn btn-sm btn-soft history-icon-action" href="/view/example%20video.mp4" target="_blank" rel="noreferrer" aria-label="Otw�rz w nowym oknie" title="Otw�rz w nowym oknie">\n        <span aria-hidden="true">&#8599;</span>\n        <span class="visually-hidden">Otw�rz w nowym oknie</span>\n      </a>\n    \n    \n      <form action="/download" method="post" class="repeat-download-form">\n        <input type="hidden" name="_csrf_token" value="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n        <input type="hidden" name="url" value="https://youtu.be/example">\n        <input type="hidden" name="title" value="Example video">\n        <input type="hidden" name="download_type" value="best">\n        <input type="hidden" name="storage_name" value="local">\n        <input type="hidden" name="allow_duplicate" value="1">\n        \n        \n        <button class="btn btn-sm btn-soft history-icon-action" type="submit" aria-label="Pobierz ponownie" title="Pobierz ponownie">\n          <span aria-hidden="true">&#8635;</span>\n          <span class="visually-hidden">Pobierz ponownie</span>\n        </button>\n      </form>\n    \n    \n      <a class="btn btn-sm btn-soft history-icon-action" href="/jobs/49dc03dca4434b148953992b0595ba70" aria-label="Szczeg�y" title="Szczeg�y">\n        <span aria-hidden="true">i</span>\n        <span class="visually-hidden">Szczeg�y</span>\n      </a>\n    \n    \n      <form action="/delete/example%20video.mp4" method="post" class="delete-form" data-filename="example video.mp4" data-filesize-label="5.0 B">\n        <input type="hidden" name="_csrf_token" value="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n        <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="Usu� plik" title="Usu� plik">\n          <span aria-hidden="true">&times;</span>\n          <span class="visually-hidden">Usu� plik</span>\n        </button>\n      </form>\n    \n    \n      <form action="/jobs/delete/49dc03dca4434b148953992b0595ba70" method="post" class="history-delete-form" data-title="Example video">\n        <input type="hidden" name="_csrf_token" value="x2HjugK2LLVPx7IeKMwOt5WtHIuD701FfIXkV7YnOT8">\n        <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="Usu� zadanie" title="Usu� zadanie">\n          <span aria-hidden="true">&#10005;</span>\n          <span class="visually-hidden">Usu� zadanie</span>\n        </button>\n      </form>\n    \n  </div>\n\n                  </div>\n                </article>\n              \n            </div>\n            <div id="history-filter-empty" class="empty-state table-empty-state d-none">\n              <strong>Brak wynik�w dla wybranych filtr�w</strong>\n            </div>\n            <div id="history-pagination" class="d-flex justify-content-between align-items-center gap-2 mt-3">\n              <button class="btn btn-sm btn-soft" id="history-prev" type="button">Poprzednia strona</button>\n              <span class="small text-body-secondary" id="history-page">Strona 1 z 1</span>\n              <button class="btn btn-sm btn-soft" id="history-next" type="button">Nast�pna strona</button>\n            </div>\n          \n        </div>\n      </div>\n    </div>\n    <div class="col-12">\n      <div class="row g-4">\n        <div class="col-lg-6">\n          <div class="card app-card h-100">\n            <div class="card-body">\n              <span class="eyebrow">Konfiguracja</span>\n              <h2 class="h5">Ustawienia dodatku</h2>\n              <dl class="row mb-0 small">\n                <dt class="col-6">Tryb magazynu</dt><dd class="col-6">lokalny</dd>\n                <dt class="col-6">Katalog pobra�</dt><dd class="col-6 text-break">C:\\Users\\Chris\\AppData\\Local\\Temp\\tmp2ag74dwy\\downloads</dd>\n                \n                <dt class="col-6">Limit zada�</dt><dd class="col-6">2</dd>\n                <dt class="col-6">Format domy�lny</dt><dd class="col-6">najlepsza</dd>\n                <dt class="col-6">J�zyk interfejsu</dt><dd class="col-6">polski</dd>\n                <dt class="col-6">Dost�p bez Ingress</dt><dd class="col-6">wy��czony</dd>\n              </dl>\n            </div>\n          </div>\n        </div>\n        <div class="col-lg-6">\n          <div class="card app-card storage-card h-100">\n            <div class="card-body">\n              <div class="d-flex justify-content-between align-items-center gap-2 mb-2">\n                <h2 class="h5 mb-0">Miejsce na dysku</h2>\n                <span class="badge text-bg-warning">20.1% wolne</span>\n              </div>\n              <p class="small text-body-secondary mb-3">Dost�pne dla katalogu pobra�: <span class="text-break">C:\\Users\\Chris\\AppData\\Local\\Temp\\tmp2ag74dwy\\downloads</span></p>\n              <div class="progress storage-progress mb-3" role="progressbar" aria-label="Miejsce na dysku" aria-valuenow="79.9" aria-valuemin="0" aria-valuemax="100">\n                <div class="progress-bar bg-warning" style="width: 79.9%">79.9%</div>\n              </div>\n              <dl class="row mb-0 small">\n                <dt class="col-6">Wolne</dt><dd class="col-6 text-end fw-semibold">80.3 GB</dd>\n                <dt class="col-6">Zaj�te</dt><dd class="col-6 text-end">319.9 GB</dd>\n                <dt class="col-6">��cznie</dt><dd class="col-6 text-end">400.2 GB</dd>\n              </dl>\n            </div>\n          </div>\n        </div>\n      </div>\n    </div>\n  </section>\n\n    </main>\n    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>\n    <script src="/static/js/app.js"></script>\n  </body>\n</html>'
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_index_history_bulk_repeat_uses_selected_jobs (test_app.ApplicationTestCase.test_index_history_bulk_repeat_uses_selected_jobs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 1532, in test_index_history_bulk_repeat_uses_selected_jobs
+    self.assertEqual(updater.calls, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_managed_file_can_be_opened_in_preview (test_app.ApplicationTestCase.test_managed_file_can_be_opened_in_preview)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 720, in test_managed_file_can_be_opened_in_preview
+    self.assertIn(">youtube</span>", body)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '>youtube</span>' not found in '<!doctype html>\n<html lang="pl">\n  <head>\n    <meta charset="utf-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1">\n    <meta name="ingress-path" content="">\n    <meta name="csrf-token" content="HJxEIcWban1bLTsNmFXMWkkiPNvaIvqOS4Ct3MnNzog">\n    <script id="active-job-statuses" type="application/json">["downloading", "pending", "stopping", "waiting"]</script>\n    <script id="ui-translations" type="application/json">{"common.actions": "Akcje", "common.back_home": "Wr\\u00f3\\u0107 na stron\\u0119 g\\u0142\\u00f3wn\\u0105", "common.close": "Zamknij", "common.delete": "Usu\\u0144", "common.delete_file": "Usu\\u0144 plik", "common.delete_job": "Usu\\u0144 zadanie", "common.details": "Szczeg\\u00f3\\u0142y", "common.download": "Pobierz", "common.download_file": "Pobierz plik", "common.error": "b\\u0142\\u0105d", "common.free": "Wolne", "common.new_url": "Nowy adres", "common.no": "nie", "common.no_data": "brak danych", "common.none": "brak", "common.not_applicable": "nie dotyczy", "common.ok": "OK", "common.open_log": "Otw\\u00f3rz log", "common.parameter": "Parametr", "common.progress": "Post\\u0119p", "common.result": "Wynik", "common.retry": "Pon\\u00f3w", "common.size": "Rozmiar", "common.source": "\\u0179r\\u00f3d\\u0142o", "common.speed": "Pr\\u0119dko\\u015b\\u0107", "common.start": "Start", "common.status": "Status", "common.thumbnail": "Miniatura", "common.title": "Tytu\\u0142", "common.type": "Typ", "common.value": "Warto\\u015b\\u0107", "common.warning": "ostrze\\u017cenie", "common.yes": "tak", "download.best": "najlepsza", "download.format": "konkretny format", "download.video": "najlepsza", "index.addon_settings": "Ustawienia dodatku", "index.all": "Wszystkie", "index.all_sources": "Wszystkie \\u017ar\\u00f3d\\u0142a", "index.all_statuses": "Wszystkie statusy", "index.all_tags": "Wszystkie tagi", "index.all_types": "Wszystkie typy", "index.analyze": "Analizuj", "index.available_for": "Dost\\u0119pne dla katalogu pobra\\u0144:", "index.bulk_apply": "Wykonaj", "index.bulk_delete_files": "Usu\\u0144 pliki", "index.bulk_delete_jobs": "Usu\\u0144 wpisy", "index.bulk_repeat": "Pobierz ponownie", "index.config": "Konfiguracja", "index.configured_ha": "skonfigurowany w HA", "index.copy_invalid": "Kopiuj b\\u0142\\u0119dne", "index.default": "domy\\u015blne", "index.default_format": "Format domy\\u015blny", "index.detected_urls": "Wykryte linki", "index.detected_urls_help": "Odznacz pozycje, kt\\u00f3rych nie chcesz uruchamia\\u0107.", "index.disabled": "wy\\u0142\\u0105czony", "index.disk_space": "Miejsce na dysku", "index.download_again": "Pobierz ponownie", "index.download_dir": "Katalog pobra\\u0144", "index.external_access": "Dost\\u0119p bez Ingress", "index.file_deleted": "plik usuni\\u0119ty", "index.filter_empty": "Brak wynik\\u00f3w dla wybranych filtr\\u00f3w", "index.free": "{value}% wolne", "index.hero.copy": "Analizuj i zapisuj publiczne materia\\u0142y, do kt\\u00f3rych masz prawa. Wklej link, wybierz format i obserwuj post\\u0119p bez opuszczania Home Assistant.", "index.hero.eyebrow": "Prywatny panel pobierania", "index.hero.title_a": "Twoje media.", "index.hero.title_b": "Jedno miejsce.", "index.invalid_url": "Wklej poprawny adres HTTP lub HTTPS obs\\u0142ugiwany przez yt-dlp.", "index.job_limit": "Limit zada\\u0144", "index.language": "J\\u0119zyk interfejsu", "index.library": "Biblioteka", "index.loading_analyze": "Analizuj\\u0119 materia\\u0142 przez yt-dlp. To mo\\u017ce potrwa\\u0107 chwil\\u0119.", "index.loading_download": "Dodaj\\u0119 pobieranie do kolejki.", "index.local": "lokalny", "index.newest_first": "Najnowsze najpierw", "index.next_page": "Nast\\u0119pna strona", "index.nfs_dir": "Katalog NFS w dodatku", "index.nfs_export": "Export NFS", "index.nfs_options": "Opcje NFS", "index.nfs_server": "Serwer NFS", "index.no_jobs": "Nie ma jeszcze zako\\u0144czonych zada\\u0144", "index.no_jobs_copy": "Przeanalizuj pierwszy link, aby rozpocz\\u0105\\u0107.", "index.none": "\\u017badne", "index.not_set": "nieustawione", "index.oldest_first": "Najstarsze najpierw", "index.page_count": "Strona {current} z {total}", "index.password": "Has\\u0142o", "index.platforms": "Obs\\u0142ugiwane serwisy", "index.prev_page": "Poprzednia strona", "index.quick_download": "Pobierz", "index.recent_jobs": "Ostatnie zadania", "index.recent_jobs_copy": "10 ostatnich zapisanych plik\\u00f3w z kolejki. Pe\\u0142na lista jest w karcie Zadania.", "index.remove_invalid": "Usu\\u0144 b\\u0142\\u0119dne", "index.select_visible": "Zaznacz widoczne", "index.selected_count": "Zaznaczone:", "index.set": "ustawione", "index.sort": "Sortowanie", "index.status_filter": "Status", "index.storage_mode": "Tryb magazynu", "index.title": "Start | Media Web Downloader", "index.total": "\\u0141\\u0105cznie", "index.type_filter": "Typ", "index.url_label": "Adres materia\\u0142u", "index.url_placeholder": "Wklej jeden lub wiele link\\u00f3w obs\\u0142ugiwanych przez yt-dlp", "index.used": "Zaj\\u0119te", "index.username": "U\\u017cytkownik", "job.resume": "Wzn\\u00f3w", "job.stop": "Zatrzymaj", "jobs.active_stay": "Aktywne zadania pozostaj\\u0105 na li\\u015bcie.", "jobs.add_link": "Dodaj link", "jobs.all": "Wszystkie", "jobs.clear": "Wyczy\\u015b\\u0107 list\\u0119", "jobs.completed": "Uko\\u0144czone", "jobs.delete_selected": "Usu\\u0144 zaznaczone", "jobs.empty": "Kolejka jest pusta", "jobs.empty_copy": "Wklej link na stronie startowej, a post\\u0119p pobierania pojawi si\\u0119 tutaj automatycznie.", "jobs.error_panel": "B\\u0142\\u0119dy pobierania", "jobs.error_summary": "Nieudane zadania: {count}. Sprawd\\u017a kr\\u00f3tki opis przy wpisie, popraw URL lub format i pon\\u00f3w zadanie.", "jobs.error_summary_empty": "Nieudane zadania zwykle oznaczaj\\u0105 problem z URL, sieci\\u0105, miejscem na dysku albo wybranym formatem.", "jobs.errors": "B\\u0142\\u0119dy", "jobs.eta": "ETA", "jobs.filter_empty": "Nie ma zada\\u0144 w tym filtrze", "jobs.filter_empty_copy": "Wr\\u00f3\\u0107 do pe\\u0142nej kolejki, aby zobaczy\\u0107 aktywne i zako\\u0144czone pobrania.", "jobs.filter_label": "Filtr zada\\u0144", "jobs.heading": "Zadania", "jobs.in_progress": "W toku", "jobs.interrupted": "Przerwane", "jobs.live_refresh": "Status od\\u015bwie\\u017ca si\\u0119 na \\u017cywo.", "jobs.queue": "Kolejka operacji", "jobs.retry_failed": "Pon\\u00f3w nieudane", "jobs.select_all_done": "Zaznacz wszystkie zako\\u0144czone zadania", "jobs.select_errors": "Zaznacz b\\u0142\\u0119dy", "jobs.show_all": "Poka\\u017c wszystkie", "jobs.show_errors": "Poka\\u017c b\\u0142\\u0119dy", "jobs.stopped": "Zatrzymane", "jobs.title": "Zadania | Media Web Downloader", "js.adding": "Dodaj\\u0119...", "js.analyzing": "Analizuj\\u0119...", "js.bad_api": "Niepoprawna odpowied\\u017a API", "js.captions": "Napisy", "js.captions_error": "Nie uda\\u0142o si\\u0119 pobra\\u0107 napis\\u00f3w", "js.captions_loaded": "Napisy zosta\\u0142y w\\u0142\\u0105czone", "js.captions_loading": "Sprawdzam i pobieram napisy...", "js.captions_status_error": "B\\u0142\\u0105d pobierania", "js.captions_status_loading": "Sprawdzam...", "js.captions_status_missing": "Brak napis\\u00f3w", "js.captions_status_off": "Wy\\u0142\\u0105czone", "js.captions_status_on": "Napisy w\\u0142\\u0105czone", "js.captions_unavailable": "Nie znaleziono napis\\u00f3w dla tego materia\\u0142u", "js.clear_jobs": "Czy na pewno wyczy\\u015bci\\u0107 list\\u0119 zako\\u0144czonych zada\\u0144? Aktywne zadania pozostan\\u0105 na li\\u015bcie.", "js.close_stats": "Zamknij statystyki", "js.context_menu": "Menu kontekstowe playera", "js.copied": "Skopiowano", "js.copied_debug": "Skopiowano informacje debugowania", "js.copied_embed": "Skopiowano kod osadzenia", "js.copied_time_url": "Skopiowano adres URL bie\\u017c\\u0105cego momentu", "js.copied_video_url": "Skopiowano adres URL filmu", "js.copy_embed": "Skopiuj kod do umieszczenia na stronie", "js.copy_error": "B\\u0142\\u0105d kopiowania", "js.copy_failed": "Nie uda\\u0142o si\\u0119 skopiowa\\u0107 danych", "js.copy_invalid_error": "Nie mo\\u017cna skopiowa\\u0107 b\\u0142\\u0119dnych URL-i:", "js.delete_file_confirm": "Czy na pewno usun\\u0105\\u0107 plik?\\n\\nNazwa: {filename}\\nRozmiar: {size}", "js.delete_job_confirm": "Czy na pewno usun\\u0105\\u0107 zadanie?\\n\\nTytu\\u0142: {title}", "js.delete_selected_jobs": "Czy na pewno usun\\u0105\\u0107 zaznaczone zadania ({count})?", "js.download_progress": "Post\\u0119p pobierania", "js.empty_no_active": "Nie ma zada\\u0144 w toku", "js.empty_no_completed": "Nie ma uko\\u0144czonych zada\\u0144", "js.empty_no_errors": "Nie ma nieudanych zada\\u0144", "js.empty_no_interrupted": "Nie ma przerwanych zada\\u0144", "js.empty_no_jobs": "Nie ma zada\\u0144", "js.empty_no_stopped": "Nie ma zatrzymanych zada\\u0144", "js.exit_fullscreen": "Zamknij pe\\u0142ny ekran", "js.fullscreen": "Pe\\u0142ny ekran", "js.history_action_confirm": "Czy na pewno {action} ({count})?", "js.history_delete_entries": "usun\\u0105\\u0107 wpisy", "js.history_delete_files": "usun\\u0105\\u0107 pliki", "js.history_do_action": "wykona\\u0107 akcj\\u0119", "js.history_repeat": "ponowi\\u0107 pobieranie", "js.invalid_url_item": "Nieobs\\u0142ugiwany lub niepoprawny URL", "js.invalid_urls": "Niepoprawne URL-e: {urls}", "js.job_error_toast": "Zadanie zako\\u0144czy\\u0142o si\\u0119 b\\u0142\\u0119dem: {title}", "js.job_failed": "Zadanie zako\\u0144czy\\u0142o si\\u0119 b\\u0142\\u0119dem.", "js.link": "Link {number}", "js.mute": "Wycisz", "js.no_thumbnail": "Brak miniatury", "js.open_diagnostics": "Otw\\u00f3rz Diagnostyk\\u0119, aby sprawdzi\\u0107 ffmpeg, yt-dlp, sie\\u0107 i miejsce na dysku", "js.open_preview": "Otw\\u00f3rz podgl\\u0105d: {title}", "js.paste_one": "Wklej co najmniej jeden adres URL.", "js.play_pause": "Odtw\\u00f3rz lub pauzuj", "js.playback_progress": "Post\\u0119p odtwarzania", "js.player_settings": "Ustawienia playera", "js.quick_one": "Szybkie pobieranie obs\\u0142uguje jeden link naraz.", "js.refresh_failed": "Nie mo\\u017cna od\\u015bwie\\u017cy\\u0107 listy zada\\u0144:", "js.remove_link": "Usu\\u0144 link {number}", "js.retry_failed_jobs": "Ponowi\\u0107 wszystkie nieudane zadania ({count})?", "js.select_job": "Zaznacz zadanie {title}", "js.speed": "Pr\\u0119dko\\u015b\\u0107 odtwarzania", "js.stats": "Statystyki dla nerd\\u00f3w", "js.unmute": "W\\u0142\\u0105cz d\\u017awi\\u0119k", "js.url_selected": "Wybrano {selected} z {total} link\\u00f3w.", "js.volume": "G\\u0142o\\u015bno\\u015b\\u0107", "nav.jobs": "Zadania", "preview.delete": "Usu\\u0144 nagranie", "preview.download_type": "Typ pobrania", "preview.downloaded_at": "Data pobrania", "preview.eyebrow": "Podgl\\u0105d", "preview.file_info": "Informacje o pliku", "preview.mime": "Format pliku", "preview.no_tags": "brak tag\\u00f3w", "preview.open_external": "Otw\\u00f3rz w nowym oknie", "preview.tags": "Tagi", "preview.unavailable": "Podgl\\u0105d tego typu pliku nie jest dost\\u0119pny", "preview.unavailable_copy": "Mo\\u017cesz pobra\\u0107 plik przyciskiem powy\\u017cej.", "result.select_all": "Zaznacz wszystkie", "result.unselect_all": "Odznacz wszystkie", "theme.change": "Zmie\\u0144 motyw", "theme.change_to": "Zmie\\u0144 motyw na {theme}", "theme.dark": "ciemny", "theme.light": "jasny"}</script>\n    <script>\n      (() => {\n        try {\n          const storedTheme = localStorage.getItem("media-web-downloader-theme");\n          const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";\n          document.documentElement.setAttribute("data-bs-theme", storedTheme || preferredTheme);\n        } catch {\n          document.documentElement.setAttribute("data-bs-theme", "light");\n        }\n      })();\n    </script>\n    <title>Example video | Media Web Downloader</title>\n    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">\n    <link href="/static/css/style.css" rel="stylesheet">\n    <link href="/static/css/mobile.css" rel="stylesheet">\n    <link href="/static/css/desktop.css" rel="stylesheet">\n  </head>\n  <body>\n    \n    \n    \n    <nav class="navbar navbar-expand-md sticky-top app-navbar">\n      <div class="container-fluid app-container">\n        <a class="navbar-brand app-brand" href="/">\n          <span class="brand-mark" aria-hidden="true">MWD</span>\n          <span>\n            <strong>Media Web Downloader</strong>\n            <small>Home Assistant</small>\n          </span>\n        </a>\n        <button class="navbar-toggler app-navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#app-navbar-menu" aria-controls="app-navbar-menu" aria-expanded="false" aria-label="Otw�rz menu">\n          <span class="navbar-toggler-icon"></span>\n        </button>\n        <div class="collapse navbar-collapse app-navbar-menu" id="app-navbar-menu">\n          <div class="navbar-nav app-nav ms-md-auto">\n            <a class="nav-link" href="/">Start</a>\n            <a class="nav-link" href="/diagnostics">Diagnostyka</a>\n            <a class="nav-link" href="/jobs">\n              Zadania <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="Zadania">0</span>\n            </a>\n            <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="Zmie� motyw" aria-pressed="false" title="Zmie� motyw">\n              <span class="theme-icon theme-icon-sun" aria-hidden="true">\u2600</span>\n              <span class="theme-icon theme-icon-moon" aria-hidden="true">\u263e</span>\n            </button>\n          </div>\n        </div>\n      </div>\n    </nav>\n    <main class="container-fluid app-container py-4">\n      <div id="jobs-refresh-error" class="alert alert-warning app-alert d-none" role="status">\n        Brak po��czenia / nie mo�na od�wie�y� zada�\n      </div>\n      \n        \n      \n      \n  <section class="page-heading d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">\n    <div>\n      <span class="eyebrow">Podgl�d</span>\n      <h1 class="h3 mb-1">Example video</h1>\n      <p class="section-copy mb-0 text-break">example.mp4</p>\n    </div>\n    <div class="d-flex flex-wrap gap-2">\n      <a class="btn btn-soft" href="/jobs">Zadania</a>\n      <a class="btn btn-outline-primary" href="/view/example.mp4" target="_blank" rel="noreferrer">Otw�rz w nowym oknie</a>\n      <a class="btn btn-accent" href="/downloaded/example.mp4">Pobierz plik</a>\n      <form action="/delete/example.mp4" method="post" class="delete-form d-inline" data-filename="example.mp4" data-filesize-label="5.0 B">\n        <input type="hidden" name="_csrf_token" value="HJxEIcWban1bLTsNmFXMWkkiPNvaIvqOS4Ct3MnNzog">\n        <button class="btn btn-outline-danger" type="submit">Usu� nagranie</button>\n      </form>\n    </div>\n  </section>\n\n  <section class="preview-stage">\n    \n      <div\n        class="custom-player custom-player-video"\n        data-custom-player\n          data-captions-url="/subtitles/example.mp4"\n          data-file-path="example.mp4"\n          data-file-size="5"\n          data-mime-type="video/mp4"\n          data-quality-label="najlepsza"\n        \n        \n        \n      >\n        <video class="custom-player-media preview-player" preload="metadata" autoplay playsinline>\n          <source src="/media/example.mp4" type="video/mp4">\n        </video>\n      </div>\n    \n  </section>\n\n  <section class="preview-details app-card mt-4">\n    <div class="card-body">\n      <span class="eyebrow">Miniatury</span>\n      <div class="thumbnail-switcher">\n        <div>\n          <strong>Miniatura z filmu</strong>\n          \n            <p class="text-body-secondary mb-0 mt-2">Brak miniatury z filmu.</p>\n          \n        </div>\n        <div>\n          <strong>Miniatura zrodlowa</strong>\n          \n            <p class="text-body-secondary mb-0 mt-2">Brak miniatury z metadanych zrodla.</p>\n          \n        </div>\n      </div>\n    </div>\n  </section>\n\n  <section class="preview-details app-card mt-4">\n    <div class="card-body">\n      <span class="eyebrow">Informacje o pliku</span>\n      <dl class="preview-info-grid mb-0">\n        <dt>Rozmiar</dt>\n        <dd>5.0 B</dd>\n        <dt>Data pobrania</dt>\n        <dd>2026-07-11 22:12:34</dd>\n        <dt>Typ pobrania</dt>\n        <dd>najlepsza</dd>\n        <dt>Tagi</dt>\n        <dd>\n          \n            <span class="d-flex flex-wrap gap-1">\n              \n                <span class="badge text-bg-light history-tag-link">muzyka</span>\n              \n                <span class="badge text-bg-light history-tag-link">tutoriale</span>\n              \n              \n                <span class="badge text-bg-secondary history-tag-link">video</span>\n              \n            </span>\n          \n        </dd>\n        <dt>Format pliku</dt>\n        <dd>video/mp4</dd>\n        \n        \n          <dt>Status</dt>\n          <dd>zako�czone</dd>\n        \n        <dt>�r�d�o</dt>\n        <dd>\n          \n            <a class="text-break" href="https://youtu.be/example" target="_blank" rel="noreferrer">https://youtu.be/example</a>\n          \n        </dd>\n      </dl>\n    </div>\n  </section>\n\n    </main>\n    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>\n    <script src="/static/js/app.js"></script>\n  </body>\n</html>'
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_one_failed_job_can_be_retried_from_jobs_page (test_app.ApplicationTestCase.test_one_failed_job_can_be_retried_from_jobs_page)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 668, in test_one_failed_job_can_be_retried_from_jobs_page
+    self.assertEqual(updater.calls, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_start_download_applies_download_profile (test_app.ApplicationTestCase.test_start_download_applies_download_profile)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 874, in test_start_download_applies_download_profile
+    start_download.assert_called_once_with(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        url="https://youtu.be/example",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+        },
+        ^^
+    )
+    ^
+  File "C:\Users\Chris\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Lib\unittest\mock.py", line 997, in assert_called_once_with
+    return self.assert_called_with(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Chris\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Lib\unittest\mock.py", line 985, in assert_called_with
+    raise AssertionError(_error_message()) from cause
+AssertionError: expected call not found.
+Expected: start_download(url='https://youtu.be/example', title='Example', download_type='audio', format_id=None, duration=None, source_id=None, download_options={'audio_format': 'mp3', 'embed_thumbnail': True, 'add_metadata': True})
+  Actual: start_download(url='https://youtu.be/example', title='Example', download_type='audio', format_id=None, duration=None, source_id=None, download_options={'audio_format': 'mp3', 'embed_thumbnail': True, 'add_metadata': True, 'duplicate_action': 'warning'})
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_start_download_checks_ytdlp_update_state (test_app.ApplicationTestCase.test_start_download_checks_ytdlp_update_state)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 847, in test_start_download_checks_ytdlp_update_state
+    self.assertEqual(updater.calls, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_completed_job_notification_is_sent_to_home_assistant (test_app.HomeAssistantNotifierTestCase.test_completed_job_notification_is_sent_to_home_assistant)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 2940, in test_completed_job_notification_is_sent_to_home_assistant
+    self.assertIn("Akcje:", payload["message"])
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Akcje:' not found in 'Tytul: Example\nStatus: completed\nRozmiar: brak danych\nCzas trwania: brak danych\nPliki: example.mp4'
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_playlist_and_storage_notifications_use_specific_titles (test_app.HomeAssistantNotifierTestCase.test_playlist_and_storage_notifications_use_specific_titles)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 2993, in test_playlist_and_storage_notifications_use_specific_titles
+    self.assertTrue(any("#job-action-retry" in message for message in messages))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_v1_schema_is_migrated_to_v2_with_normalized_columns_and_logs (test_app.SQLiteStateStoreTestCase.test_v1_schema_is_migrated_to_v2_with_normalized_columns_and_logs)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 203, in test_v1_schema_is_migrated_to_v2_with_normalized_columns_and_logs
+    self.assertEqual(schema_version, "3")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '5' != '3'
+- 5
++ 3
+System.Management.Automation.RemoteException
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_failed_attempt_after_success_retries_on_next_check (test_app.YtDlpUpdaterTestCase.test_failed_attempt_after_success_retries_on_next_check)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 3049, in test_failed_attempt_after_success_retries_on_next_check
+    run.assert_called_once()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Chris\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Lib\unittest\mock.py", line 964, in assert_called_once
+    raise AssertionError(msg)
+AssertionError: Expected 'run' to have been called once. Called 4 times.
+Calls: [call(['C:\\Users\\Chris\\AppData\\Local\\uv\\cache\\builds-v0\\.tmpdeJldh\\Scripts\\python.exe', '-m', 'yt_dlp', '--version'], capture_output=True, text=True, timeout=30, check=False),
+ call(['python', '-m', 'pip', 'install', '--upgrade', 'yt-dlp'], capture_output=True, check=False, text=True, timeout=300),
+ call(['C:\\Users\\Chris\\AppData\\Local\\uv\\cache\\builds-v0\\.tmpdeJldh\\Scripts\\python.exe', '-m', 'yt_dlp', '--version'], capture_output=True, text=True, timeout=30, check=False),
+ call(['C:\\Users\\Chris\\AppData\\Local\\uv\\cache\\builds-v0\\.tmpdeJldh\\Scripts\\python.exe', '-c', 'from yt_dlp.extractor import gen_extractors; assert gen_extractors()'], capture_output=True, text=True, timeout=30, check=False)].
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_missing_state_runs_update_and_records_success (test_app.YtDlpUpdaterTestCase.test_missing_state_runs_update_and_records_success)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 3020, in test_missing_state_runs_update_and_records_success
+    run.assert_called_once()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Chris\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Lib\unittest\mock.py", line 964, in assert_called_once
+    raise AssertionError(msg)
+AssertionError: Expected 'run' to have been called once. Called 4 times.
+Calls: [call(['C:\\Users\\Chris\\AppData\\Local\\uv\\cache\\builds-v0\\.tmpdeJldh\\Scripts\\python.exe', '-m', 'yt_dlp', '--version'], capture_output=True, text=True, timeout=30, check=False),
+ call(['python', '-m', 'pip', 'install', '--upgrade', 'yt-dlp'], capture_output=True, check=False, text=True, timeout=300),
+ call(['C:\\Users\\Chris\\AppData\\Local\\uv\\cache\\builds-v0\\.tmpdeJldh\\Scripts\\python.exe', '-m', 'yt_dlp', '--version'], capture_output=True, text=True, timeout=30, check=False),
+ call(['C:\\Users\\Chris\\AppData\\Local\\uv\\cache\\builds-v0\\.tmpdeJldh\\Scripts\\python.exe', '-c', 'from yt_dlp.extractor import gen_extractors; assert gen_extractors()'], capture_output=True, text=True, timeout=30, check=False)].
+System.Management.Automation.RemoteException
+======================================================================
+FAIL: test_recent_success_skips_update (test_app.YtDlpUpdaterTestCase.test_recent_success_skips_update)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Chris\Documents\GitHub\Home-Assistant-Addon-Download-Manager\youtube_downloader\tests\test_app.py", line 3034, in test_recent_success_skips_update
+    run.assert_not_called()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Chris\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Lib\unittest\mock.py", line 946, in assert_not_called
+    raise AssertionError(msg)
+AssertionError: Expected 'run' to not have been called. Called 1 times.
+Calls: [call(['C:\\Users\\Chris\\AppData\\Local\\uv\\cache\\builds-v0\\.tmpdeJldh\\Scripts\\python.exe', '-m', 'yt_dlp', '--version'], capture_output=True, text=True, timeout=30, check=False),
+ call().returncode.__eq__(0)].
+System.Management.Automation.RemoteException
+----------------------------------------------------------------------
+Ran 157 tests in 11.648s
+System.Management.Automation.RemoteException
+FAILED (failures=15, errors=5, skipped=22)
