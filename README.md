@@ -63,7 +63,7 @@ Pobrane materiały trafiają domyślnie do:
 /share/youtube_downloader
 ```
 
-Historia pobrań jest przechowywana w `/data/jobs/history.json`. Katalogi `/share` oraz `/data` zachowują dane po restarcie i aktualizacji kontenera dodatku.
+Stan zadań, w tym historia pobrań i kolejka, jest przechowywany w bazie SQLite `/data/jobs/state.sqlite3`. Katalogi `/share` oraz `/data` zachowują dane po restarcie i aktualizacji kontenera dodatku.
 
 ## Magazyn NFS
 

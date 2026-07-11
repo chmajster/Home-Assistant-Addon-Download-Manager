@@ -1,4 +1,4 @@
-"""Bump the add-on version in manifest, Dockerfile, and changelog."""
+"""Bump and validate every add-on version source."""
 
 from __future__ import annotations
 
@@ -9,6 +9,11 @@ from pathlib import Path
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 CONFIG_VERSION_RE = re.compile(r'(?m)^version:\s*"[^"]+"\s*$')
 DOCKER_VERSION_RE = re.compile(r'(?m)^ARG BUILD_VERSION="[^"]+"\s*$')
+CHANGELOG_VERSION_RE = re.compile(r"(?m)^##\s+([^\s]+)\s*$")
+DOCKER_LABELS = (
+    'io.hass.version="${BUILD_VERSION}"',
+    'org.opencontainers.image.version="${BUILD_VERSION}"',
+)
 
 
 class VersionBumpError(RuntimeError):
@@ -51,6 +56,60 @@ def update_dockerfile(path: Path, version: str) -> None:
     )
 
 
+def read_required(pattern: re.Pattern[str], path: Path, label: str) -> str:
+    match = pattern.search(path.read_text(encoding="utf-8"))
+    if not match:
+        raise VersionBumpError(f"Nie znaleziono wersji {label} w {path}.")
+    return validate_version(match.group(1))
+
+
+def check_version_consistency(root: Path, expected: str | None = None) -> str:
+    """Validate every version source and return the canonical add-on version."""
+
+    root = root.resolve()
+    repository_root = root.parent
+    config = root / "config.yaml"
+    dockerfile = root / "Dockerfile"
+    changelog = root / "CHANGELOG.md"
+    release_workflow = repository_root / ".github" / "workflows" / "release.yml"
+    required = (config, dockerfile, changelog, release_workflow)
+    missing = [str(path) for path in required if not path.is_file()]
+    if missing:
+        raise VersionBumpError("Brak wymaganych plików: " + ", ".join(missing))
+
+    config_version = read_required(
+        re.compile(r'(?m)^version:\s*"([^"]+)"\s*$'), config, "config.yaml"
+    )
+    docker_version = read_required(
+        re.compile(r'(?m)^ARG BUILD_VERSION="([^"]+)"\s*$'), dockerfile, "Dockerfile"
+    )
+    changelog_version = read_required(CHANGELOG_VERSION_RE, changelog, "CHANGELOG.md")
+    versions = {config_version, docker_version, changelog_version}
+    if len(versions) != 1:
+        raise VersionBumpError(
+            "Niezgodne wersje: "
+            f"config={config_version}, Dockerfile={docker_version}, changelog={changelog_version}."
+        )
+    if expected and config_version != validate_version(expected.removeprefix("v")):
+        raise VersionBumpError(
+            f"Wersja {config_version} nie odpowiada oczekiwanej {expected.removeprefix('v')}."
+        )
+    docker_text = dockerfile.read_text(encoding="utf-8")
+    for label in DOCKER_LABELS:
+        if label not in docker_text:
+            raise VersionBumpError(f"Brak etykiety obrazu zależnej od BUILD_VERSION: {label}.")
+    workflow_text = release_workflow.read_text(encoding="utf-8")
+    workflow_markers = (
+        "scripts/bump_version.py --check",
+        "steps.version.outputs.version",
+        "BUILD_VERSION=${{ steps.version.outputs.version }}",
+    )
+    for marker in workflow_markers:
+        if marker not in workflow_text:
+            raise VersionBumpError(f"Workflow release nie używa wersji kanonicznej: {marker}.")
+    return config_version
+
+
 def changelog_entry(version: str, changes: list[str]) -> str:
     cleaned_changes = [" ".join(change.strip().split()) for change in changes]
     cleaned_changes = [change for change in cleaned_changes if change]
@@ -90,13 +149,16 @@ def bump_version(root: Path, version: str, changes: list[str]) -> None:
     update_config(files["config"], version)
     update_dockerfile(files["dockerfile"], version)
     update_changelog(files["changelog"], version, changes)
+    check_version_consistency(root, version)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Podbija wersję dodatku w config.yaml, Dockerfile i CHANGELOG.md."
+        description="Podbija lub sprawdza wersję dodatku we wszystkich źródłach."
     )
-    parser.add_argument("version", help="Nowa wersja, np. 1.3.55.")
+    parser.add_argument("version", nargs="?", help="Nowa wersja, np. 1.3.55.")
+    parser.add_argument("--check", action="store_true", help="Tylko sprawdź zgodność wersji.")
+    parser.add_argument("--expected", help="Oczekiwana wersja lub tag, np. v1.3.55.")
     parser.add_argument(
         "-c",
         "--change",
@@ -116,6 +178,12 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
+        if args.check:
+            version = check_version_consistency(args.root, args.expected)
+            print(f"Wersje są zgodne: {version}.")
+            return 0
+        if not args.version:
+            raise VersionBumpError("Podaj wersję albo użyj --check.")
         bump_version(args.root, args.version, args.change)
     except VersionBumpError as error:
         print(f"Błąd: {error}")

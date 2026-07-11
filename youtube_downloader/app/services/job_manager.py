@@ -42,6 +42,10 @@ LIVE_WAIT_INTERVAL_SECONDS = 30
 AUTO_RETRY_DELAY_SECONDS = 300
 AUTO_RETRY_MAX_ATTEMPTS = 3
 JOB_LOG_PREVIEW_LINE_LIMIT = 40
+PROGRESS_PERSIST_INTERVAL_SECONDS = 2.0
+PROGRESS_MIN_DELTA_PERCENT = 1.0
+LIVE_SIZE_UPDATE_INTERVAL_SECONDS = 4.0
+LIVE_STATUS_LOG_INTERVAL_SECONDS = 60.0
 
 
 class DownloadStoppedError(RuntimeError):
@@ -149,6 +153,10 @@ class JobManager:
         self._shutdown_event = threading.Event()
         self._shutdown_lock = threading.Lock()
         self._shutdown_complete = False
+        self._persisted_jobs: dict[str, str] = {}
+        self._persisted_status: dict[str, str] = {}
+        self._last_progress_write: dict[str, tuple[float, float]] = {}
+        self._last_live_size_update: dict[str, float] = {}
         self._lock = threading.RLock()
         self._slots = threading.BoundedSemaphore(max_concurrent_jobs)
         self._executor = ThreadPoolExecutor(
@@ -886,6 +894,12 @@ class JobManager:
         )
         with self._lock:
             self._jobs[job.job_id] = job
+            comparable = asdict(job)
+            comparable.pop("log_lines", None)
+            self._persisted_jobs[job.job_id] = json.dumps(
+                comparable, sort_keys=True, default=str
+            )
+            self._persisted_status[job.job_id] = job.status
             self._persist_jobs()
         return Job(**asdict(job))
 
@@ -1159,10 +1173,14 @@ class JobManager:
                         if metadata_title:
                             active.title = metadata_title
                         log_line = self._progress_log_line(data)
-                        if log_line:
+                        new_progress = self._percentage(data)
+                        if log_line and (
+                            data.get("status") != "downloading"
+                            or abs(new_progress - active.progress) >= PROGRESS_MIN_DELTA_PERCENT
+                        ):
                             self._append_log_line(active, log_line)
                         if data.get("status") == "downloading":
-                            active.progress = self._percentage(data)
+                            active.progress = new_progress
                             active.downloaded_bytes = self._byte_count(
                                 data.get("downloaded_bytes")
                             )
@@ -1174,6 +1192,9 @@ class JobManager:
                             active.eta = self._display_eta(data.get("eta"))
                         elif data.get("status") == "finished":
                             active.progress = 100.0
+                        self._persist_progress(
+                            active, force=data.get("status") == "finished"
+                        )
 
                 def postprocessor_hook(data: dict[str, Any]) -> None:
                     collect_path(data)
@@ -1300,7 +1321,9 @@ class JobManager:
                             self._append_log_line(active, line)
                     self._parse_live_line(job_id, line, paths)
                     now_monotonic = time.monotonic()
-                    should_log_status = now_monotonic - last_status_log >= 30
+                    should_log_status = (
+                        now_monotonic - last_status_log >= LIVE_STATUS_LOG_INTERVAL_SECONDS
+                    )
                     self._refresh_live_progress(
                         job_id,
                         paths,
@@ -1427,17 +1450,23 @@ class JobManager:
             job = self._jobs.get(job_id)
             if not job or not job.is_live:
                 return
-            if paths:
+            now_monotonic = time.monotonic()
+            size_due = (
+                now_monotonic - self._last_live_size_update.get(job_id, 0.0)
+                >= LIVE_SIZE_UPDATE_INTERVAL_SECONDS
+            )
+            if paths and size_due:
                 size = self._paths_size(paths)
                 if size is not None:
                     job.downloaded_bytes = size
                     job.total_bytes = size
+                self._last_live_size_update[job_id] = now_monotonic
             if job.started_at:
                 job.live_elapsed_seconds = self._seconds_since(job.started_at)
             job.live_status_message = self._live_status_message(job)
             if append_status_log:
                 self._append_log_line(job, f"[live] {job.live_status_message}")
-            self._persist_jobs()
+            self._persist_progress(job)
 
     def _record_existing_outputs(
         self, job_id: str, paths: set[Path], status: str
@@ -1625,6 +1654,8 @@ class JobManager:
         job.status = "downloading"
         job.started_at = now_iso()
         self._persist_jobs()
+        if self.notifier and hasattr(self.notifier, "emit_job_event"):
+            self.notifier.emit_job_event(Job(**asdict(job)), "job_started")
         if job.is_live and self.notifier and hasattr(self.notifier, "notify_lifecycle"):
             self.notifier.notify_lifecycle(Job(**asdict(job)), "live_started")
 
@@ -1642,12 +1673,19 @@ class JobManager:
         elif status == "error":
             job.error_code = error_code_for_message(job.error_message)
         self._persist_jobs()
+        if status == "completed":
+            self._remember_identity(job)
         if status in {"completed", "error"} and self.notifier:
             self.notifier.notify_job(Job(**asdict(job)))
             if hasattr(self.notifier, "emit_job_event"):
                 self.notifier.emit_job_event(Job(**asdict(job)))
             try:
-                self.notifier.notify_storage(self.file_service.storage_usage())
+                storage_usage = self.file_service.storage_usage()
+                self.notifier.notify_storage({
+                    **storage_usage,
+                    "storage": job.storage_name,
+                    "size": storage_usage.get("free"),
+                })
             except Exception as error:
                 LOGGER.warning("Nie udało się sprawdzić miejsca na dysku: %s", error)
 
@@ -1655,6 +1693,30 @@ class JobManager:
             snapshot = Job(**asdict(job))
             if hasattr(self.notifier, "notify_lifecycle"):
                 self.notifier.notify_lifecycle(snapshot, "live_finished")
+
+    def _remember_identity(self, job: Job) -> None:
+        filename = job.output_file or (job.output_files[0] if job.output_files else "")
+        checksum = None
+        if filename:
+            try:
+                path = self.file_service.resolve_download(filename)
+                digest = hashlib.sha256()
+                with path.open("rb") as handle:
+                    for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                checksum = digest.hexdigest()
+            except (OSError, ValueError):
+                LOGGER.warning("Nie można obliczyć SHA-256 dla %s", filename)
+        metadata = job.metadata if isinstance(job.metadata, dict) else {}
+        self.state_store.remember_download_identity({
+            "job_id": job.job_id,
+            "source_id": job.source_id,
+            "extractor_key": metadata.get("extractor_key") or metadata.get("extractor"),
+            "canonical_url": self._process_url_key(job.url),
+            "title_key": " ".join(job.title.casefold().split()),
+            "filename_key": Path(filename).name.casefold() if filename else None,
+            "sha256": checksum,
+        })
 
     def _fail(self, job_id: str, message: str) -> None:
         with self._lock:
@@ -1710,7 +1772,44 @@ class JobManager:
 
         try:
             with self._lock:
-                records = [asdict(job) for job in self._jobs.values()]
-            self.state_store.jobs_replace(records)
+                records = {job_id: asdict(job) for job_id, job in self._jobs.items()}
+            for removed_id in set(self._persisted_jobs) - set(records):
+                self.state_store.delete_job(removed_id)
+                self._persisted_jobs.pop(removed_id, None)
+                self._persisted_status.pop(removed_id, None)
+            for job_id, record in records.items():
+                comparable = dict(record)
+                comparable.pop("log_lines", None)
+                fingerprint = json.dumps(comparable, sort_keys=True, default=str)
+                if self._persisted_jobs.get(job_id) != fingerprint:
+                    status_changed = (
+                        job_id in self._persisted_jobs
+                        and self._persisted_status.get(job_id) != record.get("status")
+                    )
+                    if status_changed:
+                        self.state_store.update_job_status(job_id, record)
+                    else:
+                        self.state_store.upsert_job(record)
+                    self._persisted_jobs[job_id] = fingerprint
+                    self._persisted_status[job_id] = str(record.get("status") or "")
         except (OSError, TypeError, ValueError, sqlite3.Error) as error:
             LOGGER.error("Nie można zapisać trwałej kolejki zadań: %s", error)
+
+    def _persist_progress(self, job: Job, force: bool = False) -> None:
+        """Persist one job at most every two seconds and after a 1% change."""
+        now_monotonic = time.monotonic()
+        previous_time, previous_progress = self._last_progress_write.get(
+            job.job_id, (0.0, -PROGRESS_MIN_DELTA_PERCENT)
+        )
+        if not force and (
+            now_monotonic - previous_time < PROGRESS_PERSIST_INTERVAL_SECONDS
+            or abs(job.progress - previous_progress) < PROGRESS_MIN_DELTA_PERCENT
+        ):
+            return
+        record = asdict(job)
+        self.state_store.update_job_progress(job.job_id, record)
+        comparable = dict(record)
+        comparable.pop("log_lines", None)
+        self._persisted_jobs[job.job_id] = json.dumps(comparable, sort_keys=True, default=str)
+        self._persisted_status[job.job_id] = job.status
+        self._last_progress_write[job.job_id] = (now_monotonic, job.progress)

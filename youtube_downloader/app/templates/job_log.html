@@ -7,7 +7,10 @@
       <h1 class="h3 mb-1">{{ job.title }}</h1>
       <p class="section-copy mb-0 text-break">{{ job.job_id }}</p>
     </div>
-    <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">{{ t('nav.jobs') }}</a>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-primary" href="{{ ingress_url('web.job_log_text', job_id=job.job_id) }}">Pobierz TXT</a>
+      <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">{{ t('nav.jobs') }}</a>
+    </div>
   </div>
 
   <section class="card app-card">

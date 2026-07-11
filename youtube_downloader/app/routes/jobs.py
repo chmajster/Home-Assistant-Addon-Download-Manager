@@ -223,3 +223,17 @@ def job_log(job_id: str):
         "job_log.html",
         job=localize_job(_job_manager().job_dict(job, include_full_log=True), _language()),
     )
+
+@web_bp.get("/jobs/log/<job_id>.txt")
+def job_log_text(job_id: str):
+    """Download the retained full SQLite log as a UTF-8 text file."""
+    try:
+        _job_manager().get_job(job_id)
+    except KeyError:
+        return render_template("error.html", message="Nie znaleziono zadania."), 404
+    content = "\n".join(_job_manager().state_store.job_logs(job_id)) + "\n"
+    return current_app.response_class(
+        content,
+        mimetype="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="job-{job_id}.log.txt"'},
+    )

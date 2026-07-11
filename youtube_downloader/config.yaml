@@ -1,8 +1,8 @@
 name: "Media Web Downloader"
 slug: "youtube_downloader"
 description: "Webowy downloader serwisów obsługiwanych przez yt-dlp z obsługą Ingress i panelem UI w Home Assistant"
-version: "1.3.78"
-url: "https://github.com/chmajster/Home-Assistant-Download-Manager"
+version: "1.3.79"
+url: "https://github.com/chmajster/Home-Assistant-Addon-Download-Manager"
 arch:
   - amd64
   - aarch64
@@ -14,7 +14,7 @@ ingress_port: 8099
 homeassistant_api: true
 panel_icon: "mdi:download"
 panel_title: "Media Web Downloader"
-watchdog: "http://[HOST]:[PORT:8099]/health"
+watchdog: "http://[HOST]:[PORT:8099]/health/ready"
 map:
   - type: share
     read_only: false
@@ -38,10 +38,18 @@ options:
   max_concurrent_jobs: 2
   allow_external_port: false
   enable_ha_events: false
+  ha_event_job_started: true
+  ha_event_job_completed: true
+  ha_event_job_failed: true
+  ha_event_live_started: true
+  ha_event_live_finished: true
+  ha_event_low_storage: true
+  ha_event_subscription_found_items: true
   external_port: 999
   debug: false
   preferred_format: "best"
   ui_language: "pl"
+  ytdlp_update_mode: "startup"
 schema:
   storage_mode: "list(local|media|nfs)"
   download_dir: str
@@ -54,7 +62,15 @@ schema:
   max_concurrent_jobs: "int(1,5)"
   allow_external_port: bool
   enable_ha_events: bool
+  ha_event_job_started: bool
+  ha_event_job_completed: bool
+  ha_event_job_failed: bool
+  ha_event_live_started: bool
+  ha_event_live_finished: bool
+  ha_event_low_storage: bool
+  ha_event_subscription_found_items: bool
   external_port: port
   debug: bool
   preferred_format: "list(best|video-1080|video-720|video-360|audio|video)"
   ui_language: "list(pl|en)"
+  ytdlp_update_mode: "list(startup|manual|disabled)"

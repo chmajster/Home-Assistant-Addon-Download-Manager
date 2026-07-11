@@ -35,6 +35,8 @@ Zwykłe pobrania wykonują się w workerach tła. Liczba równoległych zadań j
 
 Na stronie **Zadania** zwykłe pobieranie można zatrzymać i wznowić. Zatrzymanie zachowuje pliki częściowe `yt-dlp`, a wznowienie uruchamia ten sam URL i wariant formatu z aktywną obsługą kontynuacji pobierania. Przy zadaniu można rozwinąć podgląd ostatnich linii logu `yt-dlp`, jeśli zadanie zdążyło je zapisać. Filtr **Błędy** pokazuje tylko nieudane zadania, a panel błędów podpowiada najczęstsze przyczyny. Błędne zadania są automatycznie ponawiane do 3 razy z opóźnieniem 5 minut, a termin następnej próby jest widoczny przy wpisie. Przy pojedynczym błędnym zadaniu można kliknąć **Ponów**, a przycisk **Ponów nieudane** uruchamia ponownie wszystkie zadania ze statusem `błąd`. Po analizie URL aplikacja ostrzega, jeśli ten sam URL albo podobny tytuł/plik jest już w aktywnej kolejce albo w ukończonych zadaniach; ostrzeżenie nie blokuje świadomego ponownego pobrania.
 
+Duplikaty są wykrywane po `source_id`, parze extractora i identyfikatora, kanonicznym URL, tytule, nazwie pliku oraz SHA-256 ukończonego pliku. Można wybrać ostrzeżenie, pominięcie, nadpisanie lub utworzenie nowej nazwy. Playlisty i tryb **Tylko nowe** używają przede wszystkim trwałego `source_id`. Rejestr identyfikatorów pozostaje w SQLite także po usunięciu pliku lub zadania.
+
 Po zakończeniu operacji wynik jest zapisywany jako zadanie w SQLite:
 
 ```text
@@ -107,7 +109,7 @@ Przy każdym starcie skrypt usługi próbuje wykonać:
 
 Niepowodzenie jest logowane, ale nie blokuje startu panelu. Aktualizowany jest extractor `yt-dlp`, nie serwisy źródłowe.
 
-Wynik aktualizacji jest zapisywany w `/data/jobs/ytdlp_update.json`. Działająca aplikacja sprawdza ten stan co godzinę i wykonuje aktualizację, gdy ostatnia udana próba ma co najmniej 24 godziny. To samo sprawdzenie jest wykonywane przed analizą, zwykłym pobraniem, wznowieniem pobrania oraz startem zapisu live. Jeżeli poprzednia próba aktualizacji się nie powiodła, kolejne uruchomienie pobierania spróbuje zaktualizować `yt-dlp` ponownie.
+Wynik aktualizacji jest zapisywany w `/data/jobs/ytdlp_update.json`. W trybie `startup` aktualizacja oraz test CLI i extractorów odbywają się przed startem Gunicorna. Tryb `manual` uruchamia aktualizację wyłącznie przyciskiem w diagnostyce i tylko bez aktywnych zadań. Tryb `disabled` nie aktualizuje `yt-dlp`. Aplikacja nie wykonuje aktualizacji okresowych ani aktualizacji przed analizą lub pobieraniem.
 
 ## Komunikaty błędów
 

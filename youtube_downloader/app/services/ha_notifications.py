@@ -25,6 +25,7 @@ class HomeAssistantNotifier:
         base_url: str = HA_API_URL,
         timeout: float = 5.0,
         events_enabled: bool | None = None,
+        enabled_event_types: dict[str, bool] | None = None,
     ) -> None:
         self.token = token if token is not None else os.environ.get("SUPERVISOR_TOKEN")
         self.base_url = base_url.rstrip("/")
@@ -34,6 +35,7 @@ class HomeAssistantNotifier:
             if events_enabled is None
             else events_enabled
         )
+        self.enabled_event_types = dict(enabled_event_types or {})
 
     def notify_job(self, job: Any) -> None:
         """Notify when a job reaches a final success or error state."""
@@ -93,6 +95,7 @@ class HomeAssistantNotifier:
             free_percent = 0.0
         if free_percent >= 15:
             return
+        self.emit_event("low_storage", storage)
         severity = "krytycznie mało miejsca" if free_percent < 5 else "mało miejsca"
         self._send_async(
             f"Media Web Downloader: {severity}",
@@ -110,15 +113,37 @@ class HomeAssistantNotifier:
             "completed": "job_completed",
             "error": "job_failed",
         }.get(str(payload.get("status") or ""))
-        event_name = {
-            "job_completed": "media_web_downloader.job_completed",
-            "job_failed": "media_web_downloader.job_failed",
-            "live_started": "media_web_downloader.live_started",
-            "live_finished": "media_web_downloader.live_finished",
-        }.get(str(event_key or ""))
+        event_name = str(event_key or "")
         if not event_name:
             return
-        self._send_event_async(event_name, self._safe_event_payload(payload))
+        self.emit_event(event_name, self._safe_event_payload(payload))
+
+    def emit_event(self, event_type: str, payload: dict[str, Any]) -> None:
+        """Emit one configured event using the stable HA event namespace."""
+        if not self.events_enabled or not self.enabled_event_types.get(event_type, True):
+            return
+        allowed = {
+            "job_started", "job_completed", "job_failed", "live_started",
+            "live_finished", "low_storage", "subscription_found_items",
+        }
+        if event_type not in allowed:
+            return
+        normalized = {
+            "job_id": str(payload.get("job_id") or ""),
+            "title": str(payload.get("title") or "")[:300],
+            "status": str(payload.get("status") or event_type),
+            "storage": str(payload.get("storage") or payload.get("storage_name") or ""),
+            "filename": str(payload.get("filename") or payload.get("output_file") or ""),
+            "size": payload.get("size"),
+            "platform": str(payload.get("platform") or ""),
+            "error_code": str(payload.get("error_code") or ""),
+        }
+        normalized.update({key: value for key, value in payload.items() if key not in normalized})
+        self._send_event_async(f"media_downloader_{event_type}", normalized)
+
+    def notify_subscription_found_items(self, payload: dict[str, Any]) -> None:
+        """Public integration hook for the future subscription scanner."""
+        self.emit_event("subscription_found_items", payload)
 
     def health_status(self) -> dict[str, Any]:
         """Return a compact Home Assistant API diagnostic status."""
@@ -127,6 +152,7 @@ class HomeAssistantNotifier:
             "base_url": self.base_url,
             "token_configured": bool(self.token),
             "events_enabled": self.events_enabled,
+            "enabled_event_types": self.enabled_event_types,
             "available": False,
             "status_code": None,
             "message": "",
@@ -294,9 +320,11 @@ class HomeAssistantNotifier:
             "job_id": str(job.get("job_id") or ""),
             "title": str(job.get("title") or "")[:300],
             "status": str(job.get("status") or ""),
-            "output_file": str(job.get("output_file") or ""),
+            "storage": str(job.get("storage_name") or ""),
+            "filename": str(job.get("output_file") or ""),
             "size": job.get("downloaded_bytes") or job.get("total_bytes"),
             "platform": HomeAssistantNotifier._platform(job),
+            "error_code": str(job.get("error_code") or ""),
         }
 
     @staticmethod

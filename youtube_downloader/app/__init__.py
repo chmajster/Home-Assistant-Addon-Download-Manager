@@ -115,7 +115,10 @@ def create_app() -> Flask:
         storage_manager=storage_manager,
     )
     media_service = MediaService(settings.download_dir)
-    notifier = HomeAssistantNotifier(events_enabled=settings.enable_ha_events)
+    notifier = HomeAssistantNotifier(
+        events_enabled=settings.enable_ha_events,
+        enabled_event_types=getattr(settings, "ha_event_types", None),
+    )
     ytdlp_updater = YtDlpUpdater(settings.jobs_dir / "ytdlp_update.json")
     job_manager = JobManager(
         media_service=media_service,
@@ -131,7 +134,6 @@ def create_app() -> Flask:
     app.extensions["ha_notifier"] = notifier
     app.extensions["ytdlp_updater"] = ytdlp_updater
     app.extensions["request_limiter"] = RequestLimiter()
-    ytdlp_updater.start_background()
     _install_shutdown_handlers(job_manager, ytdlp_updater)
 
     from .routes.api import api_bp

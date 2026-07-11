@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.79
+
+- Zoptymalizowano trwały stan SQLite przez rekordowe upserty, throttling postępu, retencję logów, migracje z kopią zapasową oraz kontrolę integralności.
+- Dodano bezpieczne tryby aktualizacji yt-dlp, rozszerzone endpointy healthcheck i diagnostykę aktualizacji.
+- Rozbudowano integrację Home Assistant o selektywne zdarzenia i endpoint stanu dla sensorów.
+- Ulepszono wykrywanie duplikatów o trwałe identyfikatory, kanoniczne URL-e, metadane i sumy SHA-256.
+- Dodano workflow CI i release z budową wieloarchitekturową, skanem Trivy, SBOM, podpisem Cosign oraz kontrolą Conventional Commits.
+- Naprawiono metadane repozytorium i wskazanie bazy SQLite jako głównego źródła stanu.
+
 ## 1.3.78
 
 - Szybkie `Pobierz` dla aktywnego live uruchamia teraz zapis od poczatku transmisji.

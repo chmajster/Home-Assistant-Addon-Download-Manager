@@ -16,6 +16,7 @@ DEFAULT_MEDIA_DOWNLOAD_DIR = Path("/media/youtube_downloader")
 ALLOWED_DOWNLOAD_ROOTS = (Path("/share"), Path("/media"))
 PREFERRED_FORMATS = {"best", "audio", "video", "video-360", "video-720", "video-1080"}
 UI_LANGUAGES = {"pl", "en"}
+YTDLP_UPDATE_MODES = {"startup", "manual", "disabled"}
 
 DEFAULT_OPTIONS: dict[str, Any] = {
     "storage_mode": "local",
@@ -29,10 +30,18 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "max_concurrent_jobs": 2,
     "allow_external_port": False,
     "enable_ha_events": False,
+    "ha_event_job_started": True,
+    "ha_event_job_completed": True,
+    "ha_event_job_failed": True,
+    "ha_event_live_started": True,
+    "ha_event_live_finished": True,
+    "ha_event_low_storage": True,
+    "ha_event_subscription_found_items": True,
     "external_port": 999,
     "debug": False,
     "preferred_format": "best",
     "ui_language": "pl",
+    "ytdlp_update_mode": "startup",
 }
 
 
@@ -51,10 +60,12 @@ class HomeAssistantOptions:
     max_concurrent_jobs: int
     allow_external_port: bool
     enable_ha_events: bool
+    ha_event_types: dict[str, bool]
     external_port: int
     debug: bool
     preferred_format: str
     ui_language: str
+    ytdlp_update_mode: str
 
 
 def _read_json() -> dict[str, Any]:
@@ -173,6 +184,9 @@ def load_options() -> HomeAssistantOptions:
     ui_language = str(values["ui_language"]).lower()
     if ui_language not in UI_LANGUAGES:
         ui_language = str(DEFAULT_OPTIONS["ui_language"])
+    ytdlp_update_mode = str(values["ytdlp_update_mode"]).lower()
+    if ytdlp_update_mode not in YTDLP_UPDATE_MODES:
+        ytdlp_update_mode = "startup"
 
     media_download_dir = DEFAULT_MEDIA_DOWNLOAD_DIR
     if storage_mode == "media":
@@ -198,8 +212,16 @@ def load_options() -> HomeAssistantOptions:
         max_concurrent_jobs=_validated_int(values["max_concurrent_jobs"], 2, 1, 5),
         allow_external_port=_validated_bool(values["allow_external_port"], False),
         enable_ha_events=_validated_bool(values["enable_ha_events"], False),
+        ha_event_types={
+            name: _validated_bool(values[f"ha_event_{name}"], True)
+            for name in (
+                "job_started", "job_completed", "job_failed", "live_started",
+                "live_finished", "low_storage", "subscription_found_items",
+            )
+        },
         external_port=_validated_int(values["external_port"], 999, 1, 65535),
         debug=_validated_bool(values["debug"], False),
         preferred_format=preferred_format,
         ui_language=ui_language,
+        ytdlp_update_mode=ytdlp_update_mode,
     )

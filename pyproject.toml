@@ -1,0 +1,22 @@
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = ["youtube_downloader/wheels"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.14"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+exclude = ["youtube_downloader/tests", "youtube_downloader/wheels"]
+
+[tool.bandit]
+exclude_dirs = ["youtube_downloader/tests", "youtube_downloader/wheels"]
+skips = ["B603", "B607"]

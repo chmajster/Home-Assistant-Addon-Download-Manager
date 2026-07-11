@@ -1,0 +1,8 @@
+-r youtube_downloader/requirements.txt
+bandit[toml]
+mypy
+pip-audit
+ruff
+types-PyYAML
+yamllint
+PyYAML

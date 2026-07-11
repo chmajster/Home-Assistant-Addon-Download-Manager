@@ -96,8 +96,16 @@
               <input type="hidden" name="url" value="{{ media.url }}">
               <input type="hidden" name="title" value="{{ media.title }}">
               {% if media.id %}<input type="hidden" name="source_id" value="{{ media.id }}">{% endif %}
+              {% if media.extractor_key %}<input type="hidden" name="extractor_key" value="{{ media.extractor_key }}">{% endif %}
               {% if media.duplicate_warnings %}<input type="hidden" name="allow_duplicate" value="1">{% endif %}
               {% if media.duration %}<input type="hidden" name="duration" value="{{ media.duration }}">{% endif %}
+              <label class="form-label" for="duplicate-action">Duplikaty</label>
+              <select class="form-select mb-3" id="duplicate-action" name="duplicate_action">
+                <option value="warning">Tylko ostrzeżenie</option>
+                <option value="skip">Pomiń</option>
+                <option value="overwrite">Nadpisz</option>
+                <option value="rename">Utwórz nową nazwę</option>
+              </select>
               <label class="form-label" for="download-profile">{{ t('result.profile') }}</label>
               <select class="form-select mb-3" id="download-profile" name="download_profile">
                 {% for key, profile in download_profiles.items() %}

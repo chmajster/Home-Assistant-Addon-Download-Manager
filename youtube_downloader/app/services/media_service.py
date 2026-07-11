@@ -371,6 +371,13 @@ class MediaService:
             "fragment_retries": 5,
             "postprocessors": postprocessors,
         }
+        duplicate_action = str((download_options or {}).get("duplicate_action") or "warning")
+        if duplicate_action == "overwrite":
+            options["overwrites"] = True
+        elif duplicate_action == "rename":
+            options["outtmpl"] = str(
+                outtmpl_dir / "%(title).170B [%(id)s]-%(epoch)s.%(ext)s"
+            )
         if download_type == "audio" and self.boolean_option(
             download_options, "embed_thumbnail", True
         ):

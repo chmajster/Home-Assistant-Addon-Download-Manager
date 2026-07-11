@@ -48,18 +48,6 @@ class YtDlpUpdater:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
-    def start_background(self) -> None:
-        """Start a lightweight periodic updater thread."""
-
-        if self._thread and self._thread.is_alive():
-            return
-        self._thread = threading.Thread(
-            target=self._background_loop,
-            name="yt-dlp-updater",
-            daemon=True,
-        )
-        self._thread.start()
-
     def stop_background(self, timeout: float = 5.0) -> None:
         """Stop the background updater thread."""
 
@@ -67,12 +55,13 @@ class YtDlpUpdater:
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=timeout)
 
-    def ensure_recent(self) -> bool:
+    def ensure_recent(self, force: bool = False) -> bool:
         """Update yt-dlp if the last successful update is stale or failed."""
 
         with self._lock:
             state = self._read_state()
-            if not self._needs_update(state):
+            previous_version = self._installed_version()
+            if not force and not self._needs_update(state):
                 return True
             LOGGER.info("Aktualizuję yt-dlp do najnowszej wersji...")
             try:
@@ -93,12 +82,26 @@ class YtDlpUpdater:
                 self._write_state(updated)
                 return False
             if result.returncode == 0:
-                LOGGER.info("yt-dlp został zaktualizowany.")
+                new_version = self._installed_version()
+                verified = self._verify_extractors()
+                if not verified:
+                    if previous_version:
+                        subprocess.run(
+                            [*self.command[:-2], f"yt-dlp=={previous_version}"],
+                            capture_output=True, text=True, timeout=300, check=False,
+                        )
+                    self._write_state({**state, "last_attempt": self._now(),
+                                       "previous_version": previous_version,
+                                       "new_version": new_version,
+                                       "last_error": "Weryfikacja extractorów nie powiodła się."})
+                    return False
+                LOGGER.info("yt-dlp został zaktualizowany i zweryfikowany.")
                 updated_at = self._now()
                 self._write_state(
-                    {"last_attempt": updated_at, "last_success": updated_at}
+                    {"last_attempt": updated_at, "last_success": updated_at,
+                     "previous_version": previous_version, "new_version": new_version,
+                     "last_error": None}
                 )
-                self._invalidate_yt_dlp_imports()
                 return True
 
             error = (result.stderr or result.stdout or "").strip()
@@ -109,6 +112,22 @@ class YtDlpUpdater:
             updated = {**state, "last_attempt": self._now(), "last_error": error}
             self._write_state(updated)
             return False
+
+    @staticmethod
+    def _installed_version() -> str:
+        result = subprocess.run(
+            [sys.executable, "-m", "yt_dlp", "--version"], capture_output=True,
+            text=True, timeout=30, check=False,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+
+    @staticmethod
+    def _verify_extractors() -> bool:
+        result = subprocess.run(
+            [sys.executable, "-c", "from yt_dlp.extractor import gen_extractors; assert gen_extractors()"],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+        return result.returncode == 0
 
     def diagnostics(self) -> dict[str, Any]:
         """Return a read-only snapshot of the updater state."""
@@ -122,14 +141,9 @@ class YtDlpUpdater:
                 "last_error": state.get("last_error"),
                 "needs_update": self._needs_update(state),
                 "update_interval_hours": self.update_interval.total_seconds() / 3600,
+                "previous_version": state.get("previous_version"),
+                "new_version": state.get("new_version"),
             }
-
-    def _background_loop(self) -> None:
-        while not self._stop.wait(self.background_poll_seconds):
-            try:
-                self.ensure_recent()
-            except Exception:
-                LOGGER.exception("Nieoczekiwany błąd okresowej aktualizacji yt-dlp")
 
     def _needs_update(self, state: dict[str, Any]) -> bool:
         last_success = self._parse_time(state.get("last_success"))
@@ -168,9 +182,3 @@ class YtDlpUpdater:
     @staticmethod
     def _now() -> str:
         return datetime.now(UTC).isoformat()
-
-    @staticmethod
-    def _invalidate_yt_dlp_imports() -> None:
-        for module_name in list(sys.modules):
-            if module_name == "yt_dlp" or module_name.startswith("yt_dlp."):
-                del sys.modules[module_name]

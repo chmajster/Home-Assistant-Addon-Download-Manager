@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/home-assistant-addon-download-manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: python -m pip install PyYAML
+      - name: Check version consistency
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(python -c 'import yaml; print(yaml.safe_load(open("youtube_downloader/config.yaml"))["version"])')"
+          EXPECTED_ARGS=()
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then EXPECTED_ARGS=(--expected "$GITHUB_REF_NAME"); fi
+          python youtube_downloader/scripts/bump_version.py --check "${EXPECTED_ARGS[@]}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish multi-architecture image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: youtube_downloader
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
+            ${{ env.IMAGE }}:latest
+          build-args: BUILD_VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha,scope=release
+          cache-to: type=gha,mode=max,scope=release
+      - uses: sigstore/cosign-installer@v4.1.0
+      - name: Sign image by digest with GitHub OIDC
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Extract release changelog
+        shell: bash
+        run: |
+          VERSION='${{ steps.version.outputs.version }}'
+          awk -v version="$VERSION" '
+            $0 == "## " version {found=1; next}
+            found && /^## / {exit}
+            found {print}
+          ' youtube_downloader/CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          files: sbom.spdx.json
+          generate_release_notes: false

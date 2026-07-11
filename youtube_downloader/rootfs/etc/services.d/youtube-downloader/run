@@ -21,6 +21,8 @@ except (OSError, json.JSONDecodeError):
     state = {}
 now = datetime.now(UTC).isoformat()
 state["last_attempt"] = now
+state["previous_version"] = sys.argv[2] if len(sys.argv) > 2 else None
+state["new_version"] = sys.argv[3] if len(sys.argv) > 3 else None
 if sys.argv[1] == "success":
     state["last_success"] = now
     state.pop("last_error", None)
@@ -32,12 +34,27 @@ os.replace(temporary, state_file)
 PY
 }
 
-bashio::log.info "Aktualizuję yt-dlp do najnowszej wersji przed uruchomieniem aplikacji..."
-if /venv/bin/python -m pip install --no-cache-dir --retries 3 --timeout 20 --upgrade yt-dlp; then
-    record_ytdlp_update success
+YTDLP_UPDATE_MODE="$(bashio::config 'ytdlp_update_mode')"
+if [ "${YTDLP_UPDATE_MODE}" = "startup" ]; then
+    PREVIOUS_VERSION="$(/venv/bin/python -m yt_dlp --version 2>/dev/null || true)"
+    bashio::log.info "Aktualizuję yt-dlp przed uruchomieniem Gunicorna..."
+    if /venv/bin/python -m pip install --no-cache-dir --retries 3 --timeout 20 --upgrade yt-dlp; then
+        NEW_VERSION="$(/venv/bin/python -m yt_dlp --version 2>/dev/null || true)"
+        if [ -n "${NEW_VERSION}" ] && /venv/bin/python -c 'from yt_dlp.extractor import gen_extractors; assert len(gen_extractors()) > 0'; then
+            record_ytdlp_update success "${PREVIOUS_VERSION}" "${NEW_VERSION}"
+        else
+            bashio::log.warning "Weryfikacja yt-dlp nie powiodła się; przywracam ${PREVIOUS_VERSION}."
+            [ -n "${PREVIOUS_VERSION}" ] && /venv/bin/python -m pip install --no-cache-dir "yt-dlp==${PREVIOUS_VERSION}" || true
+            record_ytdlp_update failure "${PREVIOUS_VERSION}" "${NEW_VERSION}"
+        fi
+    else
+        bashio::log.warning "Aktualizacja yt-dlp nie powiodła się. Pozostawiam obecną wersję."
+        record_ytdlp_update failure "${PREVIOUS_VERSION}" "${PREVIOUS_VERSION}"
+    fi
+elif [ "${YTDLP_UPDATE_MODE}" = "manual" ]; then
+    bashio::log.info "Aktualizacja yt-dlp jest dostępna wyłącznie ręcznie w diagnostyce."
 else
-    bashio::log.warning "Aktualizacja yt-dlp nie powiodła się. Uruchamiam z obecną wersją."
-    record_ytdlp_update failure
+    bashio::log.info "Aktualizacja yt-dlp jest wyłączona."
 fi
 
 EXTERNAL_PORT="$(bashio::config 'external_port')"
