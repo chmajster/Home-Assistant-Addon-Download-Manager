@@ -6,13 +6,16 @@ import json
 import logging
 import sqlite3
 import threading
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 LOGGER = logging.getLogger(__name__)
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 JOB_PAYLOAD_LOG_LINE_LIMIT = 40
+JOB_LOG_LINE_LIMIT = 5000
+WAL_CHECKPOINT_INTERVAL_SECONDS = 300
 
 
 class SQLiteStateStore:
@@ -22,9 +25,35 @@ class SQLiteStateStore:
         self.db_path = db_path
         self._lock = threading.RLock()
         self._log_connection: sqlite3.Connection | None = None
+        self._last_checkpoint = time.monotonic()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connection() as connection:
-            self._initialize(connection)
+        backup_path = self.db_path.with_suffix(self.db_path.suffix + ".pre-migration.bak")
+        had_database = self.db_path.exists()
+        if had_database:
+            self._backup_database(self.db_path, backup_path)
+        try:
+            with self._connection() as connection:
+                self._initialize(connection)
+                if self.quick_check(connection) != "ok":
+                    raise sqlite3.DatabaseError("PRAGMA quick_check failed after migration")
+        except Exception:
+            self.close()
+            if had_database and backup_path.exists():
+                self._backup_database(backup_path, self.db_path)
+            raise
+        else:
+            backup_path.unlink(missing_ok=True)
+
+    @staticmethod
+    def _backup_database(source: Path, destination: Path) -> None:
+        """Create a consistent SQLite backup, including committed WAL pages."""
+        source_connection = sqlite3.connect(source)
+        destination_connection = sqlite3.connect(destination)
+        try:
+            source_connection.backup(destination_connection)
+        finally:
+            destination_connection.close()
+            source_connection.close()
 
     def close(self) -> None:
         """Close long-lived SQLite handles held for append-heavy log writes."""
@@ -141,6 +170,69 @@ class SQLiteStateStore:
                             connection, job_id, record.get("log_lines")
                         )
 
+    def upsert_job(self, record: dict[str, Any]) -> None:
+        """Insert or update exactly one job without touching other jobs or logs."""
+
+        row = self._job_row(record)
+        if not row:
+            return
+        with self._lock, self._connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO jobs (
+                    job_id, created_at, status, title, url, download_type, is_live,
+                    finished_at, error_message, error_code, storage_name,
+                    source_thumbnail_filename, auto_tags, updated_at, payload, source_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_id) DO UPDATE SET
+                    created_at=excluded.created_at, status=excluded.status,
+                    title=excluded.title, url=excluded.url,
+                    download_type=excluded.download_type, is_live=excluded.is_live,
+                    finished_at=excluded.finished_at, error_message=excluded.error_message,
+                    error_code=excluded.error_code, storage_name=excluded.storage_name,
+                    source_thumbnail_filename=excluded.source_thumbnail_filename,
+                    auto_tags=excluded.auto_tags, updated_at=excluded.updated_at,
+                    payload=excluded.payload, source_id=excluded.source_id
+                """,
+                (*row, self._text_or_none(record.get("source_id"))),
+            )
+
+    def delete_job(self, job_id: str) -> None:
+        with self._lock, self._connection() as connection:
+            connection.execute("DELETE FROM job_log_lines WHERE job_id = ?", (job_id,))
+            connection.execute("DELETE FROM jobs WHERE job_id = ?", (job_id,))
+
+    def update_job_progress(self, job_id: str, record: dict[str, Any]) -> None:
+        """Persist one job's throttled progress snapshot."""
+        self.upsert_job(record)
+
+    def update_job_status(self, job_id: str, record: dict[str, Any]) -> None:
+        """Persist a status transition immediately."""
+        self.upsert_job(record)
+
+    def remember_download_identity(self, identity: dict[str, Any]) -> None:
+        """Keep durable duplicate keys independently from jobs and files."""
+        with self._lock, self._connection() as connection:
+            connection.execute(
+                """INSERT INTO download_identities
+                   (job_id, source_id, extractor_key, canonical_url, title_key,
+                    filename_key, sha256, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                   ON CONFLICT(job_id) DO UPDATE SET
+                     source_id=excluded.source_id, extractor_key=excluded.extractor_key,
+                     canonical_url=excluded.canonical_url, title_key=excluded.title_key,
+                     filename_key=excluded.filename_key, sha256=excluded.sha256""",
+                tuple(identity.get(key) for key in (
+                    "job_id", "source_id", "extractor_key", "canonical_url",
+                    "title_key", "filename_key", "sha256",
+                )),
+            )
+
+    def download_identities(self) -> list[dict[str, Any]]:
+        with self._lock, self._connection() as connection:
+            rows = connection.execute("SELECT * FROM download_identities").fetchall()
+        return [dict(row) for row in rows]
+
     def job_logs(self, job_id: str, limit: int | None = None) -> list[str]:
         """Return persisted log lines for one job."""
 
@@ -167,27 +259,49 @@ class SQLiteStateStore:
         return [str(row["message"]) for row in reversed(rows)]
 
     def append_job_log(self, job_id: str, message: str) -> None:
-        """Append one log line to the durable full job log."""
+        """Append one log line using the transactional batch implementation."""
+        self.append_job_logs(job_id, [message])
 
-        with self._lock:
-            connection = self._append_connection()
+    def append_job_logs(self, job_id: str, messages: list[str]) -> None:
+        """Append a batch of log lines in one transaction and enforce retention."""
+        if not messages:
+            return
+        with self._lock, self._connection() as connection:
             row = connection.execute(
-                """
-                SELECT COALESCE(MAX(line_number), -1) + 1 AS next_line
-                FROM job_log_lines
-                WHERE job_id = ?
-                """,
+                "SELECT COALESCE(MAX(line_number), -1) + 1 AS n FROM job_log_lines WHERE job_id = ?",
                 (job_id,),
             ).fetchone()
-            next_line = int(row["next_line"] if row else 0)
-            connection.execute(
-                """
-                INSERT INTO job_log_lines (job_id, line_number, message)
-                VALUES (?, ?, ?)
-                """,
-                (job_id, next_line, message),
+            start = int(row["n"] if row else 0)
+            connection.executemany(
+                "INSERT INTO job_log_lines (job_id, line_number, message) VALUES (?, ?, ?)",
+                [(job_id, start + index, message) for index, message in enumerate(messages)],
             )
-            connection.commit()
+            self._trim_job_logs_connection(connection, job_id)
+
+    @staticmethod
+    def _trim_job_logs_connection(connection: sqlite3.Connection, job_id: str) -> None:
+        connection.execute(
+            """DELETE FROM job_log_lines WHERE job_id = ? AND line_number NOT IN
+               (SELECT line_number FROM job_log_lines WHERE job_id = ?
+                ORDER BY line_number DESC LIMIT ?)""",
+            (job_id, job_id, JOB_LOG_LINE_LIMIT),
+        )
+
+    def quick_check(self, connection: sqlite3.Connection | None = None) -> str:
+        """Return SQLite's lightweight integrity-check result."""
+        if connection is not None:
+            row = connection.execute("PRAGMA quick_check").fetchone()
+            return str(row[0] if row else "unknown")
+        with self._lock, self._connection() as own_connection:
+            row = own_connection.execute("PRAGMA quick_check").fetchone()
+        return str(row[0] if row else "unknown")
+
+    def checkpoint(self, mode: str = "PASSIVE") -> None:
+        if mode not in {"PASSIVE", "FULL", "RESTART", "TRUNCATE"}:
+            raise ValueError("Unsupported WAL checkpoint mode")
+        with self._lock, self._connection() as connection:
+            connection.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
+        self._last_checkpoint = time.monotonic()
 
     def replace_job_logs(self, job_id: str, lines: object) -> None:
         """Replace the durable full job log for one job."""
@@ -217,6 +331,15 @@ class SQLiteStateStore:
             connection.commit()
         finally:
             connection.close()
+            if time.monotonic() - self._last_checkpoint >= WAL_CHECKPOINT_INTERVAL_SECONDS:
+                try:
+                    with self._lock:
+                        checkpoint_connection = self._connect()
+                        checkpoint_connection.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+                        checkpoint_connection.close()
+                        self._last_checkpoint = time.monotonic()
+                except sqlite3.Error:
+                    LOGGER.warning("Nie udało się wykonać okresowego checkpointu WAL.", exc_info=True)
 
     def _initialize(self, connection: sqlite3.Connection) -> None:
         connection.execute(
@@ -274,6 +397,17 @@ class SQLiteStateStore:
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (job_id, line_number)
             );
+
+            CREATE TABLE IF NOT EXISTS download_identities (
+                job_id TEXT PRIMARY KEY,
+                source_id TEXT,
+                extractor_key TEXT,
+                canonical_url TEXT,
+                title_key TEXT,
+                filename_key TEXT,
+                sha256 TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
             """
         )
         self._migrate_schema(connection, previous_version)
@@ -313,8 +447,18 @@ class SQLiteStateStore:
                 ON jobs(download_type);
             CREATE INDEX IF NOT EXISTS idx_jobs_is_live
                 ON jobs(is_live);
+            CREATE INDEX IF NOT EXISTS idx_jobs_finished_at ON jobs(finished_at);
+            CREATE INDEX IF NOT EXISTS idx_jobs_storage_name ON jobs(storage_name);
+            CREATE INDEX IF NOT EXISTS idx_jobs_source_id ON jobs(source_id);
+            CREATE INDEX IF NOT EXISTS idx_jobs_updated_at ON jobs(updated_at);
             CREATE INDEX IF NOT EXISTS idx_job_log_lines_job_id
                 ON job_log_lines(job_id);
+            CREATE INDEX IF NOT EXISTS idx_identity_source_id ON download_identities(source_id);
+            CREATE INDEX IF NOT EXISTS idx_identity_extractor ON download_identities(extractor_key);
+            CREATE INDEX IF NOT EXISTS idx_identity_url ON download_identities(canonical_url);
+            CREATE INDEX IF NOT EXISTS idx_identity_title ON download_identities(title_key);
+            CREATE INDEX IF NOT EXISTS idx_identity_filename ON download_identities(filename_key);
+            CREATE INDEX IF NOT EXISTS idx_identity_sha256 ON download_identities(sha256);
             """
         )
 
@@ -339,6 +483,34 @@ class SQLiteStateStore:
             self._migrate_to_v2(connection)
         if previous_version < 3:
             self._migrate_to_v3(connection)
+        if previous_version < 4:
+            self._migrate_to_v4(connection)
+        if previous_version < 5:
+            self._migrate_to_v5(connection)
+
+    def _migrate_to_v5(self, connection: sqlite3.Connection) -> None:
+        for row in connection.execute("SELECT job_id, payload FROM jobs").fetchall():
+            record = self._decode_payload(row["payload"], "kolejki zadań")
+            metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+            filename = record.get("output_file") or ""
+            connection.execute(
+                """INSERT OR IGNORE INTO download_identities
+                   (job_id, source_id, extractor_key, canonical_url, title_key, filename_key, sha256)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (row["job_id"], record.get("source_id"), metadata.get("extractor_key"),
+                 record.get("url"), str(record.get("title") or "").casefold(),
+                 str(filename).casefold(), metadata.get("sha256")),
+            )
+
+    def _migrate_to_v4(self, connection: sqlite3.Connection) -> None:
+        columns = self._table_columns(connection, "jobs")
+        self._add_column_if_missing(connection, "jobs", columns, "source_id", "TEXT")
+        for row in connection.execute("SELECT job_id, payload FROM jobs").fetchall():
+            record = self._decode_payload(row["payload"], "kolejki zadań")
+            connection.execute(
+                "UPDATE jobs SET source_id = ? WHERE job_id = ?",
+                (self._text_or_none(record.get("source_id")), row["job_id"]),
+            )
 
     def _migrate_to_v2(self, connection: sqlite3.Connection) -> None:
         history_columns = self._table_columns(connection, "history_records")

@@ -26,10 +26,12 @@ class AppConfig:
     max_concurrent_jobs: int
     allow_external_port: bool
     enable_ha_events: bool
+    ha_event_types: dict[str, bool]
     external_port: int
     debug: bool
     preferred_format: str
     ui_language: str
+    ytdlp_update_mode: str
     secret_key: str
 
     @classmethod
@@ -54,9 +56,11 @@ class AppConfig:
             max_concurrent_jobs=options.max_concurrent_jobs,
             allow_external_port=options.allow_external_port,
             enable_ha_events=options.enable_ha_events,
+            ha_event_types=options.ha_event_types,
             external_port=options.external_port,
             debug=options.debug,
             preferred_format=options.preferred_format,
             ui_language=options.ui_language,
+            ytdlp_update_mode=options.ytdlp_update_mode,
             secret_key=secrets.token_hex(32),
         )

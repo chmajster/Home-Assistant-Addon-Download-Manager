@@ -10,10 +10,11 @@ import re
 import socket
 import subprocess
 import tempfile
+from pathlib import Path
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from flask import (
     Blueprint,
@@ -132,7 +133,8 @@ def _t(key: str, **values: object) -> str:
 
 
 def _ensure_ytdlp_recent() -> None:
-    _ytdlp_updater().ensure_recent()
+    # Updates are performed only before Gunicorn starts or by explicit diagnostics action.
+    return None
 
 
 def _installed_package_version(package_name: str) -> str:
@@ -573,6 +575,12 @@ def _download_options_from_form(playlist_title: str | None = None) -> dict[str, 
         ),
         "embed_thumbnail": _form_bool("embed_thumbnail", True),
         "add_metadata": _form_bool("add_metadata", True),
+        "duplicate_action": (
+            str(request.form.get("duplicate_action") or "warning")
+            if str(request.form.get("duplicate_action") or "warning")
+            in {"warning", "skip", "overwrite", "rename"}
+            else "warning"
+        ),
     }
     if playlist_title and _form_bool("playlist_folder"):
         options["output_subdir"] = playlist_title
@@ -636,11 +644,17 @@ def _automatic_download_type(
 
 
 def _known_source_ids() -> set[str]:
-    return {
+    current = {
         str(job.source_id)
         for job in _job_manager().list_jobs()
         if job.source_id and job.status != "error"
     }
+    current.update(
+        str(item["source_id"])
+        for item in _job_manager().state_store.download_identities()
+        if item.get("source_id")
+    )
+    return current
 
 
 def _selected_playlist_entries() -> tuple[list[dict[str, Any]], int]:
@@ -650,7 +664,11 @@ def _selected_playlist_entries() -> tuple[list[dict[str, Any]], int]:
     start = _positive_int(request.form.get("playlist_start"))
     end = _positive_int(request.form.get("playlist_end"))
     limit = _positive_int(request.form.get("playlist_limit"))
-    skip_existing = _form_bool("skip_existing_ids") or _form_bool("download_only_new")
+    skip_existing = (
+        _form_bool("skip_existing_ids")
+        or _form_bool("download_only_new")
+        or request.form.get("duplicate_action") == "skip"
+    )
     skipped_existing = 0
     for raw_index in request.form.getlist("playlist_entries"):
         if not raw_index.isdigit():
@@ -762,16 +780,29 @@ def _duplicate_url_key(value: object) -> str:
     if not raw:
         return ""
     try:
-        return MediaService.validate_url(raw)
+        validated = MediaService.validate_url(raw)
+        parts = urlsplit(validated)
+        host = (parts.hostname or "").casefold().rstrip(".")
+        path = parts.path.rstrip("/") or "/"
+        tracking = {"fbclid", "gclid", "si", "feature"}
+        query = urlencode(sorted(
+            (key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True)
+            if not key.casefold().startswith("utm_") and key.casefold() not in tracking
+        ))
+        return urlunsplit((parts.scheme.casefold(), host, path, query, ""))
     except MediaServiceError:
         return raw
 
 
-def _duplicate_download_warnings(url: str, title: str = "") -> list[dict[str, str]]:
+def _duplicate_download_warnings(
+    url: str, title: str = "", source_id: str = "", extractor_key: str = "",
+    filename: str = "", sha256: str = "",
+) -> list[dict[str, str]]:
     """Return compact duplicate warnings for the analyzed or queued media."""
 
     normalized_url = _duplicate_url_key(url)
     title_key = _duplicate_key(title)
+    filename_key = Path(filename).name.casefold() if filename else ""
     warnings: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
 
@@ -792,10 +823,33 @@ def _duplicate_download_warnings(url: str, title: str = "") -> list[dict[str, st
     for job in _job_manager().list_jobs():
         source = "queue" if job.status in JobManager.ACTIVE_STATUSES else "jobs"
         detail = job.output_file or job.job_id[:8]
-        if _duplicate_url_key(job.url) == normalized_url:
+        metadata = job.metadata if isinstance(job.metadata, dict) else {}
+        if source_id and job.source_id == source_id:
+            add("source_id", source, job.title, detail)
+        elif source_id and extractor_key and (
+            metadata.get("extractor_key") == extractor_key and job.source_id == source_id
+        ):
+            add("extractor_key", source, job.title, detail)
+        elif _duplicate_url_key(job.url) == normalized_url:
             add("url", source, job.title, detail)
         elif title_key and _duplicate_key(job.title) == title_key:
-            add("file", source, job.title, detail)
+            add("title", source, job.title, detail)
+        elif filename_key and Path(job.output_file or "").name.casefold() == filename_key:
+            add("filename", source, job.title, detail)
+    for identity in _job_manager().state_store.download_identities():
+        matches = (
+            (source_id and identity.get("source_id") == source_id, "source_id"),
+            (source_id and extractor_key and identity.get("extractor_key") == extractor_key
+             and identity.get("source_id") == source_id, "extractor_key"),
+            (normalized_url and identity.get("canonical_url") == normalized_url, "url"),
+            (title_key and identity.get("title_key") == title_key, "title"),
+            (filename_key and identity.get("filename_key") == filename_key, "filename"),
+            (sha256 and identity.get("sha256") == sha256, "sha256"),
+        )
+        for matched, kind in matches:
+            if matched:
+                add(kind, "history", title or source_id, identity.get("job_id"))
+                break
     return warnings[:5]
 
 

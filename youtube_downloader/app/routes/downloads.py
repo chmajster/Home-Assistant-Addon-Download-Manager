@@ -124,6 +124,15 @@ def start_download():
         download_options = _download_options_from_form(
             title if request.form.get("playlist_picker") else None
         )
+        duplicate_warnings = _duplicate_download_warnings(
+            validated_url,
+            title,
+            source_id=str(request.form.get("source_id") or "").strip(),
+            extractor_key=str(request.form.get("extractor_key") or "").strip(),
+        )
+        if download_options.get("duplicate_action") == "skip" and duplicate_warnings:
+            flash("Pominięto duplikat zgodnie z wybraną polityką.", "info")
+            return redirect(ingress_url("web.jobs"))
         playlist_entries, skipped_existing = _selected_playlist_entries()
         if request.form.get("playlist_picker") and not playlist_entries:
             if skipped_existing:
@@ -139,10 +148,7 @@ def start_download():
             )
         if not request.form.get("allow_duplicate"):
             _flash_duplicate_warnings(
-                _duplicate_download_warnings(
-                    validated_url,
-                    title,
-                )
+                duplicate_warnings
             )
         if playlist_entries:
             for entry in playlist_entries:
