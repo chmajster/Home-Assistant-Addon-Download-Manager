@@ -8,12 +8,7 @@
         <span class="visually-hidden">{{ t('preview.eyebrow') }}</span>
       </a>
     {% endif %}
-    {% if item.can_download_file %}
-      <a class="btn btn-sm btn-outline-primary history-icon-action" href="{{ ingress_url('web.downloaded', filename=item.filename) }}" aria-label="{{ t('common.download_file') }}" title="{{ t('common.download_file') }}">
-        <span aria-hidden="true">&#8595;</span>
-        <span class="visually-hidden">{{ t('common.download_file') }}</span>
-      </a>
-    {% else %}
+    {% if not item.can_download_file %}
       <span class="badge text-bg-secondary">{{ t('index.file_deleted') }}</span>
     {% endif %}
     {% if preview_url %}
@@ -22,7 +17,7 @@
         <span class="visually-hidden">{{ t('preview.open_external') }}</span>
       </a>
     {% endif %}
-    {% if item.can_repeat %}
+    {% if item.can_repeat and not item.can_download_file %}
       <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="url" value="{{ item.url }}">
@@ -53,7 +48,7 @@
         </button>
       </form>
     {% endif %}
-    {% if item.can_delete %}
+    {% if item.can_delete and not item.can_delete_file %}
       <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form" data-title="{{ item.title }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="{{ t('common.delete_job') }}" title="{{ t('common.delete_job') }}">

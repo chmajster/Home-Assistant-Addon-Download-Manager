@@ -2187,10 +2187,7 @@
 
   const outputLink = (job) => {
     if (!job.output_file) return text("span", "-", "text-body-secondary");
-    const link = text("a", t("common.download"), "btn btn-sm btn-soft");
-    link.href = route(`/downloaded/${encodeURIComponent(job.output_file)}`);
-    link.title = job.output_file;
-    return link;
+    return text("span", job.output_file, "text-body-secondary text-break");
   };
 
   const jobPreviewPath = (job) => (
@@ -2256,7 +2253,7 @@
   };
 
   const repeatJobForm = (job) => {
-    if (!job.can_repeat) {
+    if (!job.can_repeat || job.file_exists) {
       return document.createDocumentFragment();
     }
     const form = actionForm(route("/download"), t("index.download_again"), "btn btn-sm btn-outline-primary");
@@ -2414,12 +2411,27 @@
     }
     actions.append(repeatJobForm(job));
     if (isRemovableJob(job)) {
-      actions.append(actionForm(
-        route(`/jobs/delete/${encodeURIComponent(job.job_id)}`),
-        t("common.delete_job"),
-        "btn btn-sm btn-outline-danger",
-        t("js.delete_job_confirm", { title: job.title })
-      ));
+      if (job.file_exists && job.output_file) {
+        const deleteFileForm = actionForm(
+          route(`/delete/${encodeURIComponent(job.output_file)}`),
+          t("common.delete_file"),
+          "btn btn-sm btn-outline-danger",
+          t("js.delete_file_confirm", { filename: job.output_file, size: job.filesize_label || "-" })
+        );
+        const returnTo = document.createElement("input");
+        returnTo.type = "hidden";
+        returnTo.name = "return_to";
+        returnTo.value = "jobs";
+        deleteFileForm.append(returnTo);
+        actions.append(deleteFileForm);
+      } else {
+        actions.append(actionForm(
+          route(`/jobs/delete/${encodeURIComponent(job.job_id)}`),
+          t("common.delete_job"),
+          "btn btn-sm btn-outline-danger",
+          t("js.delete_job_confirm", { title: job.title })
+        ));
+      }
     }
     return actions;
   };

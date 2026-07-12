@@ -1472,12 +1472,40 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("history-quick-actions", body)
         self.assertIn("history-icon-action", body)
         self.assertIn('target="_blank" rel="noreferrer"', body)
-        self.assertIn('aria-label="Pobierz plik"', body)
+        self.assertNotIn('aria-label="Pobierz plik"', body)
         self.assertIn('aria-label="Otwórz w nowym oknie"', body)
-        self.assertIn('class="repeat-download-form"', body)
-        self.assertIn('aria-label="Pobierz ponownie"', body)
-        self.assertIn('aria-label="Usuń zadanie"', body)
+        self.assertNotIn('class="repeat-download-form"', body)
+        self.assertNotIn('aria-label="Pobierz ponownie"', body)
+        self.assertNotIn('aria-label="Usuń zadanie"', body)
         self.assertIn('aria-label="Usuń plik"', body)
+
+    def test_downloaded_job_only_offers_file_deletion(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "downloaded.mp4"
+        target.write_text("media", encoding="utf-8")
+        job = self._completed_job(
+            filename=target.name,
+            title="Downloaded video",
+            url="https://youtu.be/downloaded",
+            download_type="best",
+        )
+
+        history_body = self.client.get("/").get_data(as_text=True)
+        details_body = self.client.get(f"/jobs/{job.job_id}").get_data(as_text=True)
+        api_job = self.client.get(f"/api/jobs/{job.job_id}").get_json()
+
+        self.assertTrue(api_job["file_exists"])
+        self.assertNotIn('aria-label="Pobierz plik"', history_body)
+        self.assertNotIn('aria-label="Pobierz ponownie"', history_body)
+        self.assertNotIn('aria-label="Usuń zadanie"', history_body)
+        self.assertIn('aria-label="Usuń plik"', history_body)
+        self.assertNotIn(">Pobierz</a>", details_body)
+        self.assertNotIn(">Usuń zadanie</button>", details_body)
+        self.assertIn(">Usuń plik</button>", details_body)
+
+        target.unlink()
+        missing_file_job = self.client.get(f"/api/jobs/{job.job_id}").get_json()
+        self.assertFalse(missing_file_job["file_exists"])
 
     def test_index_history_bulk_delete_files_removes_selected_downloads(self) -> None:
         files = self.app.extensions["file_service"]

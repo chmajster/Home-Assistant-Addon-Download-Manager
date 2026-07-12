@@ -16,7 +16,14 @@
           <button class="btn btn-outline-primary" type="submit">{{ t('common.retry') }}</button>
         </form>
       {% endif %}
-      {% if job.status in removable_statuses %}
+      {% if job.status in removable_statuses and job.file_exists and job.output_file %}
+        <form class="delete-form" method="post" action="{{ ingress_url('web.delete', filename=job.output_file) }}" data-filename="{{ job.output_file }}" data-filesize-label="-">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="return_to" value="job_details">
+          <input type="hidden" name="job_id" value="{{ job.job_id }}">
+          <button class="btn btn-outline-danger" type="submit">{{ t('common.delete_file') }}</button>
+        </form>
+      {% elif job.status in removable_statuses %}
         <form id="job-action-delete" method="post" action="{{ ingress_url('web.delete_job', job_id=job.job_id) }}">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-outline-danger" type="submit">{{ t('common.delete_job') }}</button>
@@ -47,7 +54,7 @@
     <article class="job-detail-kpi">
       <span>{{ t('common.result') }}</span>
       {% if job.output_file %}
-        <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.downloaded', filename=job.output_file) }}">{{ t('common.download') }}</a>
+        <strong class="text-break">{{ job.output_file }}</strong>
       {% else %}
         <strong>-</strong>
       {% endif %}

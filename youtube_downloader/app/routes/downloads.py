@@ -547,4 +547,10 @@ def delete(filename: str):
         flash("Niepoprawna nazwa pliku.", "danger")
     if request.form.get("return_to") == "history":
         return _history_redirect()
+    if request.form.get("return_to") == "jobs":
+        return redirect(ingress_url("web.jobs"))
+    if request.form.get("return_to") == "job_details" and request.form.get("job_id"):
+        return redirect(
+            ingress_url("web.job_details", job_id=request.form["job_id"])
+        )
     return redirect(ingress_url("web.index"))

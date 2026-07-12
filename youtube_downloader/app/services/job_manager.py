@@ -826,6 +826,14 @@ class JobManager:
             and job.status == "completed"
             and (job.download_type != "format" or bool(job.format_id))
         )
+        payload["file_exists"] = False
+        if job.output_file:
+            try:
+                payload["file_exists"] = self.file_service.resolve_download(
+                    job.output_file
+                ).is_file()
+            except (FileNotFoundError, OSError, ValueError):
+                payload["file_exists"] = False
         if job.is_live and job.started_at and job.status in self.ACTIVE_STATUSES:
             job.live_elapsed_seconds = self._seconds_since(job.started_at)
             payload["live_elapsed_seconds"] = job.live_elapsed_seconds
