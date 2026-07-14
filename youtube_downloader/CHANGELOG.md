@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.83
+
+- Przebudowano pasek narzędzi Biblioteki: kontekstowe akcje zaznaczenia, pojedynczy licznik i responsywne menu dodatkowych działań.
+- Dodano zbiorcze pobieranie zaznaczonych plików osobno lub jako ZIP oraz bezpośrednią akcję pobierania przy każdym elemencie Biblioteki.
+
 ## 1.3.82
 
 - Dodano bezpośrednią akcję Otwórz plik do powiadomienia o zakończonym pobieraniu i usunięto z niego pozostałe akcje.
