@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
+import zipfile
+from datetime import UTC, datetime
+from pathlib import Path
+
+from flask import send_file
+
 from .shared import *  # noqa: F401,F403
+
 
 @web_bp.post("/jobs/delete/<job_id>")
 def delete_job(job_id: str):
@@ -57,6 +66,57 @@ def bulk_history_jobs():
         flash("Nie znaleziono zakończonych wpisów do obsłużenia.", "warning")
         return redirect(ingress_url(return_endpoint))
 
+    if action == "download_files":
+        files: list[tuple[str, Path]] = []
+        seen_paths: set[Path] = set()
+        for job in selected_jobs:
+            filenames = list(job.output_files or [])
+            if not filenames and job.output_file:
+                filenames = [job.output_file]
+            for filename in filenames:
+                try:
+                    path = _file_service().resolve_download(str(filename))
+                except (FileNotFoundError, UnsafeFilenameError):
+                    continue
+                if path in seen_paths:
+                    continue
+                seen_paths.add(path)
+                files.append((str(filename).replace("\\", "/"), path))
+        if not files:
+            flash("Nie znaleziono lokalnych plików do pobrania.", "warning")
+            return redirect(ingress_url(return_endpoint))
+
+        descriptor, archive_name = tempfile.mkstemp(
+            prefix="media-web-downloader-", suffix=".zip"
+        )
+        os.close(descriptor)
+        archive_path = Path(archive_name)
+        try:
+            with zipfile.ZipFile(
+                archive_path,
+                mode="w",
+                compression=zipfile.ZIP_STORED,
+                allowZip64=True,
+                strict_timestamps=False,
+            ) as archive:
+                for filename, path in files:
+                    archive.write(path, arcname=filename)
+        except (OSError, ValueError, zipfile.BadZipFile) as error:
+            archive_path.unlink(missing_ok=True)
+            LOGGER.warning("Nie można utworzyć archiwum pobrań: %s", error)
+            flash("Nie udało się utworzyć archiwum ZIP.", "danger")
+            return redirect(ingress_url(return_endpoint))
+
+        download_name = f"biblioteka-{datetime.now(UTC):%Y%m%d-%H%M%S}.zip"
+        response = send_file(
+            archive_path,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype="application/zip",
+        )
+        response.headers["Cache-Control"] = "no-store"
+        response.call_on_close(lambda: archive_path.unlink(missing_ok=True))
+        return response
     if action == "delete_jobs":
         removed, skipped = manager.delete_jobs([job.job_id for job in selected_jobs])
         _flash_deleted_jobs(removed, skipped)

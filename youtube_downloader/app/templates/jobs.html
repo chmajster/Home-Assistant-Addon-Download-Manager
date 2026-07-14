@@ -47,10 +47,18 @@
             <span id="jobs-selected-inputs"></span>
             <label class="visually-hidden" for="jobs-bulk-action">{{ t('jobs.bulk_action') }}</label>
             <select class="form-select form-select-sm" id="jobs-bulk-action">
+              <option value="download_individual">{{ t('index.bulk_download_individual') }}</option>
+              <option value="download_files">{{ t('index.bulk_download_files') }}</option>
               <option value="delete_jobs">{{ t('index.bulk_delete_jobs') }}</option>
               <option value="delete_files">{{ t('index.bulk_delete_files') }}</option>
               <option value="repeat">{{ t('index.bulk_repeat') }}</option>
             </select>
+            <button id="jobs-bulk-download-individual" class="btn btn-sm btn-primary" type="submit" disabled>
+              {{ t('index.bulk_download_individual') }} (<span id="jobs-download-individual-count">0</span>)
+            </button>
+            <button id="jobs-bulk-download-zip" class="btn btn-sm btn-outline-primary" type="submit" disabled>
+              {{ t('index.bulk_download_files') }} (<span id="jobs-download-zip-count">0</span>)
+            </button>
             <button id="jobs-bulk-submit" class="btn btn-sm btn-outline-primary" type="submit" disabled>{{ t('jobs.apply_selected') }} (<span id="jobs-selected-count">0</span>)</button>
           </form>
           <form id="jobs-retry-failed-form" method="post" action="{{ ingress_url('web.retry_failed_jobs') }}">

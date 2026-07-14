@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import errno
 import importlib.util
+import io
 import json
 import sqlite3
 import tempfile
 import threading
 import time
 import unittest
+import zipfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -436,6 +438,12 @@ class ApplicationTestCase(unittest.TestCase):
             "Wszystkie pobrania, zapisane pliki i operacje w jednym miejscu.", body
         )
         self.assertNotIn("Kolejka operacji", body)
+        self.assertIn('value="download_individual"', body)
+        self.assertIn('value="download_files"', body)
+        self.assertIn("Pobierz osobno", body)
+        self.assertIn("Pobierz jako ZIP", body)
+        self.assertIn('id="jobs-bulk-download-individual"', body)
+        self.assertIn('id="jobs-bulk-download-zip"', body)
 
     def test_jobs_frontend_uses_live_refresh(self) -> None:
         response = self.client.get("/static/js/app.js")
@@ -448,6 +456,10 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertIn('"visibilitychange"', body)
             self.assertIn('window.addEventListener("focus", refreshJobs)', body)
             self.assertIn("selectedJobIds", body)
+            self.assertIn("downloadSelectedFilesIndividually", body)
+            self.assertIn('link.click()', body)
+            self.assertIn('route("/downloaded/" + encodeManagedPath(job.output_file))', body)
+            self.assertIn('t("common.download_file")', body)
             self.assertIn("job.can_delete === true", body)
             self.assertIn("job.can_stop", body)
             self.assertIn("job.can_resume", body)
@@ -717,6 +729,49 @@ class ApplicationTestCase(unittest.TestCase):
         try:
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.get_data(as_text=True), "ok")
+        finally:
+            response.close()
+
+    def test_selected_library_files_can_be_downloaded_as_zip(self) -> None:
+        files = self.app.extensions["file_service"]
+        first = files.download_dir / "first.mp4"
+        second_dir = files.download_dir / "playlist"
+        second_dir.mkdir()
+        second = second_dir / "second.mp3"
+        ignored = files.download_dir / "ignored.txt"
+        first.write_bytes(b"first")
+        second.write_bytes(b"second")
+        ignored.write_bytes(b"ignored")
+        first_job = self._completed_job(filename="first.mp4", title="First")
+        second_job = self._completed_job(
+            filename="playlist/second.mp3", title="Second"
+        )
+        self._completed_job(filename="ignored.txt", title="Ignored")
+
+        response = self.client.post(
+            "/history/jobs/bulk",
+            data={
+                "_csrf_token": self._csrf_token(),
+                "action": "download_files",
+                "job_ids": [first_job.job_id, second_job.job_id],
+                "return_to": "jobs",
+            },
+        )
+        try:
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.mimetype, "application/zip")
+            self.assertIn(
+                'attachment; filename=biblioteka-',
+                response.headers["Content-Disposition"],
+            )
+            self.assertEqual(response.headers["Cache-Control"], "no-store")
+            with zipfile.ZipFile(io.BytesIO(response.get_data())) as archive:
+                self.assertEqual(
+                    set(archive.namelist()),
+                    {"first.mp4", "playlist/second.mp3"},
+                )
+                self.assertEqual(archive.read("first.mp4"), b"first")
+                self.assertEqual(archive.read("playlist/second.mp3"), b"second")
         finally:
             response.close()
 

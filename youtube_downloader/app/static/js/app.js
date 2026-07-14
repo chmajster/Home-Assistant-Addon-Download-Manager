@@ -2028,6 +2028,11 @@
     );
     if (job.can_repeat) fragment.append(repeatJobForm(job, "library-menu-action"));
     if (job.file_exists && job.output_file) {
+      fragment.append(linkAction(
+        route("/downloaded/" + encodeManagedPath(job.output_file)),
+        t("common.download_file"),
+        "library-menu-action"
+      ));
       fragment.append(linkAction(route("/view/" + encodeManagedPath(job.output_file)), t("common.open_file"), "library-menu-action"));
       fragment.append(deleteFileForm(job));
     }
@@ -2299,8 +2304,14 @@
       }
     }
     setNodeText(document.getElementById("jobs-selected-count"), selectedJobIds.size);
+    setNodeText(document.getElementById("jobs-download-individual-count"), selectedJobIds.size);
+    setNodeText(document.getElementById("jobs-download-zip-count"), selectedJobIds.size);
     const submit = document.getElementById("jobs-bulk-submit");
     if (submit) submit.disabled = selectedJobIds.size === 0;
+    const individualDownload = document.getElementById("jobs-bulk-download-individual");
+    if (individualDownload) individualDownload.disabled = selectedJobIds.size === 0;
+    const zipDownload = document.getElementById("jobs-bulk-download-zip");
+    if (zipDownload) zipDownload.disabled = selectedJobIds.size === 0;
     const visible = lastSuccessfulJobs.filter(matchesLibraryFilters).filter(isRemovableJob);
     const selectedVisible = visible.filter((job) => selectedJobIds.has(job.job_id)).length;
     const selectAll = document.getElementById("jobs-select-all");
@@ -2409,15 +2420,55 @@
 
   const bulkForm = document.getElementById("jobs-bulk-form");
   const bulkAction = document.getElementById("jobs-bulk-action");
+  const downloadSelectedFilesIndividually = () => {
+    const jobsById = new Map(lastSuccessfulJobs.map((job) => [job.job_id, job]));
+    const filenames = [];
+    selectedJobIds.forEach((jobId) => {
+      const job = jobsById.get(jobId);
+      if (!job || job.status !== "completed" || job.file_exists !== true) return;
+      const outputs = Array.isArray(job.output_files) && job.output_files.length
+        ? job.output_files : [job.output_file];
+      outputs.filter(Boolean).forEach((filename) => filenames.push(String(filename)));
+    });
+    const uniqueFilenames = Array.from(new Set(filenames));
+    if (!uniqueFilenames.length) {
+      window.alert(t("js.no_selected_download_files"));
+      return;
+    }
+    const links = uniqueFilenames.map((filename) => {
+      const link = document.createElement("a");
+      link.href = route(`/downloaded/${encodeManagedPath(filename)}`);
+      link.download = filename.split("/").pop() || "download";
+      link.hidden = true;
+      document.body.append(link);
+      link.click();
+      return link;
+    });
+    window.setTimeout(() => links.forEach((link) => link.remove()), 0);
+  };
   bulkForm?.addEventListener("submit", (event) => {
-    const action = bulkAction?.value || "delete_jobs";
+    const directIndividual = event.submitter instanceof HTMLElement
+      && event.submitter.matches("#jobs-bulk-download-individual");
+    const directZip = event.submitter instanceof HTMLElement
+      && event.submitter.matches("#jobs-bulk-download-zip");
+    const action = directIndividual ? "download_individual"
+      : directZip ? "download_files" : bulkAction?.value || "delete_jobs";
     if (!selectedJobIds.size) {
       event.preventDefault();
       return;
     }
+    if (action === "download_individual") {
+      event.preventDefault();
+      downloadSelectedFilesIndividually();
+      return;
+    }
     const actionLabels = { delete_jobs: t("js.history_delete_entries"),
       delete_files: t("js.history_delete_files"), repeat: t("js.history_repeat") };
-    if (!window.confirm(t("js.history_action_confirm", { action: actionLabels[action], count: selectedJobIds.size }))) {
+    const requiresConfirmation = !["download_files", "download_individual"].includes(action);
+    const confirmation = t("js.history_action_confirm", {
+      action: actionLabels[action], count: selectedJobIds.size,
+    });
+    if (requiresConfirmation && !window.confirm(confirmation)) {
       event.preventDefault();
       return;
     }
