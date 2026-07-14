@@ -438,12 +438,20 @@ class ApplicationTestCase(unittest.TestCase):
             "Wszystkie pobrania, zapisane pliki i operacje w jednym miejscu.", body
         )
         self.assertNotIn("Kolejka operacji", body)
-        self.assertIn('value="download_individual"', body)
-        self.assertIn('value="download_files"', body)
+        self.assertNotIn('id="jobs-bulk-action"', body)
+        self.assertNotIn('id="jobs-bulk-submit"', body)
+        self.assertIn('id="jobs-bulk-form" class="library-selection-bar"', body)
+        self.assertIn('aria-live="polite" aria-atomic="true"', body)
+        self.assertEqual(body.count('id="jobs-selected-count"'), 1)
+        for action in (
+            "download_individual", "download_files", "repeat", "delete_files", "delete_jobs"
+        ):
+            self.assertEqual(body.count(f'data-bulk-action="{action}"'), 1)
         self.assertIn("Pobierz osobno", body)
-        self.assertIn("Pobierz jako ZIP", body)
-        self.assertIn('id="jobs-bulk-download-individual"', body)
-        self.assertIn('id="jobs-bulk-download-zip"', body)
+        self.assertIn("Pobierz ZIP", body)
+        self.assertIn("Więcej działań", body)
+        self.assertIn('id="jobs-more-actions-toggle"', body)
+        self.assertIn('aria-expanded="false"', body)
 
     def test_jobs_frontend_uses_live_refresh(self) -> None:
         response = self.client.get("/static/js/app.js")
@@ -458,6 +466,12 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertIn("selectedJobIds", body)
             self.assertIn("downloadSelectedFilesIndividually", body)
             self.assertIn('link.click()', body)
+            self.assertIn('event.submitter?.dataset.bulkAction', body)
+            self.assertIn('selectionBar.hidden = selectedJobIds.size === 0', body)
+            self.assertIn('["repeat", "delete_files", "delete_jobs"].includes(action)', body)
+            self.assertIn('if (actionValue) actionValue.value = action', body)
+            self.assertIn('action === "delete_jobs" ? route("/jobs/delete")', body)
+            self.assertIn('action === "download_individual"', body)
             self.assertIn('route("/downloaded/" + encodeManagedPath(job.output_file))', body)
             self.assertIn('t("common.download_file")', body)
             self.assertIn("job.can_delete === true", body)
@@ -503,7 +517,8 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('id="jobs-sort"', body)
         self.assertIn('id="jobs-result-count"', body)
         self.assertIn('id="jobs-bulk-form"', body)
-        self.assertIn('id="jobs-bulk-action"', body)
+        self.assertNotIn('id="jobs-bulk-action"', body)
+        self.assertNotIn('id="jobs-bulk-submit"', body)
         self.assertIn('id="jobs-select-all"', body)
         self.assertIn('id="jobs-retry-failed-form"', body)
         for job_filter in (
@@ -515,6 +530,30 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Biblioteka jest pusta", body)
         self.assertIn('id="jobs-empty-show-all"', body)
         self.assertNotIn("<table", body)
+
+    def test_jobs_selection_toolbar_has_responsive_semantic_styles(self) -> None:
+        style_response = self.client.get("/static/css/style.css")
+        mobile_response = self.client.get("/static/css/mobile.css")
+        try:
+            style = style_response.get_data(as_text=True)
+            mobile = mobile_response.get_data(as_text=True)
+        finally:
+            style_response.close()
+            mobile_response.close()
+
+        for selector in (
+            ".library-toolbar-main",
+            ".library-toolbar-meta",
+            ".library-toolbar-controls",
+            ".library-selection-bar",
+            ".library-selection-summary",
+            ".library-selection-actions",
+            ".library-more-actions",
+        ):
+            self.assertIn(selector, style)
+        self.assertIn(".library-selection-bar[hidden]", style)
+        self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr));", mobile)
+        self.assertIn("min-height: 44px;", mobile)
 
     def test_jobs_page_can_open_error_filter(self) -> None:
         body = self.client.get("/jobs", query_string={"filter": "errors"}).get_data(

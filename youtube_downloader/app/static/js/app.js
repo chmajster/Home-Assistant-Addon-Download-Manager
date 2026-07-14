@@ -2303,15 +2303,16 @@
         });
       }
     }
-    setNodeText(document.getElementById("jobs-selected-count"), selectedJobIds.size);
-    setNodeText(document.getElementById("jobs-download-individual-count"), selectedJobIds.size);
-    setNodeText(document.getElementById("jobs-download-zip-count"), selectedJobIds.size);
-    const submit = document.getElementById("jobs-bulk-submit");
-    if (submit) submit.disabled = selectedJobIds.size === 0;
-    const individualDownload = document.getElementById("jobs-bulk-download-individual");
-    if (individualDownload) individualDownload.disabled = selectedJobIds.size === 0;
-    const zipDownload = document.getElementById("jobs-bulk-download-zip");
-    if (zipDownload) zipDownload.disabled = selectedJobIds.size === 0;
+    setNodeText(
+      document.getElementById("jobs-selected-count"),
+      t("jobs.selected_count", { count: selectedJobIds.size })
+    );
+    const selectionBar = document.getElementById("jobs-bulk-form");
+    if (selectionBar) selectionBar.hidden = selectedJobIds.size === 0;
+    if (!selectedJobIds.size) {
+      const moreActions = document.getElementById("jobs-more-actions");
+      if (moreActions) moreActions.open = false;
+    }
     const visible = lastSuccessfulJobs.filter(matchesLibraryFilters).filter(isRemovableJob);
     const selectedVisible = visible.filter((job) => selectedJobIds.has(job.job_id)).length;
     const selectAll = document.getElementById("jobs-select-all");
@@ -2419,7 +2420,6 @@
   });
 
   const bulkForm = document.getElementById("jobs-bulk-form");
-  const bulkAction = document.getElementById("jobs-bulk-action");
   const downloadSelectedFilesIndividually = () => {
     const jobsById = new Map(lastSuccessfulJobs.map((job) => [job.job_id, job]));
     const filenames = [];
@@ -2447,13 +2447,15 @@
     window.setTimeout(() => links.forEach((link) => link.remove()), 0);
   };
   bulkForm?.addEventListener("submit", (event) => {
-    const directIndividual = event.submitter instanceof HTMLElement
-      && event.submitter.matches("#jobs-bulk-download-individual");
-    const directZip = event.submitter instanceof HTMLElement
-      && event.submitter.matches("#jobs-bulk-download-zip");
-    const action = directIndividual ? "download_individual"
-      : directZip ? "download_files" : bulkAction?.value || "delete_jobs";
+    const action = event.submitter?.dataset.bulkAction || "";
     if (!selectedJobIds.size) {
+      event.preventDefault();
+      return;
+    }
+    const allowedActions = new Set([
+      "download_individual", "download_files", "repeat", "delete_files", "delete_jobs",
+    ]);
+    if (!allowedActions.has(action)) {
       event.preventDefault();
       return;
     }
@@ -2462,19 +2464,26 @@
       downloadSelectedFilesIndividually();
       return;
     }
-    const actionLabels = { delete_jobs: t("js.history_delete_entries"),
-      delete_files: t("js.history_delete_files"), repeat: t("js.history_repeat") };
-    const requiresConfirmation = !["download_files", "download_individual"].includes(action);
-    const confirmation = t("js.history_action_confirm", {
-      action: actionLabels[action], count: selectedJobIds.size,
-    });
-    if (requiresConfirmation && !window.confirm(confirmation)) {
-      event.preventDefault();
-      return;
-    }
-    bulkForm.action = action === "delete_jobs" ? route("/jobs/delete") : route("/history/jobs/bulk");
     const actionValue = document.getElementById("jobs-bulk-action-value");
     if (actionValue) actionValue.value = action;
+    const actionLabels = { delete_jobs: t("js.history_delete_entries"),
+      delete_files: t("js.history_delete_files"), repeat: t("js.history_repeat") };
+    const requiresConfirmation = ["repeat", "delete_files", "delete_jobs"].includes(action);
+    if (requiresConfirmation) {
+      const confirmation = t("js.history_action_confirm", {
+        action: actionLabels[action], count: selectedJobIds.size,
+      });
+      if (!window.confirm(confirmation)) {
+        event.preventDefault();
+        return;
+      }
+    }
+    bulkForm.action = action === "delete_jobs" ? route("/jobs/delete") : route("/history/jobs/bulk");
+  });
+  const moreActions = document.getElementById("jobs-more-actions");
+  const moreActionsToggle = document.getElementById("jobs-more-actions-toggle");
+  moreActions?.addEventListener("toggle", () => {
+    moreActionsToggle?.setAttribute("aria-expanded", String(moreActions.open));
   });
   document.getElementById("jobs-retry-failed-form")?.addEventListener("submit", (event) => {
     const count = lastSuccessfulJobs.filter((job) => job.can_retry === true).length;

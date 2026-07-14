@@ -1655,6 +1655,7 @@ body.custom-player-theater-active {
 
 .settings-disclosure summary:focus-visible,
 .library-menu-button:focus-visible,
+.library-more-actions > summary:focus-visible,
 .library-thumbnail:focus-visible,
 .library-title:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--app-primary) 35%, transparent);
@@ -1697,9 +1698,10 @@ body.custom-player-theater-active {
 }
 
 .library-filter-group,
-.library-toolbar-row,
-.library-bulk,
+.library-toolbar-meta,
+.library-toolbar-controls,
 .library-sort,
+.library-selection-actions,
 .library-actions {
   align-items: center;
   display: flex;
@@ -1721,8 +1723,25 @@ body.custom-player-theater-active {
   padding: 0.05rem 0.32rem;
 }
 
-.library-toolbar-row {
+.library-toolbar-main {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
   justify-content: space-between;
+}
+
+.library-toolbar-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.library-toolbar-controls {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.library-toolbar-controls form {
+  margin: 0;
 }
 
 .library-sort .form-select {
@@ -1733,6 +1752,67 @@ body.custom-player-theater-active {
   color: var(--app-muted);
   font-size: 0.82rem;
   margin-right: auto;
+}
+
+.library-selection-bar {
+  align-items: center;
+  background: color-mix(in srgb, var(--app-primary) 9%, var(--app-surface-solid));
+  border: 1px solid color-mix(in srgb, var(--app-primary) 28%, var(--app-line));
+  border-radius: var(--app-radius);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem;
+}
+
+.library-selection-bar[hidden] {
+  display: none;
+}
+
+.library-selection-summary {
+  color: var(--app-primary-dark);
+  flex: 1 1 auto;
+  font-size: 0.88rem;
+  min-width: 7rem;
+}
+
+.library-selection-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.library-selection-actions > .btn,
+.library-more-actions > summary {
+  min-height: 2.35rem;
+}
+
+.library-more-actions {
+  position: relative;
+}
+
+.library-more-actions > summary {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  list-style: none;
+}
+
+.library-more-actions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.library-more-actions-menu {
+  background: var(--app-surface-solid);
+  border: 1px solid var(--app-line);
+  border-radius: calc(var(--app-radius) * 0.7);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+  display: grid;
+  min-width: 12rem;
+  padding: 0.35rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 30;
 }
 
 .library-list {

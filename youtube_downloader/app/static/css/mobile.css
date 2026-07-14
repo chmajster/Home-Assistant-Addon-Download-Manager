@@ -240,16 +240,86 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .library-toolbar-row,
-  .library-bulk,
-  .library-sort {
+  .library-toolbar-main {
     align-items: stretch;
+    flex-direction: column;
+    gap: 0.75rem;
     width: 100%;
   }
 
-  .library-sort .form-select,
-  .library-bulk .form-select {
+  .library-toolbar-meta,
+  .library-toolbar-controls {
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .library-sort {
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .library-sort .form-select {
     flex: 1 1 10rem;
+    width: 100%;
+  }
+
+  .library-toolbar-controls .btn,
+  .library-select-all {
+    align-items: center;
+    display: flex;
+    min-height: 44px;
+  }
+
+  .library-toolbar .btn,
+  .library-toolbar .form-control,
+  .library-toolbar .form-select {
+    min-height: 44px;
+  }
+
+  .library-selection-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.65rem;
+    width: 100%;
+  }
+
+  .library-selection-summary {
+    width: 100%;
+  }
+
+  .library-selection-actions {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .library-selection-actions > .btn,
+  .library-more-actions > summary,
+  .library-more-actions-menu .library-menu-action {
+    min-height: 44px;
+  }
+
+  .library-selection-actions > .btn {
+    width: 100%;
+  }
+
+  .library-more-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .library-more-actions > summary {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .library-more-actions-menu {
+    margin-top: 0.4rem;
+    min-width: 0;
+    position: static;
     width: 100%;
   }
 

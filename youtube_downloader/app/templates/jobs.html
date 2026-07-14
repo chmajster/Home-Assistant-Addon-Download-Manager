@@ -25,47 +25,51 @@
             </button>
           {% endfor %}
         </div>
-        <div class="library-toolbar-row">
-          <div class="library-sort">
-            <label class="form-label small mb-0" for="jobs-sort">{{ t('jobs.sort_label') }}</label>
-            <select class="form-select form-select-sm" id="jobs-sort">
-              <option value="newest">{{ t('index.newest_first') }}</option>
-              <option value="oldest">{{ t('index.oldest_first') }}</option>
-              <option value="title">{{ t('jobs.sort_title') }}</option>
-              <option value="status">{{ t('jobs.sort_status') }}</option>
-            </select>
+        <div class="library-toolbar-main">
+          <div class="library-toolbar-meta">
+            <div class="library-sort">
+              <label class="form-label small mb-0" for="jobs-sort">{{ t('jobs.sort_label') }}</label>
+              <select class="form-select form-select-sm" id="jobs-sort">
+                <option value="newest">{{ t('index.newest_first') }}</option>
+                <option value="oldest">{{ t('index.oldest_first') }}</option>
+                <option value="title">{{ t('jobs.sort_title') }}</option>
+                <option value="status">{{ t('jobs.sort_status') }}</option>
+              </select>
+            </div>
+            <span id="jobs-result-count" class="library-result-count" aria-live="polite">{{ t('jobs.results', count=0) }}</span>
           </div>
-          <span id="jobs-result-count" class="library-result-count" aria-live="polite">{{ t('jobs.results', count=0) }}</span>
-          <label class="form-check library-select-all mb-0">
-            <input id="jobs-select-all" class="form-check-input" type="checkbox">
-            <span class="form-check-label">{{ t('jobs.select_visible') }}</span>
-          </label>
-          <form id="jobs-bulk-form" class="library-bulk" method="post" action="{{ ingress_url('web.delete_jobs') }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <input id="jobs-bulk-action-value" type="hidden" name="action" value="delete_jobs">
-            <input type="hidden" name="return_to" value="jobs">
-            <span id="jobs-selected-inputs"></span>
-            <label class="visually-hidden" for="jobs-bulk-action">{{ t('jobs.bulk_action') }}</label>
-            <select class="form-select form-select-sm" id="jobs-bulk-action">
-              <option value="download_individual">{{ t('index.bulk_download_individual') }}</option>
-              <option value="download_files">{{ t('index.bulk_download_files') }}</option>
-              <option value="delete_jobs">{{ t('index.bulk_delete_jobs') }}</option>
-              <option value="delete_files">{{ t('index.bulk_delete_files') }}</option>
-              <option value="repeat">{{ t('index.bulk_repeat') }}</option>
-            </select>
-            <button id="jobs-bulk-download-individual" class="btn btn-sm btn-primary" type="submit" disabled>
-              {{ t('index.bulk_download_individual') }} (<span id="jobs-download-individual-count">0</span>)
-            </button>
-            <button id="jobs-bulk-download-zip" class="btn btn-sm btn-outline-primary" type="submit" disabled>
-              {{ t('index.bulk_download_files') }} (<span id="jobs-download-zip-count">0</span>)
-            </button>
-            <button id="jobs-bulk-submit" class="btn btn-sm btn-outline-primary" type="submit" disabled>{{ t('jobs.apply_selected') }} (<span id="jobs-selected-count">0</span>)</button>
-          </form>
-          <form id="jobs-retry-failed-form" method="post" action="{{ ingress_url('web.retry_failed_jobs') }}">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <button id="jobs-retry-failed" class="btn btn-sm btn-soft" type="submit" disabled>{{ t('jobs.retry_failed') }}</button>
-          </form>
+          <div class="library-toolbar-controls">
+            <label class="form-check library-select-all mb-0">
+              <input id="jobs-select-all" class="form-check-input" type="checkbox">
+              <span class="form-check-label">{{ t('jobs.select_visible') }}</span>
+            </label>
+            <form id="jobs-retry-failed-form" method="post" action="{{ ingress_url('web.retry_failed_jobs') }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button id="jobs-retry-failed" class="btn btn-sm btn-soft" type="submit" disabled>{{ t('jobs.retry_failed') }}</button>
+            </form>
+          </div>
         </div>
+        <form id="jobs-bulk-form" class="library-selection-bar" method="post" action="{{ ingress_url('web.delete_jobs') }}" aria-label="{{ t('jobs.bulk_action') }}" hidden>
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input id="jobs-bulk-action-value" type="hidden" name="action" value="">
+          <input type="hidden" name="return_to" value="jobs">
+          <span id="jobs-selected-inputs"></span>
+          <div class="library-selection-summary">
+            <strong id="jobs-selected-count" aria-live="polite" aria-atomic="true">{{ t('jobs.selected_count', count=0) }}</strong>
+          </div>
+          <div class="library-selection-actions">
+            <button class="btn btn-sm btn-primary" type="submit" data-bulk-action="download_individual">{{ t('index.bulk_download_individual') }}</button>
+            <button class="btn btn-sm btn-outline-primary" type="submit" data-bulk-action="download_files">{{ t('index.bulk_download_files') }}</button>
+            <details id="jobs-more-actions" class="library-more-actions">
+              <summary id="jobs-more-actions-toggle" class="btn btn-sm btn-soft" aria-label="{{ t('jobs.bulk_more_actions') }}" aria-expanded="false">{{ t('jobs.bulk_more_actions') }}</summary>
+              <div class="library-more-actions-menu" role="menu">
+                <button class="library-menu-action" type="submit" role="menuitem" data-bulk-action="repeat">{{ t('index.bulk_repeat') }}</button>
+                <button class="library-menu-action library-menu-danger" type="submit" role="menuitem" data-bulk-action="delete_files">{{ t('index.bulk_delete_files') }}</button>
+                <button class="library-menu-action library-menu-danger" type="submit" role="menuitem" data-bulk-action="delete_jobs">{{ t('index.bulk_delete_jobs') }}</button>
+              </div>
+            </details>
+          </div>
+        </form>
       </div>
 
       <div id="jobs-list" class="library-list" aria-live="polite"></div>
