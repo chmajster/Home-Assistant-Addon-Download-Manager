@@ -385,9 +385,18 @@
       if (label && quickDownload) label.textContent = t("js.adding");
       const loading = form.querySelector(".analyze-loading");
       if (loading) {
-        loading.innerHTML = quickDownload
-          ? `<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>${t("index.loading_download")}`
-          : `<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>${t("index.loading_analyze")}`;
+        const loadingTitle = loading.querySelector("[data-loading-title]");
+        const loadingCopy = loading.querySelector("[data-loading-copy]");
+        const analysisDetails = loading.querySelector("[data-loading-analysis-details]");
+        const analysisNote = loading.querySelector("[data-loading-analysis-note]");
+        if (loadingTitle) loadingTitle.textContent = t(
+          quickDownload ? "index.loading_download" : "index.loading_analyze"
+        );
+        if (loadingCopy) loadingCopy.textContent = t(
+          quickDownload ? "index.loading_download_copy" : "index.loading_analyze_copy"
+        );
+        analysisDetails?.classList.toggle("d-none", quickDownload);
+        analysisNote?.classList.toggle("d-none", quickDownload);
         loading.classList.remove("d-none");
       }
     });

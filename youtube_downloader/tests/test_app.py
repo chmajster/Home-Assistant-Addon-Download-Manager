@@ -398,6 +398,25 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('data-quick-download-submit', body)
         self.assertIn('name="download_type"', body)
 
+    def test_index_explains_each_analysis_check(self) -> None:
+        body = self.client.get("/").get_data(as_text=True)
+        script_response = self.client.get("/static/js/app.js")
+        try:
+            script = script_response.get_data(as_text=True)
+        finally:
+            script_response.close()
+
+        self.assertIn("Analizuję materiał przez yt-dlp", body)
+        self.assertIn("Aktualność yt-dlp, poprawność adresu i obsługę źródła", body)
+        self.assertIn("Dostępność materiału oraz właściwy extractor serwisu", body)
+        self.assertIn("Tytuł, autora, czas trwania i miniaturę", body)
+        self.assertIn("Czy jest to film, transmisja na żywo czy playlista", body)
+        self.assertIn("Dostępne jakości, formaty audio/wideo i kodeki", body)
+        self.assertIn("Możliwe duplikaty w kolejce i zapisanej bibliotece", body)
+        self.assertIn("materiał nie jest pobierany", body)
+        self.assertIn('analysisDetails?.classList.toggle("d-none", quickDownload)', script)
+        self.assertIn('"index.loading_download_copy" : "index.loading_analyze_copy"', script)
+
     def test_empty_job_api(self) -> None:
         response = self.client.get("/api/jobs")
         self.assertEqual(response.get_json(), {"jobs": []})
@@ -2947,8 +2966,32 @@ class HomeAssistantNotifierTestCase(unittest.TestCase):
         self.assertIn("Example", payload["message"])
         self.assertIn("example.mp4", payload["message"])
         self.assertIn("Akcje:", payload["message"])
-        self.assertIn("/jobs/log/abcdef1234567890", payload["message"])
-        self.assertIn("#job-action-delete", payload["message"])
+        self.assertIn("- [Otwórz plik](/view/example.mp4)", payload["message"])
+        self.assertNotIn("Otworz log", payload["message"])
+        self.assertNotIn("#job-action-delete", payload["message"])
+        self.assertNotIn("#job-action-retry", payload["message"])
+
+    def test_completed_file_action_encodes_filename_and_uses_configured_app_url(self) -> None:
+        job = {
+            "job_id": "encoded123456",
+            "status": "completed",
+            "title": "Encoded filename",
+            "output_file": "folder/film #1.mp4",
+            "output_files": ["folder/film #1.mp4"],
+        }
+
+        with patch.dict(
+            "app.services.ha_notifications.os.environ",
+            {"MEDIA_WEB_DOWNLOADER_URL": "https://downloads.example.test"},
+        ):
+            message = HomeAssistantNotifier._completed_message(job)
+
+        self.assertIn(
+            "- [Otwórz plik](https://downloads.example.test/view/folder/film%20%231.mp4)",
+            message,
+        )
+        self.assertNotIn("Otworz log", message)
+        self.assertNotIn("Usun zadanie", message)
 
     def test_playlist_and_storage_notifications_use_specific_titles(self) -> None:
         notifier = HomeAssistantNotifier(token="token", base_url="http://ha", timeout=1)

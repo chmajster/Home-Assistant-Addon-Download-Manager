@@ -46,8 +46,22 @@
           <small class="bulk-url-summary text-body-secondary mt-2 d-block" data-bulk-url-summary></small>
         </div>
         <div class="analyze-loading alert alert-info d-none mt-3 mb-0" role="status" aria-live="polite">
-          <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-          {{ t('index.loading_analyze') }}
+          <div class="analyze-loading-header">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            <div>
+              <strong data-loading-title>{{ t('index.loading_analyze') }}</strong>
+              <small class="d-block" data-loading-copy>{{ t('index.loading_analyze_copy') }}</small>
+            </div>
+          </div>
+          <ul class="analyze-check-list" data-loading-analysis-details>
+            <li>{{ t('index.loading_check_source') }}</li>
+            <li>{{ t('index.loading_check_access') }}</li>
+            <li>{{ t('index.loading_check_metadata') }}</li>
+            <li>{{ t('index.loading_check_content') }}</li>
+            <li>{{ t('index.loading_check_formats') }}</li>
+            <li>{{ t('index.loading_check_duplicates') }}</li>
+          </ul>
+          <small class="analyze-loading-note" data-loading-analysis-note>{{ t('index.loading_analyze_note') }}</small>
         </div>
       </form>
     </div>

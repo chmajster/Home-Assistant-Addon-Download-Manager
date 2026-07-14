@@ -358,19 +358,53 @@ a:hover {
 }
 
 .analyze-loading {
-  animation: loading-pulse 1.5s ease-in-out infinite;
   border-radius: 0.9rem;
 }
 
-@keyframes loading-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
+.analyze-loading-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.65rem;
+}
 
-  50% {
-    opacity: 0.72;
-  }
+.analyze-loading-header .spinner-border {
+  flex: 0 0 auto;
+  margin-top: 0.18rem;
+}
+
+.analyze-loading-header strong,
+.analyze-loading-header small {
+  display: block;
+}
+
+.analyze-check-list {
+  display: grid;
+  gap: 0.35rem 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+}
+
+.analyze-check-list li {
+  font-size: 0.84rem;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.analyze-check-list li::before {
+  content: "•";
+  font-weight: 900;
+  left: 0.15rem;
+  position: absolute;
+}
+
+.analyze-loading-note {
+  border-top: 1px solid currentColor;
+  display: block;
+  margin-top: 0.75rem;
+  opacity: 0.78;
+  padding-top: 0.65rem;
 }
 
 .table {

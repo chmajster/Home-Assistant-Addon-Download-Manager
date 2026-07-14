@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 LOGGER = logging.getLogger(__name__)
 HA_API_URL = "http://supervisor/core/api"
@@ -258,8 +258,22 @@ class HomeAssistantNotifier:
             lines.append("Pliki: " + ", ".join(str(item) for item in files))
         elif job.get("output_file"):
             lines.append(f"Plik: {job['output_file']}")
-        lines.extend(HomeAssistantNotifier._action_links(job, include_retry=False))
+        if len(files) <= 1:
+            lines.extend(HomeAssistantNotifier._completed_file_action(job))
+        else:
+            lines.extend(HomeAssistantNotifier._action_links(job, include_retry=False))
         return "\n".join(lines)
+
+    @staticmethod
+    def _completed_file_action(job: dict[str, Any]) -> list[str]:
+        files = [str(item) for item in (job.get("output_files") or []) if item]
+        filename = files[0] if len(files) == 1 else str(job.get("output_file") or "")
+        if not filename:
+            return []
+        file_url = HomeAssistantNotifier._web_link(f"/view/{quote(filename, safe='/')}")
+        if not file_url:
+            return []
+        return ["", "Akcje:", f"- [Otwórz plik]({file_url})"]
 
     @staticmethod
     def _error_message(job: dict[str, Any]) -> str:

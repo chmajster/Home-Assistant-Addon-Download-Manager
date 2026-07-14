@@ -3,6 +3,8 @@
 ## 1.3.81
 
 - Zastąpiono rozwijany podgląd logu przyciskiem Pełen log, otwierającym cały log zadania w nowej karcie.
+- Rozbudowano ekran analizy o szczegółową listę sprawdzanych metadanych, formatów, typu materiału, obsługi źródła i możliwych duplikatów.
+- Uproszczono powiadomienie o zakończonym pobieraniu do jednej akcji **Otwórz plik**.
 
 ## 1.3.80
 
