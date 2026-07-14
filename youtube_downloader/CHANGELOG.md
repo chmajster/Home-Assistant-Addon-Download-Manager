@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.82
+
+- Dodano bezpośrednią akcję Otwórz plik do powiadomienia o zakończonym pobieraniu i usunięto z niego pozostałe akcje.
+
 ## 1.3.81
 
 - Zastąpiono rozwijany podgląd logu przyciskiem Pełen log, otwierającym cały log zadania w nowej karcie.

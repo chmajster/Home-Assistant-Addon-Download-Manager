@@ -97,26 +97,11 @@ def start_download():
         format_id = request.form.get("format_id") or None
         if download_type != "format":
             format_id = None
-        if request.form.get("quick_download") and not format_id and not request.form.get("playlist_picker"):
-            media = None
-            try:
-                media = _media_service().analyze(validated_url)
-            except MediaServiceError as error:
-                LOGGER.info(
-                    "Szybka analiza URL przed pobraniem nie powiodla sie, kontynuuje zwykle pobieranie: %s",
-                    error,
-                )
-            if media and media.get("content_type") == "live" and media.get("is_live"):
-                job = _job_manager().start_live(
-                    str(media.get("url") or validated_url),
-                    str(media.get("title") or title),
-                    live_from_start=True,
-                )
-                flash(
-                    f"URL prowadzi do aktywnej transmisji. Uruchomiono zapis od początku {job.job_id[:8]}.",
-                    "success",
-                )
-                return redirect(ingress_url("web.jobs"))
+        quick_download = bool(
+            request.form.get("quick_download")
+            and not format_id
+            and not request.form.get("playlist_picker")
+        )
         download_options = _download_options_from_form(
             title if request.form.get("playlist_picker") else None
         )
@@ -170,7 +155,12 @@ def start_download():
             if automatic_rule:
                 flash(f"Zastosowano regułę automatyczną: {automatic_rule}", "info")
             return redirect(ingress_url("web.jobs"))
-        job = _job_manager().start_download(
+        start_job = (
+            _job_manager().start_quick_download
+            if quick_download
+            else _job_manager().start_download
+        )
+        job = start_job(
             url=validated_url,
             title=title,
             download_type=download_type,

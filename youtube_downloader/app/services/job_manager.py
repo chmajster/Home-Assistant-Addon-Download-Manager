@@ -248,6 +248,62 @@ class JobManager:
         LOGGER.info("Dodano zadanie pobierania %s", job.job_id)
         return job
 
+    def start_quick_download(
+        self,
+        url: str,
+        title: str,
+        download_type: str,
+        format_id: str | None = None,
+        duration: int | None = None,
+        source_id: str | None = None,
+        download_options: dict[str, Any] | None = None,
+    ) -> Job:
+        """Persist a quick download immediately and inspect its type in the worker."""
+
+        if self._shutdown_event.is_set():
+            raise MediaServiceError("Aplikacja jest zatrzymywana. Nie mozna dodac nowego zadania.")
+        validated_url = self.media_service.validate_url(url)
+        normalized_options = dict(download_options or {})
+        storage_name = self.file_service.validate_storage(
+            normalized_options.get("storage_name")
+        )
+        normalized_options["storage_name"] = storage_name
+        self.media_service.download_options(download_type, format_id, normalized_options)
+        job = self._new_job(
+            validated_url,
+            title,
+            download_type,
+            is_live=False,
+            format_id=format_id,
+            duration=duration,
+            source_id=source_id,
+            download_options=normalized_options,
+            storage_name=storage_name,
+        )
+        stop_event = threading.Event()
+        with self._lock:
+            self._stop_events[job.job_id] = stop_event
+            active = self._jobs[job.job_id]
+            self._append_log_line(
+                active,
+                "[quick] Zadanie zapisane. Sprawdzam typ materialu w tle.",
+            )
+            self._persist_jobs()
+        try:
+            self._executor.submit(
+                self._prepare_quick_download, job.job_id, stop_event
+            )
+        except RuntimeError:
+            stop_event.set()
+            with self._lock:
+                active = self._jobs.get(job.job_id)
+                if active:
+                    self._finish(
+                        active, "interrupted", error_code=DOWNLOAD_STOPPED
+                    )
+        LOGGER.info("Dodano szybkie zadanie pobierania %s", job.job_id)
+        return self.get_job(job.job_id)
+
     def stop_download(self, job_id: str) -> Job:
         """Stop a queued or running regular download while keeping partial files."""
 
@@ -721,6 +777,104 @@ class JobManager:
                 job = self._jobs.get(job_id)
                 if job:
                     self._finish(job, "interrupted", error_code=DOWNLOAD_STOPPED)
+
+    def _prepare_quick_download(
+        self, job_id: str, stop_event: threading.Event
+    ) -> None:
+        """Detect an active live without tying preparation to the HTTP request."""
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+            url = job.url
+        try:
+            media = self.media_service.analyze(url)
+        except MediaServiceError as error:
+            LOGGER.info(
+                "Szybka analiza URL w tle nie powiodla sie, kontynuuje zwykle pobieranie: %s",
+                error,
+            )
+            with self._lock:
+                active = self._jobs.get(job_id)
+                if active:
+                    self._append_log_line(
+                        active,
+                        "[quick] Nie udalo sie okreslic typu materialu; "
+                        "uruchamiam zwykle pobieranie.",
+                    )
+        except Exception as error:
+            LOGGER.exception("Nieoczekiwany blad przygotowania zadania %s", job_id)
+            self._fail(
+                job_id,
+                operational_error_message(str(error))
+                or "Nie udalo sie przygotowac pobierania.",
+            )
+            with self._lock:
+                self._stop_events.pop(job_id, None)
+            return
+        else:
+            if media.get("content_type") == "live" and media.get("is_live"):
+                try:
+                    live_url = self.media_service.validate_url(
+                        str(media.get("url") or url)
+                    )
+                except MediaServiceError as error:
+                    self._fail(job_id, str(error))
+                    with self._lock:
+                        self._stop_events.pop(job_id, None)
+                    return
+                with self._lock:
+                    active = self._jobs.get(job_id)
+                    if not active:
+                        return
+                    if stop_event.is_set():
+                        self._finish(active, "stopped")
+                        self._stop_events.pop(job_id, None)
+                        return
+                    if self._live_recording_exists(
+                        live_url, exclude_job_id=job_id
+                    ):
+                        message = "Nagrywanie tej transmisji jest juz uruchomione."
+                        self._append_log_line(active, f"[error] {message}")
+                        active.error_message = message
+                        self._finish(
+                            active,
+                            "error",
+                            error_code=error_code_for_message(message),
+                        )
+                        self._stop_events.pop(job_id, None)
+                        return
+                    active.url = live_url
+                    active.title = str(media.get("title") or active.title)[:300]
+                    active.download_type = "live"
+                    active.format_id = None
+                    active.is_live = True
+                    active.live_from_start = True
+                    active.auto_tags = generate_auto_tags(
+                        active.url, active.download_type, active.metadata, True
+                    )
+                    self._append_log_line(
+                        active,
+                        "[quick] Wykryto aktywna transmisje; uruchamiam zapis od poczatku live.",
+                    )
+                    self._persist_jobs()
+                self._run_live(job_id)
+                return
+        if stop_event.is_set():
+            with self._lock:
+                active = self._jobs.get(job_id)
+                if active:
+                    self._finish(
+                        active,
+                        "interrupted" if self._shutdown_event.is_set() else "stopped",
+                        error_code=(
+                            DOWNLOAD_STOPPED if self._shutdown_event.is_set() else None
+                        ),
+                    )
+                self._stop_events.pop(job_id, None)
+            return
+        self._run_download(job_id, stop_event)
 
     def _migrate_history_records_into_jobs(self) -> None:
         """Fold legacy download history into the durable job list."""

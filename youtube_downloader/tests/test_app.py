@@ -394,9 +394,15 @@ class ApplicationTestCase(unittest.TestCase):
 
     def test_index_exposes_quick_download_button(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
+        script_response = self.client.get("/static/js/app.js")
+        try:
+            script = script_response.get_data(as_text=True)
+        finally:
+            script_response.close()
         self.assertIn('formaction="/download"', body)
         self.assertIn('data-quick-download-submit', body)
         self.assertIn('name="download_type"', body)
+        self.assertIn("keepalive: true", script)
 
     def test_index_explains_each_analysis_check(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
@@ -1225,26 +1231,20 @@ class ApplicationTestCase(unittest.TestCase):
             "https://youtu.be/live", "Live", live_from_start=False
         )
 
-    def test_quick_download_active_live_starts_recording_from_start(self) -> None:
+    def test_quick_download_is_queued_before_background_analysis(self) -> None:
         class FakeUpdater:
             def ensure_recent(self) -> bool:
                 return True
 
         self.app.extensions["ytdlp_updater"] = FakeUpdater()
-        media = {
-            "url": "https://youtu.be/live",
-            "title": "Live",
-            "content_type": "live",
-            "is_live": True,
-        }
         manager = self.app.extensions["job_manager"]
         with (
-            patch.object(self.app.extensions["media_service"], "analyze", return_value=media),
+            patch.object(self.app.extensions["media_service"], "analyze") as analyze,
             patch.object(
                 manager,
-                "start_live",
+                "start_quick_download",
                 return_value=SimpleNamespace(job_id="12345678"),
-            ) as start_live,
+            ) as start_quick_download,
             patch.object(manager, "start_download") as start_download,
         ):
             response = self.client.post(
@@ -1259,9 +1259,21 @@ class ApplicationTestCase(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 302)
-        start_live.assert_called_once_with(
-            "https://youtu.be/live", "Live", live_from_start=True
+        start_quick_download.assert_called_once_with(
+            url="https://youtu.be/live",
+            title="youtu.be/live",
+            download_type="best",
+            format_id=None,
+            duration=None,
+            source_id=None,
+            download_options={
+                "audio_format": "mp3",
+                "embed_thumbnail": True,
+                "add_metadata": True,
+                "duplicate_action": "warning",
+            },
         )
+        analyze.assert_not_called()
         start_download.assert_not_called()
 
     def test_watch_live_defaults_to_live_from_start(self) -> None:
@@ -3328,6 +3340,14 @@ class FakeMediaService:
             download_type, format_id, download_options
         )
 
+    def analyze(self, url: str) -> dict[str, object]:
+        return {
+            "url": self.validate_url(url),
+            "title": "Example",
+            "content_type": "video",
+            "is_live": False,
+        }
+
     def download(self, **kwargs):
         target = self.download_dir / "example.mp4"
         target.write_text("media", encoding="utf-8")
@@ -3396,6 +3416,20 @@ class BlockingMediaService(FakeMediaService):
         target.write_text("media", encoding="utf-8")
         kwargs["progress_hook"]({"status": "finished", "filename": str(target)})
         return [target]
+
+
+class BlockingAnalyzeMediaService(FakeMediaService):
+    """Pause quick inspection to prove the job exists before it finishes."""
+
+    def __init__(self, download_dir: Path) -> None:
+        super().__init__(download_dir)
+        self.analysis_started = threading.Event()
+        self.release_analysis = threading.Event()
+
+    def analyze(self, url: str) -> dict[str, object]:
+        self.analysis_started.set()
+        self.release_analysis.wait(timeout=2)
+        return super().analyze(url)
 
 
 class FlakyMediaService(FakeMediaService):
@@ -3542,6 +3576,62 @@ class JobManagerTestCase(unittest.TestCase):
         )
         self.assertEqual(restored.get_job(job.job_id).status, "completed")
         self.assertTrue(restored.get_job(job.job_id).log_lines)
+
+    def test_quick_download_is_persisted_before_background_analysis_finishes(self) -> None:
+        media = BlockingAnalyzeMediaService(self.download_dir)
+        manager = JobManager(media, self.files, max_concurrent_jobs=1)
+        try:
+            job = manager.start_quick_download(
+                "https://youtu.be/abc", "https://youtu.be/abc", "best"
+            )
+
+            self.assertTrue(media.analysis_started.wait(timeout=2))
+            self.assertEqual(manager.get_job(job.job_id).status, "pending")
+            persisted = {
+                item["job_id"]: item for item in manager.state_store.jobs_all()
+            }
+            self.assertEqual(persisted[job.job_id]["status"], "pending")
+
+            media.release_analysis.set()
+            completed = self._wait_for_status(job.job_id, "completed", manager)
+            self.assertEqual(completed.title, "https://youtu.be/abc")
+        finally:
+            media.release_analysis.set()
+            manager._executor.shutdown()
+
+    def test_quick_download_switches_active_live_in_background(self) -> None:
+        media = FakeMediaService(self.download_dir)
+        manager = JobManager(media, self.files, max_concurrent_jobs=1)
+        live_started = threading.Event()
+        try:
+            with (
+                patch.object(
+                    media,
+                    "analyze",
+                    return_value={
+                        "url": "https://youtu.be/live",
+                        "title": "Live title",
+                        "content_type": "live",
+                        "is_live": True,
+                    },
+                ),
+                patch.object(
+                    manager, "_run_live", side_effect=lambda _job_id: live_started.set()
+                ) as run_live,
+            ):
+                job = manager.start_quick_download(
+                    "https://youtu.be/live", "https://youtu.be/live", "best"
+                )
+                self.assertTrue(live_started.wait(timeout=2))
+
+            prepared = manager.get_job(job.job_id)
+            self.assertTrue(prepared.is_live)
+            self.assertTrue(prepared.live_from_start)
+            self.assertEqual(prepared.download_type, "live")
+            self.assertEqual(prepared.title, "Live title")
+            run_live.assert_called_once_with(job.job_id)
+        finally:
+            manager._executor.shutdown()
 
     def test_live_job_dict_includes_recording_status_details(self) -> None:
         job = self.manager._new_job(

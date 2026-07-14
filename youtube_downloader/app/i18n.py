@@ -97,7 +97,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "index.loading_check_duplicates": "Możliwe duplikaty w kolejce i zapisanej bibliotece",
         "index.loading_analyze_note": "Na tym etapie materiał nie jest pobierany — yt-dlp odczytuje tylko informacje potrzebne do wyboru sposobu pobrania.",
         "index.loading_download": "Przygotowuję pobieranie",
-        "index.loading_download_copy": "Sprawdzam adres i typ materiału, a następnie dodam zadanie do kolejki.",
+        "index.loading_download_copy": (
+            "Wysyłam zadanie do kolejki. Po zapisaniu przygotowanie i pobieranie "
+            "będą działać w tle."
+        ),
         "index.library": "Biblioteka",
         "index.recent_jobs": "Ostatnio pobrane",
         "index.recent_jobs_copy": "Pięć ostatnich ukończonych pobrań. Pełna historia znajduje się w Bibliotece.",
@@ -594,7 +597,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "index.loading_check_duplicates": "Possible duplicates in the queue and saved library",
         "index.loading_analyze_note": "The media is not downloaded at this stage — yt-dlp only reads the information needed to choose how to download it.",
         "index.loading_download": "Preparing the download",
-        "index.loading_download_copy": "I am checking the URL and media type, then I will add the job to the queue.",
+        "index.loading_download_copy": (
+            "I am sending the job to the queue. Once saved, preparation and "
+            "downloading will continue in the background."
+        ),
         "index.library": "Library",
         "index.recent_jobs": "Recently downloaded",
         "index.recent_jobs_copy": "The five most recent completed downloads. The full history is in the Library.",

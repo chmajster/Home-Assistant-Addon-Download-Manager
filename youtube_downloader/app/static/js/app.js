@@ -344,7 +344,7 @@
       syncTextareaHeight();
       renderBulkUrlReview();
     }, 0));
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       const quickDownload = event.submitter instanceof HTMLElement
         && event.submitter.matches("[data-quick-download-submit]");
       const detectedUrls = pastedUrls(input?.value || "");
@@ -398,6 +398,27 @@
         analysisDetails?.classList.toggle("d-none", quickDownload);
         analysisNote?.classList.toggle("d-none", quickDownload);
         loading.classList.remove("d-none");
+      }
+      if (quickDownload) {
+        event.preventDefault();
+        const action = event.submitter?.formAction || form.action;
+        try {
+          const response = await fetch(action, {
+            method: "POST",
+            body: new FormData(form),
+            credentials: "same-origin",
+            keepalive: true,
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          intentionalNavigation = true;
+          window.location.assign(response.url || route("/jobs"));
+        } catch (error) {
+          if (document.visibilityState === "hidden") return;
+          console.error("Nie udało się wysłać pobierania w tle:", error);
+          intentionalNavigation = true;
+          form.action = action;
+          form.submit();
+        }
       }
     });
   });
