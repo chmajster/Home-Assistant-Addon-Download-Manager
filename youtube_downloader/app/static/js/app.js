@@ -2062,15 +2062,14 @@
     const errorHint = text("small", "");
     error.append(errorHeader, errorHint);
     const retry = text("small", "", "library-retry text-body-secondary d-none");
-    const log = document.createElement("details");
-    log.className = "library-log d-none";
-    const logSummary = document.createElement("summary");
-    const fullLog = linkAction(route("/jobs/log/" + encodeURIComponent(job.job_id)), t("common.full_log"), "btn btn-sm btn-soft");
+    const fullLog = linkAction(
+      route("/jobs/log/" + encodeURIComponent(job.job_id)),
+      t("common.full_log"),
+      "btn btn-sm btn-soft library-full-log d-none"
+    );
     fullLog.target = "_blank";
     fullLog.rel = "noreferrer";
-    const logPre = document.createElement("pre");
-    log.append(logSummary, fullLog, logPre);
-    main.append(titleLink, meta, file, live, error, retry, log);
+    main.append(titleLink, meta, file, live, error, retry, fullLog);
 
     const state = document.createElement("div");
     state.className = "library-state";
@@ -2114,7 +2113,7 @@
     if (options.compact) item.classList.add("library-item-compact");
     item.append(selectWrap, thumbnail, main, state, metrics, actions);
     itemReferences.set(item, { checkbox, thumbnail, image, placeholder, titleLink, source, type, date,
-      file, live, error, errorMessage, errorHint, copyError, retry, log, logSummary, logPre, fullLog,
+      file, live, error, errorMessage, errorHint, copyError, retry, fullLog,
       status, progress, progressBar, progressLabel, size: size.value, speed: speed.value, eta: eta.value,
       primary, menuButton, menuPanel, actionSignature: "", menuSignature: "" });
     updateLibraryItem(item, job);
@@ -2189,15 +2188,7 @@
     setNodeText(refs.retry, retryText);
     refs.retry.classList.toggle("d-none", !retryText);
     const logLines = (Array.isArray(job.recent_log_lines) ? job.recent_log_lines : job.log_lines) || [];
-    const cleanLogLines = logLines.filter(Boolean);
-    refs.log.classList.toggle("d-none", cleanLogLines.length === 0);
-    setNodeText(refs.logSummary, t("js.log_summary", { count: cleanLogLines.length }));
-    const nextLog = cleanLogLines.join("\n");
-    if (refs.logPre.textContent !== nextLog) {
-      const scrollTop = refs.logPre.scrollTop;
-      refs.logPre.textContent = nextLog;
-      refs.logPre.scrollTop = scrollTop;
-    }
+    refs.fullLog.classList.toggle("d-none", !logLines.some(Boolean));
     setNodeAttribute(refs.fullLog, "href", route("/jobs/log/" + encodeURIComponent(job.job_id)));
     const actionSignature = [job.status, job.can_stop, job.can_resume, job.can_retry, job.can_repeat, job.file_exists, job.output_file].join("|");
     if (refs.actionSignature !== actionSignature) {

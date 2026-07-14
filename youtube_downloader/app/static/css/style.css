@@ -1950,9 +1950,10 @@ body.custom-player-theater-active {
 .library-error strong,
 .library-error small { display: block; font-size: 0.76rem; }
 
-.library-log { margin-top: 0.5rem; }
-.library-log summary { cursor: pointer; font-size: 0.78rem; font-weight: 700; }
-.library-log pre { max-height: 10rem; overflow: auto; white-space: pre-wrap; }
+.library-full-log {
+  align-self: start;
+  margin-top: 0.5rem;
+}
 
 .library-empty-state {
   align-items: center;

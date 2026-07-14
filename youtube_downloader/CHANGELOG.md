@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.81
+
+- Zastąpiono rozwijany podgląd logu przyciskiem Pełen log, otwierającym cały log zadania w nowej karcie.
+
 ## 1.3.80
 
 - Przebudowano panel wokół centralnej Biblioteki z responsywnym wspólnym widokiem pobrań, plików i operacji.
