@@ -16,18 +16,15 @@
       template
     );
   };
-  // Legacy searchable labels for tests/docs: W tym filmie >, Otwórz log, Usuń zadanie, Szczegóły.
-  // Legacy searchable message for tests/docs: Szybkie pobieranie obsługuje jeden link naraz.
-  const jobsViewVisible = Boolean(document.getElementById("jobs-table-body"));
-  const jobsRefreshIntervalMs = jobsViewVisible ? 500 : 2500;
   const themeStorageKey = "media-web-downloader-theme";
-  const historyMobileViewStorageKey = "media-web-downloader-history-mobile-view";
   const playerSettingsStorageKey = "media-web-downloader-player-settings";
   const playerPositionsStorageKey = "media-web-downloader-player-positions";
   const restorePathStorageKey = "media-web-downloader-restore-path";
   let intentionalNavigation = false;
 
   const route = (path) => `${ingressPath}${path}`;
+  const encodeManagedPath = (value) => String(value || "")
+    .split("/").map((part) => encodeURIComponent(part)).join("/");
 
   const currentInternalLocation = () => {
     const pathname = window.location.pathname;
@@ -162,6 +159,7 @@
     close.type = "button";
     close.dataset.bsDismiss = "toast";
     close.setAttribute("aria-label", t("common.close"));
+    close.title = t("common.close");
     wrapper.append(body, close);
     toast.append(wrapper);
     toastContainer().append(toast);
@@ -178,6 +176,25 @@
     node.textContent = value ?? "";
     if (className) node.className = className;
     return node;
+  };
+
+  const svgIcon = (name) => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    const paths = {
+      chevron: ["m9 5 7 7-7 7"],
+      close: ["M6 6l12 12M18 6 6 18"],
+      more: ["M5 12h.01M12 12h.01M19 12h.01"],
+      file: ["M6 3h8l4 4v14H6z", "M14 3v5h5"],
+    };
+    (paths[name] || paths.file).forEach((data) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", data);
+      svg.append(path);
+    });
+    return svg;
   };
 
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -222,38 +239,6 @@
     });
     return urls;
   };
-
-  const historyMobileViewRoot = document.querySelector("[data-history-mobile-view-root]");
-  const historyMobileViewButtons = Array.from(document.querySelectorAll("[data-history-mobile-view]"));
-  if (historyMobileViewRoot && historyMobileViewButtons.length) {
-    const storedHistoryMobileView = () => {
-      try {
-        return localStorage.getItem(historyMobileViewStorageKey) === "compact" ? "compact" : "cards";
-      } catch {
-        return "cards";
-      }
-    };
-
-    const setHistoryMobileView = (view, persist = false) => {
-      const normalizedView = view === "compact" ? "compact" : "cards";
-      historyMobileViewRoot.classList.toggle("history-mobile-compact", normalizedView === "compact");
-      historyMobileViewButtons.forEach((button) => {
-        button.setAttribute("aria-pressed", String(button.dataset.historyMobileView === normalizedView));
-      });
-      if (persist) {
-        try {
-          localStorage.setItem(historyMobileViewStorageKey, normalizedView);
-        } catch {
-          // Browser storage can be unavailable in hardened WebViews.
-        }
-      }
-    };
-
-    historyMobileViewButtons.forEach((button) => {
-      button.addEventListener("click", () => setHistoryMobileView(button.dataset.historyMobileView, true));
-    });
-    setHistoryMobileView(storedHistoryMobileView());
-  }
 
   document.querySelectorAll(".url-form").forEach((form) => {
     const input = form.querySelector(".media-url");
@@ -313,7 +298,7 @@
         remove.type = "button";
         remove.setAttribute("aria-label", t("js.remove_link", { number: index + 1 }));
         remove.title = t("common.delete");
-        remove.textContent = "×";
+        remove.append(svgIcon("close"));
         remove.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -558,7 +543,10 @@
     button.className = "custom-player-context-item";
     button.type = "button";
     button.setAttribute("role", "menuitem");
-    button.innerHTML = `<span class="custom-player-context-icon">${playerIcon(iconName)}</span><span>${escapeHtml(label)}</span>`;
+    const icon = document.createElement("span");
+    icon.className = "custom-player-context-icon";
+    icon.innerHTML = playerIcon(iconName);
+    button.append(icon, text("span", label));
     button.addEventListener("click", action);
     return button;
   };
@@ -590,18 +578,18 @@
   };
 
   const mediaNetworkStateLabel = (state) => ({
-    0: "pusto",
-    1: "bezczynne",
-    2: "ładowanie",
-    3: "brak źródła",
+    0: t("js.network_empty"),
+    1: t("js.network_idle"),
+    2: t("js.network_loading"),
+    3: t("js.network_no_source"),
   }[state] || "N/A");
 
   const mediaReadyStateLabel = (state) => ({
-    0: "brak danych",
-    1: "metadane",
-    2: "dane bieżące",
-    3: "dane przyszłe",
-    4: "wystarczająco danych",
+    0: t("common.no_data"),
+    1: t("js.ready_metadata"),
+    2: t("js.ready_current"),
+    3: t("js.ready_future"),
+    4: t("js.ready_enough"),
   }[state] || "N/A");
 
   const clampPlaybackRate = (value) => Math.min(3, Math.max(0.25, Number(value) || 1));
@@ -613,14 +601,14 @@
 
   const formatPlayerBytes = (value) => {
     const bytes = Number(value);
-    if (!Number.isFinite(bytes) || bytes <= 0) return "brak danych";
+    if (!Number.isFinite(bytes) || bytes <= 0) return t("common.no_data");
     const units = ["B", "KB", "MB", "GB"];
     let size = bytes;
     for (const unit of units) {
       if (size < 1024 || unit === units[units.length - 1]) return `${size.toFixed(1)} ${unit}`;
       size /= 1024;
     }
-    return "brak danych";
+    return t("common.no_data");
   };
 
   const mediaResourceTiming = (media) => {
@@ -642,17 +630,19 @@
       const type = connection.effectiveType ? ` (${connection.effectiveType})` : "";
       return `${connection.downlink} Mbps${type}`;
     }
-    return "brak danych w API przeglądarki";
+    return t("js.browser_api_unavailable");
   };
 
   const networkActivityLabel = (media, activity) => {
     const timing = mediaResourceTiming(media);
     const bytes = Number(timing?.transferSize || timing?.encodedBodySize || activity?.loadedBytes || 0);
-    const eventAge = activity?.lastAt ? `${Math.max(0, ((Date.now() - activity.lastAt) / 1000)).toFixed(1)} s temu` : "brak";
+    const eventAge = activity?.lastAt
+      ? t("js.seconds_ago", { value: Math.max(0, ((Date.now() - activity.lastAt) / 1000)).toFixed(1) })
+      : t("common.none");
     return [
       `${mediaNetworkStateLabel(media.networkState)} / ${mediaReadyStateLabel(media.readyState)}`,
-      `zdarzenie=${activity?.lastEvent || "init"} (${eventAge})`,
-      `dane=${formatPlayerBytes(bytes)}`,
+      t("js.network_event", { event: activity?.lastEvent || "init", age: eventAge }),
+      t("js.network_data", { value: formatPlayerBytes(bytes) }),
     ].join("; ");
   };
 
@@ -672,13 +662,13 @@
     for (let index = 0; index < media.buffered.length; index += 1) {
       ranges.push(`${formatMediaTime(media.buffered.start(index))}-${formatMediaTime(media.buffered.end(index))}`);
     }
-    return ranges.length ? ranges.join(", ") : "brak";
+    return ranges.length ? ranges.join(", ") : t("common.none");
   };
 
   const estimatedBitrateLabel = (player, media) => {
     const bytes = Number(player.dataset.fileSize || 0);
     const duration = Number.isFinite(media.duration) ? media.duration : 0;
-    if (bytes <= 0 || duration <= 0) return "brak danych";
+    if (bytes <= 0 || duration <= 0) return t("common.no_data");
     return `${((bytes * 8) / duration / 1000 / 1000).toFixed(2)} Mbps`;
   };
 
@@ -700,7 +690,10 @@
       ? `${Math.round(playerRect.width)}x${Math.round(playerRect.height)}`
       : "N/A";
     const frames = Number.isFinite(decodedFrames)
-      ? `${decodedFrames} decoded / ${Number.isFinite(droppedFrames) ? droppedFrames : "N/A"} dropped`
+      ? t("js.debug_frames", {
+        decoded: decodedFrames,
+        dropped: Number.isFinite(droppedFrames) ? droppedFrames : "N/A",
+      })
       : "N/A";
     const resolution = media.videoWidth && media.videoHeight
       ? `${media.videoWidth}x${media.videoHeight}`
@@ -710,21 +703,25 @@
     const duration = Number.isFinite(media.duration) ? formatMediaTime(media.duration) : "N/A";
     const current = Number.isFinite(media.currentTime) ? formatMediaTime(media.currentTime) : "N/A";
     const rows = [
-      ["Data", new Date().toLocaleString()],
-      ["ID / nazwa filmu", player.dataset.videoId || player.dataset.videoTitle || sourceLabelFromMedia(media)],
-      ["Okno / klatki", `${viewport} / ${frames}`],
-      ["Plik: rozdzielczość / bitrate", `${resolution} / ${estimatedBitrateLabel(player, media)}`],
-      ["Aktualna / optymalna rozdzielczość", `${resolution} / N/A`],
-      ["Głośność / normalizacja", `${media.muted ? "wyciszone" : `${Math.round(media.volume * 100)}%`} / N/A`],
-      ["Format audio/wideo", mimeType || "N/A"],
-      ["Kolor", "N/A"],
-      ["Prędkość połączenia", connectionSpeedLabel(media)],
-      ["Aktywność sieci", networkActivityLabel(media, activity)],
-      ["Stan bufora", bufferHealthLabel(media)],
-      ["Bufor realny", bufferRangesLabel(media)],
-      ["Napisy", captionsStatsLabel(player)],
-      ["Ścieżka pliku", player.dataset.filePath || sourceLabelFromMedia(media)],
-      ["Szczegóły", `czas=${current}; długość=${duration}; źródło=${sourceLabelFromMedia(media)}`],
+      [t("js.debug_date"), new Date().toLocaleString()],
+      [t("js.debug_video_id"), player.dataset.videoId || player.dataset.videoTitle || sourceLabelFromMedia(media)],
+      [t("js.debug_viewport_frames"), `${viewport} / ${frames}`],
+      [t("js.debug_file_resolution"), `${resolution} / ${estimatedBitrateLabel(player, media)}`],
+      [t("js.debug_resolution"), `${resolution} / N/A`],
+      [t("js.debug_volume"), `${media.muted ? t("js.debug_muted") : `${Math.round(media.volume * 100)}%`} / N/A`],
+      [t("js.debug_format"), mimeType || "N/A"],
+      [t("js.debug_color"), "N/A"],
+      [t("js.debug_connection"), connectionSpeedLabel(media)],
+      [t("js.debug_network"), networkActivityLabel(media, activity)],
+      [t("js.debug_buffer"), bufferHealthLabel(media)],
+      [t("js.debug_buffer_ranges"), bufferRangesLabel(media)],
+      [t("js.debug_captions"), captionsStatsLabel(player)],
+      [t("js.debug_file_path"), player.dataset.filePath || sourceLabelFromMedia(media)],
+      [t("js.debug_details"), t("js.debug_detail_value", {
+        current,
+        duration,
+        source: sourceLabelFromMedia(media),
+      })],
     ];
     return rows;
   };
@@ -761,13 +758,13 @@
     progress.step = "1";
     progress.setAttribute("aria-label", t("js.playback_progress"));
 
-    const play = customPlayerButton("Odtwórz", playerIcon("play"), "custom-player-play");
+    const play = customPlayerButton(t("js.play"), playerIcon("play"), "custom-player-play");
     const playSecondary = customPlayerButton(
-      "Odtwórz",
+      t("js.play"),
       playerIcon("play"),
       "custom-player-play custom-player-play-secondary"
     );
-    const mute = customPlayerButton("Wycisz", playerIcon("volume"), "custom-player-mute");
+    const mute = customPlayerButton(t("js.mute"), playerIcon("volume"), "custom-player-mute");
     const captions = customPlayerButton(
       t("js.captions"),
       playerIcon("captions"),
@@ -779,18 +776,18 @@
     captionsGroup.className = "custom-player-captions-group";
     captionsGroup.append(captions, captionsStatus);
     const settings = customPlayerButton(
-      "Ustawienia jakości i prędkości",
+      t("js.player_quality_speed"),
       `${playerIcon("settings")}<span class="custom-player-hd-badge">HD</span>`,
       "custom-player-settings"
     );
     const mini = customPlayerButton(
-      "Tryb theater",
+      t("js.theater_mode"),
       playerIcon("mini"),
       "custom-player-mini"
     );
     mini.setAttribute("aria-pressed", "false");
     const fullscreen = customPlayerButton(
-      "Pełny ekran",
+      t("js.fullscreen"),
       playerIcon("fullscreen"),
       "custom-player-fullscreen"
     );
@@ -798,59 +795,93 @@
     inThisVideo.className = "custom-player-pill";
     inThisVideo.type = "button";
     inThisVideo.setAttribute("aria-label", t("preview.file_info"));
-    inThisVideo.textContent = `${t("preview.file_info")} >`;
+    inThisVideo.append(text("span", t("preview.file_info")), svgIcon("chevron"));
     const settingsPanel = document.createElement("div");
     settingsPanel.className = "custom-player-settings-panel";
     settingsPanel.hidden = true;
     settingsPanel.setAttribute("role", "menu");
     settingsPanel.setAttribute("aria-label", t("js.player_settings"));
-    const qualityLabel = escapeHtml(player.dataset.qualityLabel || "Oryginalna");
-    settingsPanel.innerHTML = `
-      <div class="custom-player-settings-heading">Ustawienia</div>
-      <div class="custom-player-settings-row">
-        <span>Jakość</span>
-        <strong>${qualityLabel}</strong>
-      </div>
-      <div class="custom-player-settings-group" data-setting-group="speed">
-        <div class="custom-player-settings-row">
-          <span>Prędkość</span>
-          <strong data-speed-value>${playbackRateLabel(media.playbackRate)}</strong>
-        </div>
-        <div class="custom-player-speed-control">
-          <input class="custom-player-range custom-player-speed-slider" type="range" min="0.25" max="3" step="0.05" value="${media.playbackRate}" data-speed-slider aria-label="Prędkość odtwarzania">
-          <div class="custom-player-speed-scale" aria-hidden="true">
-            <span>0.25x</span>
-            <span>1x</span>
-            <span>3x</span>
-          </div>
-        </div>
-      </div>
-      <label class="custom-player-settings-toggle">
-        <span>Zapętlaj</span>
-        <input type="checkbox" data-setting-loop>
-      </label>
-      <label class="custom-player-settings-toggle">
-        <span>Auto-play następnego</span>
-        <input type="checkbox" data-setting-autoplay-next>
-      </label>
-      <div class="custom-player-settings-group" data-setting-group="fit">
-        <span>Dopasowanie</span>
-        <div class="custom-player-settings-options">
-          <button type="button" data-fit="contain">Całe wideo</button>
-          <button type="button" data-fit="cover">Wypełnij ekran</button>
-        </div>
-      </div>
-      <div class="custom-player-settings-group" data-setting-group="captions">
-        <span>Napisy</span>
-        <div class="custom-player-settings-options">
-          <button type="button" data-captions-mode="pl">Polskie</button>
-          <button type="button" data-captions-mode="en">Angielskie</button>
-          <button type="button" data-captions-mode="auto">Automatyczne</button>
-          <button type="button" data-captions-mode="off">Wyłącz</button>
-        </div>
-        <small class="custom-player-setting-status" data-captions-panel-status>${t("js.captions_status_off")}</small>
-      </div>
-    `;
+    const settingsHeading = text("div", t("js.settings"), "custom-player-settings-heading");
+    const qualityRow = document.createElement("div");
+    qualityRow.className = "custom-player-settings-row";
+    qualityRow.append(
+      text("span", t("js.quality")),
+      text("strong", player.dataset.qualityLabel || t("js.original_quality"))
+    );
+    const speedGroup = document.createElement("div");
+    speedGroup.className = "custom-player-settings-group";
+    speedGroup.dataset.settingGroup = "speed";
+    const speedRow = document.createElement("div");
+    speedRow.className = "custom-player-settings-row";
+    const speedSettingValue = text("strong", playbackRateLabel(media.playbackRate));
+    speedSettingValue.dataset.speedValue = "";
+    speedRow.append(text("span", t("js.speed")), speedSettingValue);
+    const speedControl = document.createElement("div");
+    speedControl.className = "custom-player-speed-control";
+    const speedSettingSlider = document.createElement("input");
+    speedSettingSlider.className = "custom-player-range custom-player-speed-slider";
+    speedSettingSlider.type = "range";
+    speedSettingSlider.min = "0.25";
+    speedSettingSlider.max = "3";
+    speedSettingSlider.step = "0.05";
+    speedSettingSlider.value = String(media.playbackRate);
+    speedSettingSlider.dataset.speedSlider = "";
+    speedSettingSlider.setAttribute("aria-label", t("js.speed"));
+    const speedScale = document.createElement("div");
+    speedScale.className = "custom-player-speed-scale";
+    speedScale.setAttribute("aria-hidden", "true");
+    speedScale.append(text("span", "0.25x"), text("span", "1x"), text("span", "3x"));
+    speedControl.append(speedSettingSlider, speedScale);
+    speedGroup.append(speedRow, speedControl);
+    const settingToggle = (label, dataName) => {
+      const wrapper = document.createElement("label");
+      wrapper.className = "custom-player-settings-toggle";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.dataset[dataName] = "";
+      wrapper.append(text("span", label), input);
+      return wrapper;
+    };
+    const fitGroup = document.createElement("div");
+    fitGroup.className = "custom-player-settings-group";
+    fitGroup.dataset.settingGroup = "fit";
+    const fitOptions = document.createElement("div");
+    fitOptions.className = "custom-player-settings-options";
+    [["contain", "js.fit_contain"], ["cover", "js.fit_cover"]].forEach(([mode, key]) => {
+      const button = text("button", t(key));
+      button.type = "button";
+      button.dataset.fit = mode;
+      fitOptions.append(button);
+    });
+    fitGroup.append(text("span", t("js.fit")), fitOptions);
+    const captionsSettingsGroupNode = document.createElement("div");
+    captionsSettingsGroupNode.className = "custom-player-settings-group";
+    captionsSettingsGroupNode.dataset.settingGroup = "captions";
+    const captionsOptions = document.createElement("div");
+    captionsOptions.className = "custom-player-settings-options";
+    [["pl", "js.captions_polish"], ["en", "js.captions_english"],
+      ["auto", "js.captions_auto"], ["off", "js.captions_off"]].forEach(([mode, key]) => {
+      const button = text("button", t(key));
+      button.type = "button";
+      button.dataset.captionsMode = mode;
+      captionsOptions.append(button);
+    });
+    const captionsSettingStatus = text(
+      "small", t("js.captions_status_off"), "custom-player-setting-status"
+    );
+    captionsSettingStatus.dataset.captionsPanelStatus = "";
+    captionsSettingsGroupNode.append(
+      text("span", t("js.captions")), captionsOptions, captionsSettingStatus
+    );
+    settingsPanel.append(
+      settingsHeading,
+      qualityRow,
+      speedGroup,
+      settingToggle(t("js.loop"), "settingLoop"),
+      settingToggle(t("js.autoplay_next"), "settingAutoplayNext"),
+      fitGroup,
+      captionsSettingsGroupNode
+    );
     const time = text("span", "0:00 / 0:00", "custom-player-time");
     const speed = document.createElement("input");
     speed.className = "custom-player-speed";
@@ -942,7 +973,9 @@
       overlay.className = "custom-player-overlay";
       overlay.type = "button";
       overlay.setAttribute("aria-label", t("js.play_pause"));
-      overlayIcon = text("span", "\u25b6", "custom-player-overlay-icon");
+      overlay.title = t("js.play_pause");
+      overlayIcon = text("span", "", "custom-player-overlay-icon");
+      overlayIcon.innerHTML = playerIcon("play");
       overlayTime = text("span", "0:00 / 0:00", "custom-player-overlay-time");
       overlay.append(overlayIcon, overlayTime);
       overlay.addEventListener("click", () => play.click());
@@ -989,8 +1022,9 @@
       const statsClose = document.createElement("button");
       statsClose.className = "custom-player-stats-close";
       statsClose.type = "button";
-      statsClose.textContent = "[X]";
+      statsClose.append(svgIcon("close"));
       statsClose.setAttribute("aria-label", t("js.close_stats"));
+      statsClose.title = t("js.close_stats");
       statsHeader.append(statsClose);
       statsContent = document.createElement("pre");
       statsContent.className = "custom-player-stats-content";
@@ -1075,12 +1109,12 @@
             mini.click();
           }
         } catch (error) {
-          console.error("Nie można uruchomić miniodtwarzacza:", error);
+          console.error(t("js.pip_error"), error);
           mini.click();
         }
       };
 
-      loopContextItem = createPlayerContextMenuItem("Odtwarzaj w pętli", "loop", () => {
+      loopContextItem = createPlayerContextMenuItem(t("js.loop_playback"), "loop", () => {
         media.loop = !media.loop;
         if (settingLoop instanceof HTMLInputElement) settingLoop.checked = media.loop;
         syncSettingsPanel();
@@ -1091,15 +1125,15 @@
       loopContextItem.setAttribute("role", "menuitemcheckbox");
       contextMenu.append(
         loopContextItem,
-        createPlayerContextMenuItem("Miniodtwarzacz", "mini", () => {
+        createPlayerContextMenuItem(t("js.mini_player"), "mini", () => {
           hideContextMenu();
           togglePictureInPicture();
         }),
-        createPlayerContextMenuItem("Kopiuj adres URL filmu", "copy", () => {
+        createPlayerContextMenuItem(t("js.copy_video_url"), "copy", () => {
           hideContextMenu();
           copyPlayerValue(sourceUrlForCopy(), t("js.copied_video_url"));
         }),
-        createPlayerContextMenuItem("Kopiuj adres URL bieżącego momentu", "linkTime", () => {
+        createPlayerContextMenuItem(t("js.copy_time_url"), "linkTime", () => {
           hideContextMenu();
           copyPlayerValue(currentTimeUrl(), t("js.copied_time_url"));
         }),
@@ -1107,16 +1141,16 @@
           hideContextMenu();
           copyPlayerValue(embedCode(), t("js.copied_embed"));
         }),
-        createPlayerContextMenuItem("Kopiuj informacje debugowania", "debug", () => {
+        createPlayerContextMenuItem(t("js.copy_debug"), "debug", () => {
           hideContextMenu();
           copyPlayerValue(formatVideoDebugStats(player, media, networkActivity), t("js.copied_debug"));
         }),
-        createPlayerContextMenuItem("Rozwiąż problem z odtwarzaniem", "flag", () => {
+        createPlayerContextMenuItem(t("js.troubleshoot_playback"), "flag", () => {
           hideContextMenu();
           showAppToast(t("js.open_diagnostics"), {
             type: "info",
             actionHref: route("/diagnostics"),
-            actionLabel: "Diagnostyka",
+            actionLabel: t("nav.diagnostics"),
           });
         }),
         createPlayerContextMenuItem(t("js.stats"), "stats", () => {
@@ -1190,7 +1224,7 @@
     };
     const syncPlay = () => {
       const paused = media.paused;
-      const label = paused ? "Odtwórz" : "Pauza";
+      const label = paused ? t("js.play") : t("js.pause");
       const icon = paused ? playerIcon("play") : playerIcon("pause");
       [play, playSecondary].forEach((button) => {
         button.innerHTML = icon;
@@ -1323,7 +1357,7 @@
     });
     const syncSpeedButton = () => {
       const label = playbackRateLabel(media.playbackRate);
-      settings.title = `Prędkość: ${label}`;
+      settings.title = t("js.speed_value", { value: label });
       if (speedValue) speedValue.textContent = label;
       if (speedSlider instanceof HTMLInputElement && document.activeElement !== speedSlider) {
         speedSlider.value = String(clampPlaybackRate(media.playbackRate));
@@ -1560,7 +1594,7 @@
         else if (supportsFullscreen(player)) await requestFullscreen(player);
         else if (media.webkitEnterFullscreen) media.webkitEnterFullscreen();
       } catch (error) {
-        console.error("Nie można uruchomić pełnego ekranu:", error);
+        console.error(t("js.fullscreen_error"), error);
       } finally {
         syncFullscreen();
         showControls();
@@ -1660,19 +1694,10 @@
 
   document.querySelectorAll(".delete-form").forEach((form) => {
     form.addEventListener("submit", (event) => {
-      const filename = form.dataset.filename || "brak danych";
-      const filesize = form.dataset.filesizeLabel || "brak danych";
+      const filename = form.dataset.filename || t("common.no_data");
+      const filesize = form.dataset.filesizeLabel || t("common.no_data");
       const message = t("js.delete_file_confirm", { filename, size: filesize });
       if (!window.confirm(message)) {
-        event.preventDefault();
-      }
-    });
-  });
-
-  document.querySelectorAll(".history-delete-form").forEach((form) => {
-    form.addEventListener("submit", (event) => {
-      const title = form.dataset.title || t("common.no_data");
-      if (!window.confirm(t("js.delete_job_confirm", { title }))) {
         event.preventDefault();
       }
     });
@@ -1786,462 +1811,126 @@
     syncPlaylistSelectAllLabel();
   });
 
-  const historyItems = Array.from(document.querySelectorAll(".history-item"));
-  if (historyItems.length) {
-    const typeFilter = document.getElementById("history-type-filter");
-    const statusFilter = document.getElementById("history-status-filter");
-    const tagFilter = document.getElementById("history-tag-filter");
-    const sourceFilter = document.getElementById("history-source-filter");
-    const sort = document.getElementById("history-sort");
-    const previous = document.getElementById("history-prev");
-    const next = document.getElementById("history-next");
-    const pageLabel = document.getElementById("history-page");
-    const empty = document.getElementById("history-filter-empty");
-    const records = Array.from(
-      new Map(historyItems.map((item) => [item.dataset.historyIndex, item])).values()
-    );
-    const pageSize = 10;
-    let currentPage = 1;
-
-    const addOptions = (select, values, labeler = (value) => value) => {
-      values.forEach((value) => {
-        const option = text("option", labeler(value));
-        option.value = value;
-        select?.append(option);
-      });
-    };
-
-    addOptions(typeFilter, [...new Set(records.map((item) => item.dataset.historyType).filter(Boolean))].sort(), downloadTypeLabel);
-    addOptions(statusFilter, [...new Set(records.map((item) => item.dataset.historyStatus).filter(Boolean))].sort());
-    const historyTags = [
-      ...new Set(
-        records.flatMap((item) =>
-          (item.dataset.historyTags || "").split("|").map((tag) => tag.trim()).filter(Boolean)
-        )
-      ),
-    ].sort((left, right) => left.localeCompare(right));
-    addOptions(tagFilter, historyTags);
-    addOptions(sourceFilter, [...new Set(records.map((item) => item.dataset.historyPlatform).filter(Boolean))].sort());
-
-    const renderHistory = () => {
-      const filtered = records
-        .filter((item) => !typeFilter?.value || item.dataset.historyType === typeFilter.value)
-        .filter((item) => !statusFilter?.value || item.dataset.historyStatus === statusFilter.value)
-        .filter((item) => {
-          if (!tagFilter?.value) return true;
-          return (item.dataset.historyTags || "").split("|").includes(tagFilter.value);
-        })
-        .filter((item) => !sourceFilter?.value || item.dataset.historyPlatform === sourceFilter.value)
-        .sort((left, right) => {
-          const order = left.dataset.historyDate.localeCompare(right.dataset.historyDate);
-          return sort?.value === "oldest" ? order : -order;
-        });
-      const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
-      currentPage = Math.min(currentPage, pageCount);
-      const start = (currentPage - 1) * pageSize;
-      const visibleIndexes = new Set(
-        filtered.slice(start, start + pageSize).map((item) => item.dataset.historyIndex)
-      );
-
-      document.querySelectorAll(".history-items").forEach((container) => {
-        const itemsByIndex = new Map(
-          Array.from(container.querySelectorAll(".history-item")).map((item) => [
-            item.dataset.historyIndex,
-            item,
-          ])
-        );
-        filtered.forEach((item) => {
-          const target = itemsByIndex.get(item.dataset.historyIndex);
-          if (target) container.append(target);
-        });
-      });
-      historyItems.forEach((item) => {
-        item.classList.toggle("d-none", !visibleIndexes.has(item.dataset.historyIndex));
-      });
-      document.querySelectorAll(".history-list").forEach((list) => {
-        list.classList.toggle("d-none", filtered.length === 0);
-      });
-      empty?.classList.toggle("d-none", filtered.length > 0);
-      document.getElementById("history-pagination")?.classList.toggle("d-none", filtered.length === 0);
-      if (pageLabel) pageLabel.textContent = t("index.page_count", { current: currentPage, total: pageCount });
-      if (previous) previous.disabled = currentPage <= 1;
-      if (next) next.disabled = currentPage >= pageCount;
-      document.dispatchEvent(new CustomEvent("history:rendered"));
-    };
-
-    [typeFilter, statusFilter, tagFilter, sourceFilter, sort].forEach((control) => {
-      control?.addEventListener("change", () => {
-        currentPage = 1;
-        renderHistory();
-      });
-    });
-    previous?.addEventListener("click", () => {
-      currentPage -= 1;
-      renderHistory();
-    });
-    next?.addEventListener("click", () => {
-      currentPage += 1;
-      renderHistory();
-    });
-    renderHistory();
-  }
-
-  const historyBulkForm = document.getElementById("history-bulk-form");
-  if (historyBulkForm) {
-    const selectedHistoryKeys = new Set();
-    const historySelectionInputs = () => Array.from(document.querySelectorAll(".history-bulk-select"));
-    const historyUniqueKeys = () => [...new Set(historySelectionInputs().map((input) => input.value).filter(Boolean))];
-    const visibleHistoryKeys = () => [
-      ...new Set(
-        historySelectionInputs()
-          .filter((input) => !input.closest(".history-item")?.classList.contains("d-none"))
-          .map((input) => input.value)
-          .filter(Boolean)
-      ),
-    ];
-    const syncHistoryBulkControls = () => {
-      historySelectionInputs().forEach((input) => {
-        input.checked = selectedHistoryKeys.has(input.value);
-      });
-      const selectedCount = selectedHistoryKeys.size;
-      const totalCount = historyUniqueKeys().length;
-      const count = document.getElementById("history-selected-count");
-      if (count) count.textContent = String(selectedCount);
-      const button = document.getElementById("history-bulk-submit");
-      if (button) button.disabled = selectedCount === 0;
-      const selectAll = document.getElementById("history-bulk-select-all");
-      if (selectAll) {
-        const visibleKeys = visibleHistoryKeys();
-        const visibleSelectedCount = visibleKeys.filter((key) => selectedHistoryKeys.has(key)).length;
-        selectAll.checked = visibleKeys.length > 0 && visibleSelectedCount === visibleKeys.length;
-        selectAll.indeterminate = visibleSelectedCount > 0 && visibleSelectedCount < visibleKeys.length;
-        selectAll.disabled = visibleKeys.length === 0 || totalCount === 0;
-      }
-    };
-
-    historySelectionInputs().forEach((input) => {
-      input.addEventListener("change", () => {
-        if (input.checked) selectedHistoryKeys.add(input.value);
-        else selectedHistoryKeys.delete(input.value);
-        syncHistoryBulkControls();
-      });
-    });
-    document.getElementById("history-bulk-select-all")?.addEventListener("change", (event) => {
-      const keys = visibleHistoryKeys();
-      if (event.target.checked) keys.forEach((key) => selectedHistoryKeys.add(key));
-      else keys.forEach((key) => selectedHistoryKeys.delete(key));
-      syncHistoryBulkControls();
-    });
-    historyBulkForm.addEventListener("submit", (event) => {
-      const selectedCount = selectedHistoryKeys.size;
-      if (!selectedCount || !window.confirm(t("js.history_action_confirm", { action: t("js.history_do_action"), count: selectedCount }))) {
-        event.preventDefault();
-      }
-    });
-    document.addEventListener("history:rendered", syncHistoryBulkControls);
-    syncHistoryBulkControls();
-  }
-
-  const miniPlayerButtons = Array.from(document.querySelectorAll(".history-mini-player-toggle"));
-  if (miniPlayerButtons.length) {
-    const pausePanelMedia = (panel) => {
-      panel.querySelectorAll("audio, video").forEach((media) => media.pause());
-    };
-    const setMiniPlayerOpen = (panel, open) => {
-      panel.classList.toggle("d-none", !open);
-      if (!open) pausePanelMedia(panel);
-      miniPlayerButtons
-        .filter((button) => button.dataset.target === panel.id)
-        .forEach((button) => {
-          button.setAttribute("aria-expanded", String(open));
-          const label = open
-            ? button.dataset.openLabel || "Zamknij"
-            : button.dataset.closedLabel || "Odtwórz tutaj";
-          if (button.classList.contains("history-icon-action")) {
-            button.setAttribute("aria-label", label);
-            button.setAttribute("title", label);
-            const hiddenLabel = button.querySelector(".visually-hidden");
-            if (hiddenLabel) hiddenLabel.textContent = label;
-            return;
-          }
-          button.textContent = label;
-        });
-    };
-
-    miniPlayerButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        const panel = document.getElementById(button.dataset.target || "");
-        if (!panel) return;
-        const shouldOpen = panel.classList.contains("d-none");
-        document.querySelectorAll(".history-mini-player").forEach((otherPanel) => {
-          if (otherPanel !== panel) setMiniPlayerOpen(otherPanel, false);
-        });
-        setMiniPlayerOpen(panel, shouldOpen);
-      });
-    });
-  }
-
   let activeJobStatuses = new Set();
   try {
     activeJobStatuses = new Set(JSON.parse(document.getElementById("active-job-statuses")?.textContent || "[]"));
   } catch (error) {
     console.error(t("js.bad_api"), error);
   }
+
+  const libraryList = document.getElementById("jobs-list");
+  const activeDownloadsList = document.getElementById("active-downloads-list");
+  const recentDownloadsList = document.getElementById("recent-downloads-list");
+  const libraryPageVisible = Boolean(libraryList);
+  const selectedJobIds = new Set();
+  const itemReferences = new WeakMap();
+  let lastSuccessfulJobs = [];
+  let jobsRefreshInProgress = false;
+  let jobsRefreshTimer = 0;
+  let knownJobStatuses = new Map();
+  let jobsFilter = document.getElementById("jobs-filter-state")?.dataset.initialFilter || "all";
+  let jobsQuery = "";
+  let jobsSort = "newest";
+
+  const activeFilterStatuses = new Set(["downloading", "stopping"]);
+  const queuedFilterStatuses = new Set(["pending", "waiting"]);
   const isActiveJob = (job) => activeJobStatuses.has(job.status);
   const isRemovableJob = (job) => job.can_delete === true;
-  const selectedJobIds = new Set();
-  const openJobLogIds = new Set();
-  const jobLogScrollTops = new Map();
-  const jobFilterConfig = {
-    all: {
-      matches: () => true,
-      emptyTitle: t("js.empty_no_jobs"),
-      emptyCopy: t("jobs.empty_copy"),
-    },
-    in_progress: {
-      matches: isActiveJob,
-      emptyTitle: t("js.empty_no_active"),
-      emptyCopy: "Wróć do pełnej kolejki, aby zobaczyć oczekujące, aktywne i zakończone pobrania.",
-    },
-    completed: {
-      matches: (job) => job.status === "completed",
-      emptyTitle: t("js.empty_no_completed"),
-      emptyCopy: "Ukończone pobrania pojawią się tutaj po zakończeniu pracy kolejki.",
-    },
-    errors: {
-      matches: (job) => job.status === "error",
-      emptyTitle: t("js.empty_no_errors"),
-      emptyCopy: "Filtr błędów jest pusty. Wróć do pełnej kolejki, aby zobaczyć aktywne i zakończone pobrania.",
-    },
-    stopped: {
-      matches: (job) => job.status === "stopped",
-      emptyTitle: t("js.empty_no_stopped"),
-      emptyCopy: "Zatrzymane pobrania pojawią się tutaj, gdy przerwiesz je ręcznie.",
-    },
-    interrupted: {
-      matches: (job) => job.status === "interrupted",
-      emptyTitle: t("js.empty_no_interrupted"),
-      emptyCopy: "Przerwane zadania pojawią się tutaj po restarcie lub nieoczekiwanym zatrzymaniu pracy.",
-    },
-  };
-  const initialJobsFilter = document.getElementById("jobs-filter-state")?.dataset.initialFilter || "all";
-  let jobsFilter = jobFilterConfig[initialJobsFilter] ? initialJobsFilter : "all";
 
-  const statusBadge = (job) => {
-    const colors = {
-      pending: "text-bg-secondary",
-      downloading: "text-bg-primary",
-      waiting: "text-bg-info",
-      stopping: "text-bg-warning",
-      completed: "text-bg-success",
-      error: "text-bg-danger",
-      stopped: "text-bg-warning",
-      interrupted: "text-bg-warning",
-    };
-    return text("span", job.status_label, `badge ${colors[job.status] || "text-bg-secondary"}`);
+  const setNodeText = (node, value) => {
+    if (!node) return;
+    const next = String(value ?? "");
+    if (node.textContent !== next) node.textContent = next;
   };
 
-  const progressBar = (job) => {
-    const wrapper = document.createElement("div");
-    wrapper.className = "progress";
-    wrapper.setAttribute("role", "progressbar");
-    wrapper.setAttribute("aria-label", t("js.download_progress"));
-    wrapper.setAttribute("aria-valuenow", String(job.progress || 0));
-    wrapper.setAttribute("aria-valuemin", "0");
-    wrapper.setAttribute("aria-valuemax", "100");
-    const bar = document.createElement("div");
-    bar.className = "progress-bar";
-    bar.style.width = `${Math.min(100, Math.max(0, Number(job.progress) || 0))}%`;
-    wrapper.append(bar);
-    return wrapper;
+  const setNodeAttribute = (node, name, value) => {
+    if (!node) return;
+    const next = String(value ?? "");
+    if (node.getAttribute(name) !== next) node.setAttribute(name, next);
+  };
+
+  const sourceLabel = (job) => {
+    const metadata = job.metadata && typeof job.metadata === "object" ? job.metadata : {};
+    const source = job.extractor_key || job.platform || metadata.extractor_key
+      || metadata.extractor || metadata.platform || job.source_id;
+    if (source) return String(source);
+    try {
+      return new URL(job.url).hostname.replace(/^www\./, "");
+    } catch {
+      return t("js.source_unknown");
+    }
+  };
+
+  const normalizeJob = (raw) => {
+    const job = { ...raw };
+    job.job_id = String(raw?.job_id || "");
+    job.title = String(raw?.title || job.job_id);
+    job.url = String(raw?.url || "");
+    job.status = String(raw?.status || "");
+    job.status_label = String(raw?.status_label || job.status);
+    job.download_type = String(raw?.download_type || "best");
+    job.output_file = String(raw?.output_file || "");
+    job.source_label = sourceLabel(job);
+    job.progress = Math.min(100, Math.max(0, Number(raw?.progress) || 0));
+    job.date_value = String(raw?.finished_at || raw?.created_at || "");
+    job.search_value = [job.title, job.url, job.source_label, job.source_id, job.output_file]
+      .join(" ").toLocaleLowerCase();
+    return job;
   };
 
   const fileSize = (value) => {
     const units = ["B", "KB", "MB", "GB", "TB"];
     let size = Number(value);
-    if (!Number.isFinite(size) || size < 0) return null;
+    if (!Number.isFinite(size) || size < 0) return "";
     for (const unit of units) {
-      if (size < 1024 || unit === units[units.length - 1]) return `${size.toFixed(1)} ${unit}`;
+      if (size < 1024 || unit === units[units.length - 1]) return size.toFixed(1) + " " + unit;
       size /= 1024;
     }
-    return null;
+    return "";
   };
 
   const durationLabel = (value) => {
     const seconds = Number(value);
     if (!Number.isFinite(seconds) || seconds < 0) return "";
     const whole = Math.floor(seconds);
-    const hours = Math.floor(whole / 3600);
-    const minutes = Math.floor((whole % 3600) / 60);
-    const secs = whole % 60;
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    return [Math.floor(whole / 3600), Math.floor((whole % 3600) / 60), whole % 60]
+      .map((part) => String(part).padStart(2, "0")).join(":");
+  };
+
+  const dateLabel = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value).replace("T", " ").slice(0, 19) : date.toLocaleString();
   };
 
   const jobSize = (job) => {
     const downloaded = fileSize(job.downloaded_bytes);
     const total = fileSize(job.total_bytes);
-    if (downloaded && total && job.downloaded_bytes !== job.total_bytes) return `${downloaded} / ${total}`;
-    return downloaded || total || "-";
+    if (downloaded && total && Number(job.downloaded_bytes) !== Number(job.total_bytes)) return downloaded + " / " + total;
+    return downloaded || total || t("common.no_data");
   };
 
   const liveInfo = (job) => {
     if (!job.is_live) return "";
-    if (job.live_status_message) return job.live_status_message;
+    if (job.live_status_message) return String(job.live_status_message);
     const elapsed = durationLabel(job.live_elapsed_seconds);
-    return elapsed ? `czas zapisu ${elapsed}` : "";
+    return elapsed ? t("js.live_elapsed", { time: elapsed }) : "";
   };
 
-  const jobErrorHint = (job) => {
-    const message = String(job.error_message || "").toLowerCase();
-    if (message.includes("space") || message.includes("miejsca") || message.includes("disk")) {
-      return "Wygląda na problem z miejscem na dysku. Zwolnij miejsce albo zmień katalog pobierania i ponów zadanie.";
-    }
-    if (message.includes("timed out") || message.includes("timeout") || message.includes("network") || message.includes("webpage")) {
-      return "Wygląda na problem z połączeniem lub dostępnością strony. Sprawdź sieć, URL i ponów zadanie za chwilę.";
-    }
-    if (message.includes("ffmpeg") || message.includes("postprocessing") || message.includes("conversion")) {
-      return "Pobranie doszło do etapu obróbki pliku. Sprawdź ffmpeg oraz wolne miejsce, potem ponów zadanie.";
-    }
-    if (message.includes("format") || message.includes("requested format")) {
-      return "Wybrany format może nie być już dostępny. Wróć do analizy URL i wybierz inną jakość albo ponów pobieranie.";
-    }
-    return "Sprawdź komunikat błędu, URL i ustawienia formatu. Możesz ponowić zadanie pojedynczo albo użyć akcji dla wszystkich błędów.";
-  };
-
-  const jobErrorBlock = (job) => {
-    if (job.status !== "error" && !job.error_message) return document.createDocumentFragment();
-    const wrapper = document.createElement("div");
-    wrapper.className = "job-error-box mt-2";
-    const header = document.createElement("div");
-    header.className = "d-flex flex-wrap gap-2 justify-content-between align-items-start";
-    const message = text("strong", job.error_message || t("js.job_failed"), "text-danger");
-    if (job.error_code) {
-      message.append(" ", text("span", job.error_code, "badge text-bg-danger ms-1"));
-    }
-    const copyButton = text("button", "Kopiuj błąd", "btn btn-sm btn-soft job-error-copy");
-    copyButton.type = "button";
-    copyButton.dataset.copyText = job.error_message || t("js.job_failed");
-    header.append(message, copyButton);
-    wrapper.append(
-      header,
-      text("small", jobErrorHint(job), "text-body-secondary")
-    );
-    return wrapper;
-  };
-
-  const jobAutoRetryBlock = (job) => {
-    const attempts = Number(job.auto_retry_attempts || 0);
-    const maxAttempts = Number(job.auto_retry_max_attempts || 0);
-    if (!attempts && !job.next_retry_at) return document.createDocumentFragment();
-    let label = "";
-    if (job.next_retry_at) {
-      const retryDate = new Date(job.next_retry_at);
-      const retryLabel = Number.isNaN(retryDate.getTime())
-        ? job.next_retry_at
-        : retryDate.toLocaleString();
-      label = `Automatyczne ponowienie ${attempts}/${maxAttempts}: ${retryLabel}`;
-    } else if (job.status === "error" && maxAttempts && attempts >= maxAttempts) {
-      label = `Wykorzystano automatyczne próby: ${attempts}/${maxAttempts}`;
-    } else if (attempts) {
-      label = `Automatyczne próby: ${attempts}/${maxAttempts || attempts}`;
-    }
-    return label ? text("small", label, "job-auto-retry d-block text-body-secondary mt-1") : document.createDocumentFragment();
-  };
-
-  const captureJobLogScrollPositions = () => {
-    document.querySelectorAll(".job-log[data-job-id] pre").forEach((pre) => {
-      const jobId = pre.closest(".job-log")?.dataset.jobId;
-      if (jobId && pre.offsetParent !== null) jobLogScrollTops.set(jobId, pre.scrollTop);
-    });
-  };
-
-  const jobLogBlock = (job) => {
-    const sourceLines = Array.isArray(job.recent_log_lines) ? job.recent_log_lines : job.log_lines;
-    const lines = Array.isArray(sourceLines) ? sourceLines.filter(Boolean) : [];
-    if (!lines.length) return document.createDocumentFragment();
-    const details = document.createElement("details");
-    details.className = "job-log mt-2";
-    details.dataset.jobId = job.job_id;
-    details.open = openJobLogIds.has(job.job_id);
-    details.addEventListener("toggle", () => {
-      if (details.open) openJobLogIds.add(job.job_id);
-      else openJobLogIds.delete(job.job_id);
-    });
-    const summary = text("summary", `Log (${lines.length})`);
-    const fullLogLink = text("a", "Pełny log", "btn btn-sm btn-soft job-full-log-link");
-    fullLogLink.href = route(`/jobs/log/${encodeURIComponent(job.job_id)}`);
-    fullLogLink.target = "_blank";
-    fullLogLink.rel = "noreferrer";
-    const pre = text("pre", lines.join("\n"));
-    pre.addEventListener("scroll", () => {
-      if (pre.offsetParent !== null) jobLogScrollTops.set(job.job_id, pre.scrollTop);
-    });
-    if (jobLogScrollTops.has(job.job_id)) {
-      requestAnimationFrame(() => {
-        pre.scrollTop = jobLogScrollTops.get(job.job_id) || 0;
-      });
-    }
-    details.append(summary, fullLogLink, pre);
-    return details;
-  };
-
-  const outputLink = (job) => {
-    if (!job.output_file) return text("span", "-", "text-body-secondary");
-    return text("span", job.output_file, "text-body-secondary text-break");
-  };
-
-  const jobPreviewPath = (job) => (
-    job.output_file ? `/view/${encodeURIComponent(job.output_file)}` : ""
-  );
-
-  const jobTitle = (job) => {
-    const heading = document.createElement("strong");
-    const previewPath = jobPreviewPath(job);
-    if (!previewPath) {
-      heading.textContent = job.title;
-      return heading;
-    }
-    const link = text("a", job.title, "job-title-link");
-    link.href = route(previewPath);
-    link.setAttribute("aria-label", t("js.open_preview", { title: job.title }));
-    heading.append(link);
-    return heading;
-  };
-
-  const jobThumbnail = (job, mobile = false) => {
-    if (job.thumbnail_exists && job.thumbnail_filename) {
-      const image = document.createElement("img");
-      image.className = `job-thumbnail${mobile ? " job-thumbnail-mobile" : ""}`;
-      image.src = route(`/thumbnails/${encodeURIComponent(job.thumbnail_filename)}`);
-      image.alt = "";
-      image.loading = "lazy";
-      const previewPath = jobPreviewPath(job);
-      if (previewPath) {
-        const link = document.createElement("a");
-        link.className = `job-thumbnail-link${mobile ? " d-block mb-3" : ""}`;
-        link.href = route(previewPath);
-        link.setAttribute("aria-label", t("js.open_preview", { title: job.title }));
-        link.append(image);
-        return link;
-      }
-      if (mobile) image.classList.add("mb-3");
-      return image;
-    }
-    const placeholder = text("span", "-", `job-thumbnail-placeholder${mobile ? " job-thumbnail-mobile mb-3" : ""}`);
-    placeholder.title = t("js.no_thumbnail");
-    placeholder.setAttribute("aria-label", t("js.no_thumbnail"));
-    return placeholder;
-  };
+  const statusClass = (status) => ({
+    downloading: "library-status-active", stopping: "library-status-stopped",
+    pending: "library-status-queued", waiting: "library-status-queued",
+    completed: "library-status-completed", error: "library-status-error",
+    stopped: "library-status-stopped", interrupted: "library-status-stopped",
+  }[status] || "library-status-neutral");
 
   const actionForm = (action, label, className, confirmation = "") => {
     const form = document.createElement("form");
     form.method = "post";
     form.action = action;
-    if (confirmation) {
-      form.addEventListener("submit", (event) => {
-        if (!window.confirm(confirmation)) event.preventDefault();
-      });
-    }
+    if (confirmation) form.addEventListener("submit", (event) => {
+      if (!window.confirm(confirmation)) event.preventDefault();
+    });
     const token = document.createElement("input");
     token.type = "hidden";
     token.name = "_csrf_token";
@@ -2252,17 +1941,10 @@
     return form;
   };
 
-  const repeatJobForm = (job) => {
-    if (!job.can_repeat || job.file_exists) {
-      return document.createDocumentFragment();
-    }
-    const form = actionForm(route("/download"), t("index.download_again"), "btn btn-sm btn-outline-primary");
-    const fields = {
-      url: job.url,
-      title: job.title,
-      download_type: job.download_type || "best",
-      allow_duplicate: "1",
-    };
+  const repeatJobForm = (job, className = "btn btn-sm btn-soft") => {
+    const form = actionForm(route("/download"), t("common.download_again"), className);
+    const fields = { url: job.url, title: job.title, download_type: job.download_type || "best",
+      storage_name: job.storage_name || "local", allow_duplicate: "1" };
     if (job.format_id) fields.format_id = job.format_id;
     if (job.duration) fields.duration = job.duration;
     Object.entries(fields).forEach(([name, value]) => {
@@ -2275,298 +1957,460 @@
     return form;
   };
 
-  const syncJobSelectionControls = () => {
-    document.querySelectorAll(".job-select").forEach((checkbox) => {
-      checkbox.checked = selectedJobIds.has(checkbox.value);
-    });
-    const inputs = document.getElementById("jobs-selected-inputs");
-    inputs?.replaceChildren();
-    selectedJobIds.forEach((jobId) => {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = "job_ids";
-      input.value = jobId;
-      inputs?.append(input);
-    });
-    const count = document.getElementById("jobs-selected-count");
-    if (count) count.textContent = String(selectedJobIds.size);
-    const button = document.getElementById("jobs-delete-selected");
-    if (button) button.disabled = selectedJobIds.size === 0;
+  const linkAction = (href, label, className = "btn btn-sm btn-soft") => {
+    const link = text("a", label, className);
+    link.href = href;
+    return link;
   };
 
-  const filteredJobs = (jobs) => {
-    const config = jobFilterConfig[jobsFilter] || jobFilterConfig.all;
-    return jobs.filter(config.matches);
+  const deleteFileForm = (job) => {
+    const form = actionForm(route("/delete/" + encodeManagedPath(job.output_file)), t("common.delete_file"),
+      "library-menu-action library-menu-danger",
+      t("js.delete_file_confirm", { filename: job.output_file, size: jobSize(job) }));
+    const returnTo = document.createElement("input");
+    returnTo.type = "hidden";
+    returnTo.name = "return_to";
+    returnTo.value = "jobs";
+    form.append(returnTo);
+    return form;
   };
 
-  const setJobsFilter = (filter, updateUrl = true) => {
-    jobsFilter = jobFilterConfig[filter] ? filter : "all";
-    document.querySelectorAll("[data-jobs-filter]").forEach((button) => {
-      const active = button.dataset.jobsFilter === jobsFilter;
-      const errorButton = button.dataset.jobsFilter === "errors";
-      button.classList.toggle("btn-danger", active && errorButton);
-      button.classList.toggle("btn-outline-danger", errorButton && !(active && errorButton));
-      button.classList.toggle("btn-soft", !errorButton);
-      button.setAttribute("aria-pressed", String(active));
-    });
-    if (updateUrl && document.getElementById("jobs-table-body")) {
-      const url = new URL(window.location.href);
-      if (jobsFilter !== "all") url.searchParams.set("filter", jobsFilter);
-      else url.searchParams.delete("filter");
-      window.history.replaceState({}, "", url);
+  const primaryAction = (job) => {
+    if (job.can_stop) return actionForm(
+      route("/" + (job.is_live ? "live" : "download") + "/stop/" + encodeURIComponent(job.job_id)),
+      t("job.stop"), "btn btn-sm btn-outline-danger");
+    if (job.can_resume) return actionForm(route("/download/resume/" + encodeURIComponent(job.job_id)),
+      t("job.resume"), "btn btn-sm btn-primary");
+    if (job.can_retry) return actionForm(route("/jobs/retry/" + encodeURIComponent(job.job_id)),
+      t("common.retry"), "btn btn-sm btn-primary");
+    if (job.status === "completed" && job.file_exists && job.output_file) {
+      return linkAction(route("/view/" + encodeManagedPath(job.output_file)), t("jobs.open"), "btn btn-sm btn-primary");
     }
+    if (job.status === "completed" && job.can_repeat) return repeatJobForm(job, "btn btn-sm btn-primary");
+    return linkAction(route("/jobs/" + encodeURIComponent(job.job_id)), t("js.primary_details"));
   };
 
-  const updateJobsFilterEmptyState = () => {
-    const config = jobFilterConfig[jobsFilter] || jobFilterConfig.all;
-    const title = document.getElementById("jobs-filter-empty-title");
-    const copy = document.getElementById("jobs-filter-empty-copy");
-    if (title) title.textContent = config.emptyTitle;
-    if (copy) copy.textContent = config.emptyCopy;
-  };
-
-  const updateJobsToolbar = (jobs) => {
-    const jobsById = new Map(jobs.map((job) => [job.job_id, job]));
-    selectedJobIds.forEach((jobId) => {
-      const job = jobsById.get(jobId);
-      if (!job || !isRemovableJob(job)) selectedJobIds.delete(jobId);
-    });
-    const visibleRemovableJobs = filteredJobs(jobs).filter(isRemovableJob);
-    const failedJobs = jobs.filter((job) => job.can_retry === true);
-    document.getElementById("jobs-toolbar")?.classList.toggle("d-none", jobs.length === 0);
-    const totalCount = document.getElementById("jobs-total-count");
-    if (totalCount) totalCount.textContent = String(jobs.length);
-    document.querySelectorAll("[data-jobs-filter-count]").forEach((count) => {
-      const filter = count.dataset.jobsFilterCount || "";
-      const config = jobFilterConfig[filter];
-      count.textContent = String(config ? jobs.filter(config.matches).length : 0);
-    });
-    const errorFilterCount = document.getElementById("jobs-error-filter-count");
-    if (errorFilterCount) errorFilterCount.textContent = String(failedJobs.length);
-    const failedCount = document.getElementById("jobs-failed-count");
-    if (failedCount) failedCount.textContent = String(failedJobs.length);
-    const retryFailed = document.getElementById("jobs-retry-failed");
-    if (retryFailed) retryFailed.disabled = failedJobs.length === 0;
-    const errorPanel = document.getElementById("jobs-error-panel");
-    errorPanel?.classList.toggle("d-none", failedJobs.length === 0);
-    const errorSummary = document.getElementById("jobs-error-summary");
-    if (errorSummary) {
-      errorSummary.textContent = failedJobs.length
-        ? t("jobs.error_summary", { count: failedJobs.length })
-        : t("jobs.error_summary_empty");
+  const menuActions = (job) => {
+    const fragment = document.createDocumentFragment();
+    fragment.append(
+      linkAction(route("/jobs/" + encodeURIComponent(job.job_id)), t("common.details"), "library-menu-action"),
+      linkAction(route("/jobs/log/" + encodeURIComponent(job.job_id)), t("common.full_log"), "library-menu-action")
+    );
+    if (job.can_repeat) fragment.append(repeatJobForm(job, "library-menu-action"));
+    if (job.file_exists && job.output_file) {
+      fragment.append(linkAction(route("/view/" + encodeManagedPath(job.output_file)), t("common.open_file"), "library-menu-action"));
+      fragment.append(deleteFileForm(job));
     }
-    const selectAll = document.getElementById("jobs-select-all");
-    if (selectAll) {
-      const selectedCount = visibleRemovableJobs.filter((job) => selectedJobIds.has(job.job_id)).length;
-      selectAll.disabled = visibleRemovableJobs.length === 0;
-      selectAll.checked = visibleRemovableJobs.length > 0 && selectedCount === visibleRemovableJobs.length;
-      selectAll.indeterminate = selectedCount > 0 && selectedCount < visibleRemovableJobs.length;
-    }
-    setJobsFilter(jobsFilter, false);
-    updateJobsFilterEmptyState();
-    syncJobSelectionControls();
+    if (job.can_delete) fragment.append(actionForm(route("/jobs/delete/" + encodeURIComponent(job.job_id)),
+      t("common.delete_entry"), "library-menu-action library-menu-danger",
+      t("js.delete_entry_confirm", { title: job.title })));
+    return fragment;
   };
 
-  const jobSelection = (job) => {
+  const createMetric = (label) => {
+    const wrapper = document.createElement("span");
+    wrapper.className = "library-metric";
+    wrapper.append(text("small", label), text("strong", ""));
+    return { wrapper, value: wrapper.lastElementChild };
+  };
+
+  const createLibraryItem = (job, options = {}) => {
+    const item = document.createElement("article");
+    item.className = "library-item";
+    item.dataset.jobId = job.job_id;
+    const selectWrap = document.createElement("label");
+    selectWrap.className = "library-select";
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "form-check-input job-select";
     checkbox.value = job.job_id;
-    checkbox.checked = selectedJobIds.has(job.job_id);
-    checkbox.disabled = !isRemovableJob(job);
-    checkbox.setAttribute("aria-label", t("js.select_job", { title: job.title }));
     checkbox.addEventListener("change", () => {
-      if (checkbox.checked) selectedJobIds.add(job.job_id);
-      else selectedJobIds.delete(job.job_id);
-      updateJobsToolbar(lastSuccessfulJobs || []);
+      if (checkbox.checked) selectedJobIds.add(checkbox.value);
+      else selectedJobIds.delete(checkbox.value);
+      updateSelectionControls();
     });
-    return checkbox;
+    selectWrap.append(checkbox);
+
+    const thumbnail = document.createElement("a");
+    thumbnail.className = "library-thumbnail";
+    const image = document.createElement("img");
+    image.alt = "";
+    image.loading = "lazy";
+    const placeholder = svgIcon("file");
+    placeholder.classList.add("library-thumbnail-placeholder");
+    thumbnail.append(image, placeholder);
+
+    const main = document.createElement("div");
+    main.className = "library-main";
+    const titleLink = text("a", "", "library-title");
+    const meta = document.createElement("div");
+    meta.className = "library-meta";
+    const source = text("span", "");
+    const type = text("span", "");
+    const date = text("time", "");
+    meta.append(source, type, date);
+    const file = text("small", "", "library-filename text-body-secondary");
+    const live = text("small", "", "library-live text-body-secondary");
+    const error = document.createElement("div");
+    error.className = "library-error d-none";
+    const errorHeader = document.createElement("div");
+    errorHeader.className = "library-error-header";
+    const errorMessage = text("strong", "");
+    const copyError = text("button", t("js.copy_error_button"), "btn btn-sm btn-soft job-error-copy");
+    copyError.type = "button";
+    errorHeader.append(errorMessage, copyError);
+    const errorHint = text("small", "");
+    error.append(errorHeader, errorHint);
+    const retry = text("small", "", "library-retry text-body-secondary d-none");
+    const log = document.createElement("details");
+    log.className = "library-log d-none";
+    const logSummary = document.createElement("summary");
+    const fullLog = linkAction(route("/jobs/log/" + encodeURIComponent(job.job_id)), t("common.full_log"), "btn btn-sm btn-soft");
+    fullLog.target = "_blank";
+    fullLog.rel = "noreferrer";
+    const logPre = document.createElement("pre");
+    log.append(logSummary, fullLog, logPre);
+    main.append(titleLink, meta, file, live, error, retry, log);
+
+    const state = document.createElement("div");
+    state.className = "library-state";
+    const status = text("span", "", "library-status");
+    const progress = document.createElement("div");
+    progress.className = "library-progress";
+    progress.setAttribute("role", "progressbar");
+    progress.setAttribute("aria-label", t("js.download_progress"));
+    progress.setAttribute("aria-valuemin", "0");
+    progress.setAttribute("aria-valuemax", "100");
+    const progressTrack = document.createElement("div");
+    progressTrack.className = "progress";
+    const progressBar = document.createElement("div");
+    progressBar.className = "progress-bar";
+    progressTrack.append(progressBar);
+    const progressLabel = text("small", "");
+    progress.append(progressTrack, progressLabel);
+    state.append(status, progress);
+
+    const metrics = document.createElement("div");
+    metrics.className = "library-metrics";
+    const size = createMetric(t("common.size"));
+    const speed = createMetric(t("common.speed"));
+    const eta = createMetric(t("common.eta"));
+    metrics.append(size.wrapper, speed.wrapper, eta.wrapper);
+
+    const actions = document.createElement("div");
+    actions.className = "library-actions";
+    const primary = document.createElement("div");
+    primary.className = "library-primary-action";
+    const menu = document.createElement("details");
+    menu.className = "library-menu";
+    const menuButton = document.createElement("summary");
+    menuButton.className = "library-menu-button";
+    menuButton.append(svgIcon("more"));
+    const menuPanel = document.createElement("div");
+    menuPanel.className = "library-menu-panel";
+    menu.append(menuButton, menuPanel);
+    actions.append(primary, menu);
+    if (!options.selectable) selectWrap.classList.add("d-none");
+    if (options.compact) item.classList.add("library-item-compact");
+    item.append(selectWrap, thumbnail, main, state, metrics, actions);
+    itemReferences.set(item, { checkbox, thumbnail, image, placeholder, titleLink, source, type, date,
+      file, live, error, errorMessage, errorHint, copyError, retry, log, logSummary, logPre, fullLog,
+      status, progress, progressBar, progressLabel, size: size.value, speed: speed.value, eta: eta.value,
+      primary, menuButton, menuPanel, actionSignature: "", menuSignature: "" });
+    updateLibraryItem(item, job);
+    return item;
   };
 
-  const jobActions = (job) => {
-    const actions = document.createElement("span");
-    actions.className = "d-flex flex-wrap gap-2";
-    const detailsLink = text("a", t("common.details"), "btn btn-sm btn-soft");
-    detailsLink.href = route(`/jobs/${encodeURIComponent(job.job_id)}`);
-    actions.append(detailsLink);
-    if (job.can_stop) {
-      actions.append(actionForm(
-        route(`/${job.is_live ? "live" : "download"}/stop/${encodeURIComponent(job.job_id)}`),
-        translations["job.stop"] || "Stop",
-        "btn btn-sm btn-outline-danger"
-      ));
-    } else if (job.can_resume) {
-      actions.append(actionForm(
-        route(`/download/resume/${encodeURIComponent(job.job_id)}`),
-        translations["job.resume"] || "Resume",
-        "btn btn-sm btn-outline-primary"
-      ));
+  const errorHint = (job) => {
+    const message = String(job.error_message || "").toLowerCase();
+    if (message.includes("space") || message.includes("miejsca") || message.includes("disk")) return t("js.error_hint_storage");
+    if (message.includes("timeout") || message.includes("network") || message.includes("webpage")) return t("js.error_hint_network");
+    if (message.includes("ffmpeg") || message.includes("postprocessing") || message.includes("conversion")) return t("js.error_hint_ffmpeg");
+    if (message.includes("format")) return t("js.error_hint_format");
+    return t("js.error_hint_default");
+  };
+
+  const retryLabel = (job) => {
+    const attempts = Number(job.auto_retry_attempts || 0);
+    const max = Number(job.auto_retry_max_attempts || 0);
+    if (job.next_retry_at) return t("js.auto_retry_scheduled", { attempts, max, time: dateLabel(job.next_retry_at) });
+    if (job.status === "error" && max && attempts >= max) return t("js.auto_retry_exhausted", { attempts, max });
+    return attempts ? t("js.auto_retry_attempts", { attempts, max: max || attempts }) : "";
+  };
+
+  function updateLibraryItem(item, job) {
+    const refs = itemReferences.get(item);
+    if (item.dataset.status !== job.status) item.dataset.status = job.status;
+    if (refs.checkbox.value !== job.job_id) refs.checkbox.value = job.job_id;
+    const selected = selectedJobIds.has(job.job_id);
+    if (refs.checkbox.checked !== selected) refs.checkbox.checked = selected;
+    const disabled = !isRemovableJob(job);
+    if (refs.checkbox.disabled !== disabled) refs.checkbox.disabled = disabled;
+    setNodeAttribute(refs.checkbox, "aria-label", t("js.select_job", { title: job.title }));
+    const preview = job.file_exists && job.output_file
+      ? route("/view/" + encodeManagedPath(job.output_file))
+      : route("/jobs/" + encodeURIComponent(job.job_id));
+    setNodeAttribute(refs.thumbnail, "href", preview);
+    setNodeAttribute(refs.thumbnail, "aria-label", t("js.open_preview", { title: job.title }));
+    const hasThumbnail = Boolean(job.thumbnail_exists && job.thumbnail_filename);
+    refs.image.classList.toggle("d-none", !hasThumbnail);
+    refs.placeholder.classList.toggle("d-none", hasThumbnail);
+    if (hasThumbnail) {
+      const src = route("/thumbnails/" + encodeURIComponent(job.thumbnail_filename));
+      setNodeAttribute(refs.image, "src", src);
     }
-    if (job.can_retry) {
-      actions.append(actionForm(
-        route(`/jobs/retry/${encodeURIComponent(job.job_id)}`),
-        t("common.retry"),
-        "btn btn-sm btn-outline-primary"
-      ));
+    setNodeText(refs.titleLink, job.title);
+    setNodeAttribute(refs.titleLink, "href", preview);
+    setNodeText(refs.source, job.source_label);
+    setNodeText(refs.type, downloadTypeLabel(job.download_type));
+    setNodeText(refs.date, dateLabel(job.date_value));
+    setNodeAttribute(refs.date, "datetime", job.date_value);
+    setNodeText(refs.file, job.output_file || t("js.no_filename"));
+    const live = liveInfo(job);
+    setNodeText(refs.live, live);
+    refs.live.classList.toggle("d-none", !live);
+    setNodeText(refs.status, job.status_label);
+    const nextStatusClass = "library-status " + statusClass(job.status);
+    if (refs.status.className !== nextStatusClass) refs.status.className = nextStatusClass;
+    setNodeAttribute(refs.progress, "aria-valuenow", job.progress);
+    refs.progress.classList.toggle("d-none", !activeFilterStatuses.has(job.status));
+    const progressWidth = job.progress + "%";
+    if (refs.progressBar.style.width !== progressWidth) refs.progressBar.style.width = progressWidth;
+    setNodeText(refs.progressLabel, job.progress.toFixed(0) + "%");
+    setNodeText(refs.size, jobSize(job));
+    setNodeText(refs.speed, job.speed || t("common.no_data"));
+    setNodeText(refs.eta, job.eta || t("common.no_data"));
+    const hasError = Boolean(job.error_message || job.status === "error");
+    refs.error.classList.toggle("d-none", !hasError);
+    setNodeText(refs.errorMessage, job.error_message || t("js.job_failed"));
+    setNodeText(refs.errorHint, errorHint(job));
+    refs.copyError.dataset.copyText = job.error_message || t("js.job_failed");
+    const retryText = retryLabel(job);
+    setNodeText(refs.retry, retryText);
+    refs.retry.classList.toggle("d-none", !retryText);
+    const logLines = (Array.isArray(job.recent_log_lines) ? job.recent_log_lines : job.log_lines) || [];
+    const cleanLogLines = logLines.filter(Boolean);
+    refs.log.classList.toggle("d-none", cleanLogLines.length === 0);
+    setNodeText(refs.logSummary, t("js.log_summary", { count: cleanLogLines.length }));
+    const nextLog = cleanLogLines.join("\n");
+    if (refs.logPre.textContent !== nextLog) {
+      const scrollTop = refs.logPre.scrollTop;
+      refs.logPre.textContent = nextLog;
+      refs.logPre.scrollTop = scrollTop;
     }
-    actions.append(repeatJobForm(job));
-    if (isRemovableJob(job)) {
-      if (job.file_exists && job.output_file) {
-        const deleteFileForm = actionForm(
-          route(`/delete/${encodeURIComponent(job.output_file)}`),
-          t("common.delete_file"),
-          "btn btn-sm btn-outline-danger",
-          t("js.delete_file_confirm", { filename: job.output_file, size: job.filesize_label || "-" })
-        );
-        const returnTo = document.createElement("input");
-        returnTo.type = "hidden";
-        returnTo.name = "return_to";
-        returnTo.value = "jobs";
-        deleteFileForm.append(returnTo);
-        actions.append(deleteFileForm);
-      } else {
-        actions.append(actionForm(
-          route(`/jobs/delete/${encodeURIComponent(job.job_id)}`),
-          t("common.delete_job"),
-          "btn btn-sm btn-outline-danger",
-          t("js.delete_job_confirm", { title: job.title })
-        ));
+    setNodeAttribute(refs.fullLog, "href", route("/jobs/log/" + encodeURIComponent(job.job_id)));
+    const actionSignature = [job.status, job.can_stop, job.can_resume, job.can_retry, job.can_repeat, job.file_exists, job.output_file].join("|");
+    if (refs.actionSignature !== actionSignature) {
+      const restoreFocus = refs.primary.contains(document.activeElement);
+      refs.primary.replaceChildren(primaryAction(job));
+      if (restoreFocus) refs.primary.querySelector("a, button")?.focus({ preventScroll: true });
+      refs.actionSignature = actionSignature;
+    }
+    const menuSignature = [job.can_repeat, job.can_delete, job.file_exists, job.output_file, job.title].join("|");
+    if (refs.menuSignature !== menuSignature) {
+      const restoreFocus = refs.menuPanel.contains(document.activeElement);
+      refs.menuPanel.replaceChildren(menuActions(job));
+      if (restoreFocus) refs.menuPanel.querySelector("a, button")?.focus({ preventScroll: true });
+      refs.menuSignature = menuSignature;
+    }
+    const menuLabel = t("jobs.more_actions", { title: job.title });
+    setNodeAttribute(refs.menuButton, "aria-label", menuLabel);
+    setNodeAttribute(refs.menuButton, "title", menuLabel);
+  }
+
+  const reconcileList = (container, jobs, options = {}) => {
+    if (!container) return;
+    const existing = new Map(Array.from(container.querySelectorAll(":scope > .library-item[data-job-id]"))
+      .map((item) => [item.dataset.jobId, item]));
+    const wanted = new Set(jobs.map((job) => job.job_id));
+    existing.forEach((item, jobId) => { if (!wanted.has(jobId)) item.remove(); });
+    jobs.forEach((job, index) => {
+      let item = existing.get(job.job_id);
+      if (!item) item = createLibraryItem(job, options);
+      else updateLibraryItem(item, job);
+      const position = container.children[index];
+      if (position !== item) container.insertBefore(item, position || null);
+    });
+  };
+
+  const jobFilterConfig = {
+    all: { matches: () => true, title: t("js.empty_no_jobs"), copy: t("jobs.empty_copy") },
+    active: { matches: (job) => activeFilterStatuses.has(job.status), title: t("js.empty_no_active"), copy: t("jobs.empty_active_copy") },
+    queued: { matches: (job) => queuedFilterStatuses.has(job.status), title: t("js.empty_no_queued"), copy: t("jobs.empty_queued_copy") },
+    completed: { matches: (job) => job.status === "completed", title: t("js.empty_no_completed"), copy: t("jobs.empty_completed_copy") },
+    errors: { matches: (job) => job.status === "error", title: t("js.empty_no_errors"), copy: t("jobs.empty_errors_copy") },
+    stopped: { matches: (job) => job.status === "stopped", title: t("js.empty_no_stopped"), copy: t("jobs.empty_stopped_copy") },
+    interrupted: { matches: (job) => job.status === "interrupted", title: t("js.empty_no_interrupted"), copy: t("jobs.empty_interrupted_copy") },
+  };
+  if (!jobFilterConfig[jobsFilter]) jobsFilter = "all";
+  const matchesLibraryFilters = (job) => {
+    const statusMatch = (jobFilterConfig[jobsFilter] || jobFilterConfig.all).matches(job);
+    return statusMatch && (!jobsQuery || job.search_value.includes(jobsQuery));
+  };
+  const sortJobs = (jobs) => [...jobs].sort((left, right) => {
+    if (jobsSort === "title") return left.title.localeCompare(right.title);
+    if (jobsSort === "status") return left.status_label.localeCompare(right.status_label);
+    const order = left.date_value.localeCompare(right.date_value);
+    return jobsSort === "oldest" ? order : -order;
+  });
+
+  const updateSelectionControls = () => {
+    const jobsById = new Map(lastSuccessfulJobs.map((job) => [job.job_id, job]));
+    selectedJobIds.forEach((jobId) => {
+      if (!jobsById.has(jobId) || !isRemovableJob(jobsById.get(jobId))) selectedJobIds.delete(jobId);
+    });
+    document.querySelectorAll(".job-select").forEach((checkbox) => {
+      checkbox.checked = selectedJobIds.has(checkbox.value);
+    });
+    const inputs = document.getElementById("jobs-selected-inputs");
+    if (inputs) {
+      const currentIds = Array.from(inputs.querySelectorAll('input[name="job_ids"]')).map((input) => input.value);
+      const nextIds = Array.from(selectedJobIds);
+      if (currentIds.join("|") !== nextIds.join("|")) {
+        inputs.replaceChildren();
+        nextIds.forEach((jobId) => {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "job_ids";
+          input.value = jobId;
+          inputs.append(input);
+        });
       }
     }
-    return actions;
+    setNodeText(document.getElementById("jobs-selected-count"), selectedJobIds.size);
+    const submit = document.getElementById("jobs-bulk-submit");
+    if (submit) submit.disabled = selectedJobIds.size === 0;
+    const visible = lastSuccessfulJobs.filter(matchesLibraryFilters).filter(isRemovableJob);
+    const selectedVisible = visible.filter((job) => selectedJobIds.has(job.job_id)).length;
+    const selectAll = document.getElementById("jobs-select-all");
+    if (selectAll) {
+      selectAll.disabled = visible.length === 0;
+      selectAll.checked = visible.length > 0 && selectedVisible === visible.length;
+      selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visible.length;
+    }
   };
 
-  const renderTable = (jobs) => {
-    const body = document.getElementById("jobs-table-body");
-    if (!body) return;
-    body.replaceChildren();
-    jobs.forEach((job) => {
-      const row = document.createElement("tr");
-      const selectCell = document.createElement("td");
-      selectCell.append(jobSelection(job));
-      const thumbnailCell = document.createElement("td");
-      thumbnailCell.append(jobThumbnail(job));
-      const titleCell = document.createElement("td");
-      titleCell.append(
-        jobTitle(job),
-        text("small", liveInfo(job), "d-block text-body-secondary"),
-        jobErrorBlock(job),
-        jobAutoRetryBlock(job),
-        text("small", job.warning_message || "", "job-error d-block text-warning"),
-        jobLogBlock(job)
-      );
-      const typeCell = text("td", downloadTypeLabel(job.download_type));
-      const statusCell = document.createElement("td");
-      statusCell.append(statusBadge(job));
-      const progressCell = document.createElement("td");
-      progressCell.append(progressBar(job), text("small", `${job.progress || 0}%`, "text-body-secondary"));
-      const sizeCell = text("td", jobSize(job));
-      const speedCell = text("td", job.speed || "-");
-      const etaCell = text("td", job.eta || "-");
-      const outputCell = document.createElement("td");
-      outputCell.append(outputLink(job));
-      const actionCell = document.createElement("td");
-      actionCell.append(jobActions(job));
-      row.append(selectCell, thumbnailCell, titleCell, typeCell, statusCell, progressCell, sizeCell, speedCell, etaCell, outputCell, actionCell);
-      body.append(row);
+  const updateFilterControls = () => {
+    document.querySelectorAll("[data-jobs-filter]").forEach((button) => {
+      const active = button.dataset.jobsFilter === jobsFilter;
+      button.setAttribute("aria-pressed", String(active));
+      button.classList.toggle("btn-primary", active);
+      button.classList.toggle("btn-soft", !active);
+    });
+    document.querySelectorAll("[data-jobs-filter-count]").forEach((count) => {
+      const config = jobFilterConfig[count.dataset.jobsFilterCount] || jobFilterConfig.all;
+      setNodeText(count, lastSuccessfulJobs.filter(config.matches).length);
     });
   };
 
-  const renderCards = (jobs) => {
-    const list = document.getElementById("jobs-card-list");
-    if (!list) return;
-    list.replaceChildren();
-    jobs.forEach((job) => {
-      const card = document.createElement("article");
-      card.className = "mobile-list-card p-3 mb-3";
-      const heading = jobTitle(job);
-      heading.classList.add("d-block");
-      const liveMeta = liveInfo(job);
-      const meta = text("small", `${downloadTypeLabel(job.download_type)} | ${jobSize(job)} | ${job.speed || "-"} | ETA ${job.eta || "-"}${liveMeta ? ` | ${liveMeta}` : ""}`, "d-block text-body-secondary mb-2");
-      const status = statusBadge(job);
-      const progress = progressBar(job);
-      progress.classList.add("my-2");
-      const warning = text("small", job.warning_message || "", "d-block text-warning mb-2");
-      const actions = document.createElement("div");
-      actions.className = "d-flex flex-wrap gap-2 align-items-center";
-      const selection = document.createElement("label");
-      selection.className = "form-check d-flex gap-2 align-items-center mb-0";
-      selection.append(jobSelection(job), text("span", "Zaznacz", "form-check-label"));
-      actions.append(selection, outputLink(job), jobActions(job));
-      card.append(jobThumbnail(job, true), heading, meta, status, progress, text("small", `${job.progress || 0}%`, "text-body-secondary"), jobErrorBlock(job), jobAutoRetryBlock(job), warning, jobLogBlock(job), actions);
-      list.append(card);
+  const updateLibraryPresentation = () => {
+    if (!libraryList) return;
+    const ordered = sortJobs(lastSuccessfulJobs);
+    reconcileList(libraryList, ordered, { selectable: true });
+    const visibleIds = new Set(ordered.filter(matchesLibraryFilters).map((job) => job.job_id));
+    libraryList.querySelectorAll(":scope > .library-item").forEach((item) => {
+      item.classList.toggle("d-none", !visibleIds.has(item.dataset.jobId));
     });
+    setNodeText(document.getElementById("jobs-result-count"), t("jobs.results", { count: visibleIds.size }));
+    const empty = document.getElementById("jobs-empty");
+    empty?.classList.toggle("d-none", visibleIds.size > 0);
+    const filtered = Boolean(jobsQuery || jobsFilter !== "all");
+    const filterEmpty = jobFilterConfig[jobsFilter] || jobFilterConfig.all;
+    const emptyTitle = jobsQuery ? t("jobs.empty_search") : filterEmpty.title;
+    const emptyCopy = jobsQuery ? t("jobs.empty_search_copy") : filterEmpty.copy;
+    setNodeText(document.getElementById("jobs-empty-title"), emptyTitle);
+    setNodeText(document.getElementById("jobs-empty-copy"), emptyCopy);
+    document.getElementById("jobs-empty-show-all")?.classList.toggle("d-none", !filtered);
+    const retryFailed = document.getElementById("jobs-retry-failed");
+    if (retryFailed) retryFailed.disabled = !lastSuccessfulJobs.some((job) => job.can_retry === true);
+    updateFilterControls();
+    updateSelectionControls();
   };
 
-  const updateActiveJobsBadge = (jobs) => {
+  const updateStats = (jobs) => {
+    setNodeText(document.getElementById("stat-active"), jobs.filter((job) => activeFilterStatuses.has(job.status)).length);
+    setNodeText(document.getElementById("stat-queued"), jobs.filter((job) => queuedFilterStatuses.has(job.status)).length);
+    setNodeText(document.getElementById("stat-errors"), jobs.filter((job) => job.status === "error").length);
+    const activeCount = jobs.filter(isActiveJob).length;
     const badge = document.getElementById("active-jobs-badge");
-    if (badge) badge.textContent = String(jobs.filter(isActiveJob).length);
+    setNodeText(badge, activeCount);
+    setNodeAttribute(badge, "aria-label", t("nav.active_jobs", { count: activeCount }));
+  };
+  const updateDashboardLists = (jobs) => {
+    const active = sortJobs(jobs.filter((job) => activeFilterStatuses.has(job.status))).slice(0, 3);
+    const completed = sortJobs(jobs.filter((job) => job.status === "completed")).slice(0, 5);
+    reconcileList(activeDownloadsList, active, { compact: true });
+    reconcileList(recentDownloadsList, completed, { compact: true });
+    document.getElementById("active-downloads-section")?.classList.toggle("d-none", active.length === 0);
+    document.getElementById("recent-downloads-empty")?.classList.toggle("d-none", completed.length > 0);
+  };
+  const updateJobsView = (rawJobs) => {
+    lastSuccessfulJobs = rawJobs.map(normalizeJob);
+    updateStats(lastSuccessfulJobs);
+    updateDashboardLists(lastSuccessfulJobs);
+    updateLibraryPresentation();
+  };
+  const setJobsFilter = (filter) => {
+    jobsFilter = jobFilterConfig[filter] ? filter : "all";
+    if (libraryPageVisible) {
+      const url = new URL(window.location.href);
+      if (jobsFilter === "all") url.searchParams.delete("filter");
+      else url.searchParams.set("filter", jobsFilter);
+      window.history.replaceState({}, "", url);
+    }
+    updateLibraryPresentation();
   };
 
-  const updateJobsView = (jobs) => {
-    updateActiveJobsBadge(jobs);
-    if (!document.getElementById("jobs-table-body")) return;
-    captureJobLogScrollPositions();
-    const visibleJobs = filteredJobs(jobs);
-    document.getElementById("jobs-empty")?.classList.toggle("d-none", jobs.length > 0);
-    document.getElementById("jobs-filter-empty")?.classList.toggle("d-none", jobs.length === 0 || visibleJobs.length > 0);
-    updateJobsToolbar(jobs);
-    renderTable(visibleJobs);
-    renderCards(visibleJobs);
-  };
-
+  document.querySelectorAll("[data-jobs-filter]").forEach((button) => {
+    button.addEventListener("click", () => setJobsFilter(button.dataset.jobsFilter || "all"));
+  });
+  document.getElementById("jobs-search")?.addEventListener("input", (event) => {
+    jobsQuery = event.target.value.trim().toLocaleLowerCase();
+    updateLibraryPresentation();
+  });
+  document.getElementById("jobs-sort")?.addEventListener("change", (event) => {
+    jobsSort = event.target.value;
+    updateLibraryPresentation();
+  });
+  document.getElementById("jobs-empty-show-all")?.addEventListener("click", () => {
+    const search = document.getElementById("jobs-search");
+    if (search) search.value = "";
+    jobsQuery = "";
+    setJobsFilter("all");
+  });
   document.getElementById("jobs-select-all")?.addEventListener("change", (event) => {
-    filteredJobs(lastSuccessfulJobs || []).filter(isRemovableJob).forEach((job) => {
+    lastSuccessfulJobs.filter(matchesLibraryFilters).filter(isRemovableJob).forEach((job) => {
       if (event.target.checked) selectedJobIds.add(job.job_id);
       else selectedJobIds.delete(job.job_id);
     });
-    updateJobsToolbar(lastSuccessfulJobs || []);
+    updateSelectionControls();
   });
 
-  document.querySelectorAll("[data-jobs-filter]").forEach((button) => {
-    button.addEventListener("click", () => {
-      setJobsFilter(button.dataset.jobsFilter);
-      updateJobsView(lastSuccessfulJobs || []);
-    });
-  });
-
-  document.getElementById("jobs-show-errors")?.addEventListener("click", () => {
-    setJobsFilter("errors");
-    updateJobsView(lastSuccessfulJobs || []);
-  });
-
-  document.getElementById("jobs-select-errors")?.addEventListener("click", () => {
-    (lastSuccessfulJobs || [])
-      .filter((job) => job.can_retry === true)
-      .forEach((job) => selectedJobIds.add(job.job_id));
-    setJobsFilter("errors");
-    updateJobsView(lastSuccessfulJobs || []);
-  });
-
-  document.getElementById("jobs-delete-selected-form")?.addEventListener("submit", (event) => {
-    if (!selectedJobIds.size || !window.confirm(t("js.delete_selected_jobs", { count: selectedJobIds.size }))) {
+  const bulkForm = document.getElementById("jobs-bulk-form");
+  const bulkAction = document.getElementById("jobs-bulk-action");
+  bulkForm?.addEventListener("submit", (event) => {
+    const action = bulkAction?.value || "delete_jobs";
+    if (!selectedJobIds.size) {
       event.preventDefault();
+      return;
     }
-  });
-
-  document.getElementById("jobs-clear-form")?.addEventListener("submit", (event) => {
-    if (!window.confirm(t("js.clear_jobs"))) {
+    const actionLabels = { delete_jobs: t("js.history_delete_entries"),
+      delete_files: t("js.history_delete_files"), repeat: t("js.history_repeat") };
+    if (!window.confirm(t("js.history_action_confirm", { action: actionLabels[action], count: selectedJobIds.size }))) {
       event.preventDefault();
+      return;
     }
+    bulkForm.action = action === "delete_jobs" ? route("/jobs/delete") : route("/history/jobs/bulk");
+    const actionValue = document.getElementById("jobs-bulk-action-value");
+    if (actionValue) actionValue.value = action;
   });
-
   document.getElementById("jobs-retry-failed-form")?.addEventListener("submit", (event) => {
-    const failedCount = (lastSuccessfulJobs || []).filter((job) => job.can_retry === true).length;
-    if (!failedCount || !window.confirm(t("js.retry_failed_jobs", { count: failedCount }))) {
-      event.preventDefault();
-    }
+    const count = lastSuccessfulJobs.filter((job) => job.can_retry === true).length;
+    if (!count || !window.confirm(t("js.retry_failed_jobs", { count }))) event.preventDefault();
   });
 
   const copyTextToClipboard = async (value) => {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return;
-    }
+    if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(value);
     const fallback = document.createElement("textarea");
     fallback.value = value;
     fallback.setAttribute("readonly", "readonly");
@@ -2577,11 +2421,10 @@
     document.execCommand("copy");
     fallback.remove();
   };
-
   document.addEventListener("click", async (event) => {
     const button = event.target.closest(".job-error-copy");
     if (!button) return;
-    const originalLabel = button.textContent;
+    const original = button.textContent;
     try {
       await copyTextToClipboard(button.dataset.copyText || "");
       button.textContent = t("js.copied");
@@ -2589,65 +2432,63 @@
       console.error(t("js.copy_error"), error);
       button.textContent = t("js.copy_error");
     } finally {
-      window.setTimeout(() => {
-        button.textContent = originalLabel;
-      }, 1600);
+      window.setTimeout(() => { button.textContent = original; }, 1600);
     }
   });
-
-  const setJobsRefreshError = (visible) => {
-    document.getElementById("jobs-refresh-error")?.classList.toggle("d-none", !visible);
-  };
-
-  let lastSuccessfulJobs = null;
-  let jobsRefreshInProgress = false;
-  let knownJobStatuses = new Map();
 
   const notifyNewJobErrors = (jobs) => {
     const hadSnapshot = knownJobStatuses.size > 0;
     jobs.forEach((job) => {
-      const previousStatus = knownJobStatuses.get(job.job_id);
-      if (hadSnapshot && job.status === "error" && previousStatus !== "error") {
+      const previous = knownJobStatuses.get(job.job_id);
+      if (hadSnapshot && job.status === "error" && previous !== "error") {
         showAppToast(t("js.job_error_toast", { title: job.title || job.job_id }), {
-          type: "danger",
-          actionHref: route(`/jobs/log/${encodeURIComponent(job.job_id)}`),
-          actionLabel: t("common.open_log"),
-        });
+          type: "danger", actionHref: route("/jobs/log/" + encodeURIComponent(job.job_id)),
+          actionLabel: t("common.open_log") });
       }
     });
     knownJobStatuses = new Map(jobs.map((job) => [job.job_id, job.status]));
   };
-
-  const refreshJobs = async () => {
-    if (!document.getElementById("active-jobs-badge") || jobsRefreshInProgress) return;
+  const pollingDelay = () => {
+    if (lastSuccessfulJobs.some(isActiveJob)) return 1000;
+    return libraryPageVisible ? 3000 : 5000;
+  };
+  const scheduleJobsRefresh = () => {
+    window.clearTimeout(jobsRefreshTimer);
+    if (!document.hidden && document.getElementById("active-jobs-badge")) {
+      jobsRefreshTimer = window.setTimeout(refreshJobs, pollingDelay());
+    }
+  };
+  async function refreshJobs() {
+    if (!document.getElementById("active-jobs-badge") || jobsRefreshInProgress || document.hidden) return;
     jobsRefreshInProgress = true;
     try {
-      const response = await fetch(route("/api/jobs"), {
-        cache: "no-store",
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const response = await fetch(route("/api/jobs"), { cache: "no-store", headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error("HTTP " + response.status);
       const payload = await response.json();
       if (!payload || !Array.isArray(payload.jobs)) throw new Error(t("js.bad_api"));
       notifyNewJobErrors(payload.jobs);
-      lastSuccessfulJobs = payload.jobs;
-      setJobsRefreshError(false);
-      updateJobsView(lastSuccessfulJobs);
+      updateJobsView(payload.jobs);
+      document.getElementById("jobs-refresh-error")?.classList.add("d-none");
     } catch (error) {
       console.error(t("js.refresh_failed"), error);
-      setJobsRefreshError(true);
-      if (lastSuccessfulJobs) updateJobsView(lastSuccessfulJobs);
+      document.getElementById("jobs-refresh-error")?.classList.remove("d-none");
     } finally {
       jobsRefreshInProgress = false;
+      scheduleJobsRefresh();
     }
-  };
-
-  refreshJobs();
-  if (document.getElementById("active-jobs-badge")) {
-    window.setInterval(refreshJobs, jobsRefreshIntervalMs);
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) refreshJobs();
-    });
-    window.addEventListener("focus", refreshJobs);
   }
+
+  try {
+    const initialJobs = JSON.parse(document.getElementById("initial-jobs")?.textContent || "[]");
+    if (Array.isArray(initialJobs)) updateJobsView(initialJobs);
+  } catch (error) {
+    console.error(t("js.bad_api"), error);
+  }
+  refreshJobs();
+  document.addEventListener("visibilitychange", () => {
+    window.clearTimeout(jobsRefreshTimer);
+    if (!document.hidden) refreshJobs();
+  });
+  window.addEventListener("focus", refreshJobs);
+
 })();

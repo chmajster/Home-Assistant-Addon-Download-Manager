@@ -1,111 +1,72 @@
 {% extends "base.html" %}
 {% block title %}{{ t('jobs.title') }}{% endblock %}
 {% block content %}
-  <div class="page-heading d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <span class="eyebrow">{{ t('jobs.queue') }}</span>
-      <h1 class="h2 mb-1">{{ t('jobs.heading') }}</h1>
-      <p class="section-copy mb-0">{{ t('jobs.live_refresh') }}</p>
-    </div>
-    <a class="btn btn-soft" href="{{ ingress_url('web.index') }}">{{ t('common.start') }}</a>
-  </div>
-  <section class="card app-card">
-    <div class="card-body">
+  <header class="page-heading library-page-heading mb-3">
+    <span class="eyebrow">{{ t('jobs.queue') }}</span>
+    <h1 class="h2 mb-1">{{ t('jobs.heading') }}</h1>
+    <p class="section-copy mb-0">{{ t('jobs.live_refresh') }}</p>
+  </header>
+
+  <section class="card app-card library-shell" aria-label="{{ t('jobs.heading') }}">
+    <div class="card-body p-3 p-lg-4">
       <div id="jobs-filter-state" data-initial-filter="{{ job_filter }}"></div>
-      <div id="jobs-toolbar" class="table-toolbar d-flex flex-wrap gap-2 align-items-center mb-3{% if not jobs %} d-none{% endif %}">
-        <div class="btn-group btn-group-sm jobs-filter-group" role="group" aria-label="{{ t('jobs.filter_label') }}">
-          <button id="jobs-filter-all" class="btn btn-soft" type="button" data-jobs-filter="all" aria-pressed="false">
-            {{ t('jobs.all') }} (<span id="jobs-total-count">0</span>)
-          </button>
-          <button id="jobs-filter-in-progress" class="btn btn-soft" type="button" data-jobs-filter="in_progress" aria-pressed="false">
-            {{ t('jobs.in_progress') }} (<span data-jobs-filter-count="in_progress">0</span>)
-          </button>
-          <button id="jobs-filter-completed" class="btn btn-soft" type="button" data-jobs-filter="completed" aria-pressed="false">
-            {{ t('jobs.completed') }} (<span data-jobs-filter-count="completed">0</span>)
-          </button>
-          <button id="jobs-filter-errors" class="btn btn-outline-danger" type="button" data-jobs-filter="errors" aria-pressed="false">
-            {{ t('jobs.errors') }} (<span id="jobs-error-filter-count">0</span>)
-          </button>
-          <button id="jobs-filter-stopped" class="btn btn-soft" type="button" data-jobs-filter="stopped" aria-pressed="false">
-            {{ t('jobs.stopped') }} (<span data-jobs-filter-count="stopped">0</span>)
-          </button>
-          <button id="jobs-filter-interrupted" class="btn btn-soft" type="button" data-jobs-filter="interrupted" aria-pressed="false">
-            {{ t('jobs.interrupted') }} (<span data-jobs-filter-count="interrupted">0</span>)
-          </button>
+      <script id="initial-jobs" type="application/json">{{ jobs|tojson }}</script>
+
+      <div id="jobs-toolbar" class="library-toolbar">
+        <div class="library-search">
+          <label class="visually-hidden" for="jobs-search">{{ t('jobs.search_label') }}</label>
+          <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input class="form-control" id="jobs-search" type="search" placeholder="{{ t('jobs.search_placeholder') }}" autocomplete="off">
         </div>
-        <form id="jobs-delete-selected-form" method="post" action="{{ ingress_url('web.delete_jobs') }}">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <span id="jobs-selected-inputs"></span>
-          <button id="jobs-delete-selected" class="btn btn-sm btn-outline-danger" type="submit" disabled>
-            {{ t('jobs.delete_selected') }} (<span id="jobs-selected-count">0</span>)
-          </button>
-        </form>
-        <form id="jobs-clear-form" method="post" action="{{ ingress_url('web.clear_jobs') }}">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <button id="jobs-clear" class="btn btn-sm btn-outline-danger" type="submit">{{ t('jobs.clear') }}</button>
-        </form>
-        <form id="jobs-retry-failed-form" method="post" action="{{ ingress_url('web.retry_failed_jobs') }}">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <button id="jobs-retry-failed" class="btn btn-sm btn-outline-primary" type="submit" disabled>
-            {{ t('jobs.retry_failed') }} (<span id="jobs-failed-count">0</span>)
-          </button>
-        </form>
-        <small class="text-body-secondary">{{ t('jobs.active_stay') }}</small>
-      </div>
-      <div id="jobs-error-panel" class="jobs-error-panel d-none mb-3">
-        <div>
-          <strong>{{ t('jobs.error_panel') }}</strong>
-          <small id="jobs-error-summary" class="d-block text-body-secondary">{{ t('jobs.error_summary_empty') }}</small>
+        <div class="library-filter-group" role="group" aria-label="{{ t('jobs.filter_label') }}">
+          {% for value, label_key in [('all', 'jobs.all'), ('active', 'jobs.active'), ('queued', 'jobs.queued'), ('completed', 'jobs.completed'), ('errors', 'jobs.errors'), ('stopped', 'jobs.stopped'), ('interrupted', 'jobs.interrupted')] %}
+            <button class="btn btn-sm btn-soft" type="button" data-jobs-filter="{{ value }}" aria-pressed="false">
+              {{ t(label_key) }} <span class="filter-count" data-jobs-filter-count="{{ value }}">0</span>
+            </button>
+          {% endfor %}
         </div>
-        <div class="d-flex flex-wrap gap-2">
-          <button id="jobs-show-errors" class="btn btn-sm btn-outline-danger" type="button">{{ t('jobs.show_errors') }}</button>
-          <button id="jobs-select-errors" class="btn btn-sm btn-soft" type="button">{{ t('jobs.select_errors') }}</button>
+        <div class="library-toolbar-row">
+          <div class="library-sort">
+            <label class="form-label small mb-0" for="jobs-sort">{{ t('jobs.sort_label') }}</label>
+            <select class="form-select form-select-sm" id="jobs-sort">
+              <option value="newest">{{ t('index.newest_first') }}</option>
+              <option value="oldest">{{ t('index.oldest_first') }}</option>
+              <option value="title">{{ t('jobs.sort_title') }}</option>
+              <option value="status">{{ t('jobs.sort_status') }}</option>
+            </select>
+          </div>
+          <span id="jobs-result-count" class="library-result-count" aria-live="polite">{{ t('jobs.results', count=0) }}</span>
+          <label class="form-check library-select-all mb-0">
+            <input id="jobs-select-all" class="form-check-input" type="checkbox">
+            <span class="form-check-label">{{ t('jobs.select_visible') }}</span>
+          </label>
+          <form id="jobs-bulk-form" class="library-bulk" method="post" action="{{ ingress_url('web.delete_jobs') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input id="jobs-bulk-action-value" type="hidden" name="action" value="delete_jobs">
+            <input type="hidden" name="return_to" value="jobs">
+            <span id="jobs-selected-inputs"></span>
+            <label class="visually-hidden" for="jobs-bulk-action">{{ t('jobs.bulk_action') }}</label>
+            <select class="form-select form-select-sm" id="jobs-bulk-action">
+              <option value="delete_jobs">{{ t('index.bulk_delete_jobs') }}</option>
+              <option value="delete_files">{{ t('index.bulk_delete_files') }}</option>
+              <option value="repeat">{{ t('index.bulk_repeat') }}</option>
+            </select>
+            <button id="jobs-bulk-submit" class="btn btn-sm btn-outline-primary" type="submit" disabled>{{ t('jobs.apply_selected') }} (<span id="jobs-selected-count">0</span>)</button>
+          </form>
+          <form id="jobs-retry-failed-form" method="post" action="{{ ingress_url('web.retry_failed_jobs') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button id="jobs-retry-failed" class="btn btn-sm btn-soft" type="submit" disabled>{{ t('jobs.retry_failed') }}</button>
+          </form>
         </div>
       </div>
-      <div id="jobs-empty" class="empty-state table-empty-state{% if jobs %} d-none{% endif %}">
-        <span class="empty-state-mark" aria-hidden="true">+</span>
-        <strong>{{ t('jobs.empty') }}</strong>
-        <small>{{ t('jobs.empty_copy') }}</small>
-        <a class="btn btn-sm btn-accent mt-2" href="{{ ingress_url('web.index') }}">{{ t('jobs.add_link') }}</a>
-        {% if false %}
-        <strong>Brak zadań w tej sesji</strong>
-        <small>Uruchom pobieranie lub zapis live, aby zobaczyć postęp.</small>
+
+      <div id="jobs-list" class="library-list" aria-live="polite"></div>
+      <div id="jobs-empty" class="library-empty-state d-none">
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M4 7h16v12H4zM8 4h8v3M9 12h6M12 9v6"/></svg>
+        <strong id="jobs-empty-title">{{ t('jobs.empty') }}</strong>
+        <small id="jobs-empty-copy">{{ t('jobs.empty_copy') }}</small>
+        <button class="btn btn-sm btn-soft mt-2 d-none" id="jobs-empty-show-all" type="button">{{ t('jobs.show_all') }}</button>
       </div>
-        {% endif %}
-      </div>
-      <div id="jobs-filter-empty" class="empty-state table-empty-state d-none">
-        <span class="empty-state-mark empty-state-mark-ok" aria-hidden="true">✓</span>
-        <strong id="jobs-filter-empty-title">{{ t('jobs.filter_empty') }}</strong>
-        <small id="jobs-filter-empty-copy">{{ t('jobs.filter_empty_copy') }}</small>
-        <button class="btn btn-sm btn-soft mt-2" id="jobs-empty-show-all" type="button" data-jobs-filter="all">{{ t('jobs.show_all') }}</button>
-        {% if false %}
-        <span class="empty-state-mark" aria-hidden="true">!</span>
-        <strong>Brak błędów</strong>
-        <small>Filtr błędów pokaże tutaj nieudane pobrania, gdy takie się pojawią.</small>
-      </div>
-        {% endif %}
-      </div>
-      <div class="desktop-only table-responsive">
-        <table class="table align-middle mb-0">
-          <thead>
-            <tr>
-              <th><input id="jobs-select-all" class="form-check-input" type="checkbox" aria-label="{{ t('jobs.select_all_done') }}"></th>
-              <th>{{ t('common.thumbnail') }}</th>
-              <th>{{ t('common.title') }}</th>
-              <th>{{ t('common.type') }}</th>
-              <th>{{ t('common.status') }}</th>
-              <th>{{ t('common.progress') }}</th>
-              <th>{{ t('common.size') }}</th>
-              <th>{{ t('common.speed') }}</th>
-              <th>{{ t('jobs.eta') }}</th>
-              <th>{{ t('common.result') }}</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="jobs-table-body"></tbody>
-        </table>
-      </div>
-      <div class="mobile-only" id="jobs-card-list"></div>
     </div>
   </section>
 {% endblock %}

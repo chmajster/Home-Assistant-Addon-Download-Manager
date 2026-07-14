@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.80
+
+- Przebudowano panel wokół centralnej Biblioteki z responsywnym wspólnym widokiem pobrań, plików i operacji.
+- Dodano przyrostowe odświeżanie zadań, adaptacyjny polling, kompletne tłumaczenia PL/EN oraz dostępne ikony i sterowanie klawiaturą.
+
 ## 1.3.79
 
 - Zoptymalizowano trwały stan SQLite przez rekordowe upserty, throttling postępu, retencję logów, migracje z kopią zapasową oraz kontrolę integralności.

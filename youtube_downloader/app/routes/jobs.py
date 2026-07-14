@@ -37,13 +37,14 @@ def delete_jobs():
 def bulk_history_jobs():
     """Run one bulk action for completed jobs shown in the unified history."""
 
+    return_endpoint = "web.jobs" if request.form.get("return_to") == "jobs" else "web.index"
     if not _valid_form():
-        return redirect(ingress_url("web.index"))
+        return redirect(ingress_url(return_endpoint))
     action = str(request.form.get("action") or "")
     job_ids = list(dict.fromkeys(request.form.getlist("job_ids")))
     if not job_ids:
         flash("Zaznacz wpisy, dla których chcesz wykonać akcję.", "warning")
-        return redirect(ingress_url("web.index"))
+        return redirect(ingress_url(return_endpoint))
 
     manager = _job_manager()
     jobs_by_id = {job.job_id: job for job in manager.list_jobs()}
@@ -54,7 +55,7 @@ def bulk_history_jobs():
     ]
     if not selected_jobs:
         flash("Nie znaleziono zakończonych wpisów do obsłużenia.", "warning")
-        return redirect(ingress_url("web.index"))
+        return redirect(ingress_url(return_endpoint))
 
     if action == "delete_jobs":
         removed, skipped = manager.delete_jobs([job.job_id for job in selected_jobs])
@@ -91,7 +92,7 @@ def bulk_history_jobs():
                 _ensure_ytdlp_recent()
             except MediaServiceError as error:
                 flash(str(error), "danger")
-                return redirect(ingress_url("web.index"))
+                return redirect(ingress_url(return_endpoint))
         done = 0
         skipped = len(selected_jobs) - len(candidates)
         for job in candidates:
@@ -110,7 +111,7 @@ def bulk_history_jobs():
         _flash_bulk_history_result("repeat", done, skipped)
     else:
         flash("Wybierz poprawną akcję dla zaznaczonych wpisów.", "warning")
-    return redirect(ingress_url("web.index"))
+    return redirect(ingress_url(return_endpoint))
 
 @web_bp.post("/jobs/clear")
 def clear_jobs():
@@ -171,13 +172,16 @@ def jobs():
     manager = _job_manager()
     allowed_filters = {
         "all",
-        "in_progress",
+        "active",
+        "queued",
         "completed",
         "errors",
         "stopped",
         "interrupted",
     }
     requested_filter = request.args.get("filter")
+    if requested_filter == "in_progress":
+        requested_filter = "active"
     job_filter = requested_filter if requested_filter in allowed_filters else "all"
     return render_template(
         "jobs.html",

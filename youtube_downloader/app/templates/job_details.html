@@ -47,7 +47,7 @@
     </article>
     {% if job.is_live %}
       <article class="job-detail-kpi">
-        <span>Czas zapisu live</span>
+        <span>{{ t('details.live_recording_time') }}</span>
         <strong>{{ job.live_elapsed_label or "00:00:00" }}</strong>
       </article>
     {% endif %}
@@ -130,20 +130,20 @@
           <dd>{{ job.download_type }}</dd>
           <dt>{{ t('details.format') }}</dt>
           <dd>{{ job.format_id or "-" }}</dd>
-          <dt>Storage</dt>
+          <dt>{{ t('details.storage') }}</dt>
           <dd>{{ job.storage_name or "local" }}</dd>
-          <dt>Tagi reczne</dt>
+          <dt>{{ t('details.manual_tags') }}</dt>
           <dd>{{ job.tags|join(", ") if job.tags else "-" }}</dd>
-          <dt>Tagi automatyczne</dt>
+          <dt>{{ t('details.auto_tags') }}</dt>
           <dd>{{ job.auto_tags|join(", ") if job.auto_tags else "-" }}</dd>
-          <dt>Kod bledu</dt>
+          <dt>{{ t('details.error_code') }}</dt>
           <dd>{{ job.error_code or "-" }}</dd>
           <dt>{{ t('details.live') }}</dt>
           <dd>{{ t('common.yes') if job.is_live else t('common.no') }}</dd>
           {% if job.is_live %}
-            <dt>Live od poczatku</dt>
+            <dt>{{ t('details.live_from_start') }}</dt>
             <dd>{{ t('common.yes') if job.live_from_start else t('common.no') }}</dd>
-            <dt>Status zapisu live</dt>
+            <dt>{{ t('details.live_recording_status') }}</dt>
             <dd>{{ job.live_status_message or "-" }}</dd>
           {% endif %}
           <dt>{{ t('details.created') }}</dt>

@@ -15,3 +15,18 @@
     padding: 1.5rem;
   }
 }
+
+@media (min-width: 769px) and (max-width: 1199px) {
+  .library-item,
+  .library-list-compact .library-item {
+    align-items: start;
+    grid-template-columns: auto 5.5rem minmax(0, 1fr) auto;
+  }
+
+  .library-select { grid-column: 1; grid-row: 1 / 3; }
+  .library-thumbnail { grid-column: 2; grid-row: 1; }
+  .library-main { grid-column: 3; grid-row: 1; }
+  .library-state { grid-column: 3; grid-row: 2; }
+  .library-metrics { grid-column: 2 / 4; grid-row: 3; }
+  .library-actions { grid-column: 4; grid-row: 1 / 4; }
+}

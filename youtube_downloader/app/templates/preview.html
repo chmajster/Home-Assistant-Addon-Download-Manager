@@ -27,7 +27,7 @@
           data-file-path="{{ filename }}"
           data-file-size="{{ file_info.size }}"
           data-mime-type="{{ mime_type }}"
-          data-quality-label="{{ download_type_labels.get(file_info.download_type, file_info.download_type or 'Original') }}"
+          data-quality-label="{{ download_type_labels.get(file_info.download_type, file_info.download_type or t('preview.original')) }}"
         {% if next_preview_url %}
           data-next-url="{{ next_preview_url }}"
         {% endif %}
@@ -58,22 +58,22 @@
 
   <section class="preview-details app-card mt-4">
     <div class="card-body">
-      <span class="eyebrow">Miniatury</span>
+      <span class="eyebrow">{{ t('preview.thumbnails') }}</span>
       <div class="thumbnail-switcher">
         <div>
-          <strong>Miniatura z filmu</strong>
+          <strong>{{ t('preview.video_thumbnail') }}</strong>
           {% if file_info.thumbnail_exists %}
-            <img class="history-thumbnail d-block mt-2" src="{{ ingress_url('web.thumbnail', filename=file_info.thumbnail_filename) }}" alt="" loading="lazy">
+            <img class="preview-thumbnail d-block mt-2" src="{{ ingress_url('web.thumbnail', filename=file_info.thumbnail_filename) }}" alt="" loading="lazy">
           {% else %}
-            <p class="text-body-secondary mb-0 mt-2">Brak miniatury z filmu.</p>
+            <p class="text-body-secondary mb-0 mt-2">{{ t('preview.video_thumbnail_missing') }}</p>
           {% endif %}
         </div>
         <div>
-          <strong>Miniatura zrodlowa</strong>
+          <strong>{{ t('preview.source_thumbnail') }}</strong>
           {% if file_info.source_thumbnail_exists %}
-            <img class="history-thumbnail d-block mt-2" src="{{ ingress_url('web.thumbnail', filename=file_info.source_thumbnail_filename) }}" alt="" loading="lazy">
+            <img class="preview-thumbnail d-block mt-2" src="{{ ingress_url('web.thumbnail', filename=file_info.source_thumbnail_filename) }}" alt="" loading="lazy">
           {% else %}
-            <p class="text-body-secondary mb-0 mt-2">Brak miniatury z metadanych zrodla.</p>
+            <p class="text-body-secondary mb-0 mt-2">{{ t('preview.source_thumbnail_missing') }}</p>
           {% endif %}
         </div>
       </div>
@@ -95,10 +95,10 @@
           {% if file_info.all_tags %}
             <span class="d-flex flex-wrap gap-1">
               {% for tag in file_info.tags %}
-                <span class="badge text-bg-light history-tag-link">{{ tag }}</span>
+                <span class="badge text-bg-light">{{ tag }}</span>
               {% endfor %}
               {% for tag in file_info.visible_auto_tags %}
-                <span class="badge text-bg-secondary history-tag-link">{{ tag }}</span>
+                <span class="badge text-bg-secondary">{{ tag }}</span>
               {% endfor %}
             </span>
           {% else %}

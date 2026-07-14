@@ -37,19 +37,19 @@
             <small>Home Assistant</small>
           </span>
         </a>
-        <button class="navbar-toggler app-navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#app-navbar-menu" aria-controls="app-navbar-menu" aria-expanded="false" aria-label="Otwórz menu">
+        <button class="navbar-toggler app-navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#app-navbar-menu" aria-controls="app-navbar-menu" aria-expanded="false" aria-label="{{ t('nav.open_menu') }}" title="{{ t('nav.open_menu') }}">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse app-navbar-menu" id="app-navbar-menu">
           <div class="navbar-nav app-nav ms-md-auto">
             <a class="nav-link{% if start_active %} active{% endif %}" href="{{ ingress_url('web.index') }}"{% if start_active %} aria-current="page"{% endif %}>{{ t('nav.start') }}</a>
-            <a class="nav-link{% if active_endpoint == 'web.diagnostics' %} active{% endif %}" href="{{ ingress_url('web.diagnostics') }}"{% if active_endpoint == 'web.diagnostics' %} aria-current="page"{% endif %}>{{ t('nav.diagnostics') }}</a>
             <a class="nav-link{% if jobs_active %} active{% endif %}" href="{{ ingress_url('web.jobs') }}"{% if jobs_active %} aria-current="page"{% endif %}>
-              {{ t('nav.jobs') }} <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="{{ t('nav.jobs') }}">0</span>
+              {{ t('nav.jobs') }} <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="{{ t('nav.active_jobs', count=0) }}">0</span>
             </a>
+            <a class="nav-link{% if active_endpoint == 'web.diagnostics' %} active{% endif %}" href="{{ ingress_url('web.diagnostics') }}"{% if active_endpoint == 'web.diagnostics' %} aria-current="page"{% endif %}>{{ t('nav.diagnostics') }}</a>
             <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="{{ t('theme.change') }}" aria-pressed="false" title="{{ t('theme.change') }}">
-              <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
-              <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
+              <svg class="theme-icon theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
+              <svg class="theme-icon theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
             </button>
           </div>
         </div>
@@ -57,7 +57,7 @@
     </nav>
     <main class="container-fluid app-container py-4">
       <div id="jobs-refresh-error" class="alert alert-warning app-alert d-none" role="status">
-        Brak połączenia / nie można odświeżyć zadań
+        {{ t('jobs.refresh_error') }}
       </div>
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -75,7 +75,7 @@
                       <a class="toast-action-link" href="{{ ingress_url('web.jobs') }}">{{ t('nav.go_jobs') }}</a>
                     {% endif %}
                   </div>
-                  <button type="button" class="btn-close{% if close_light %} btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="{{ t('common.close') }}"></button>
+                  <button type="button" class="btn-close{% if close_light %} btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="{{ t('common.close') }}" title="{{ t('common.close') }}"></button>
                 </div>
               </div>
             {% endfor %}

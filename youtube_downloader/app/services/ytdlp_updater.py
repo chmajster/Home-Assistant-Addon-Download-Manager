@@ -60,9 +60,9 @@ class YtDlpUpdater:
 
         with self._lock:
             state = self._read_state()
-            previous_version = self._installed_version()
             if not force and not self._needs_update(state):
                 return True
+            previous_version = self._installed_version()
             LOGGER.info("Aktualizuję yt-dlp do najnowszej wersji...")
             try:
                 result = subprocess.run(

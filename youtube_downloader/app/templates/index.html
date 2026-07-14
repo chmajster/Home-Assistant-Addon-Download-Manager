@@ -1,75 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ t('index.title') }}{% endblock %}
-{% macro history_quick_actions(item, preview_url, mobile=false) %}
-  <div class="history-quick-actions {% if mobile %}history-mobile-actions {% endif %}d-flex flex-wrap gap-2 align-items-center">
-    {% if preview_url %}
-      <a class="btn btn-sm btn-soft history-icon-action" href="{{ preview_url }}" aria-label="{{ t('js.open_preview', title=item.title) }}" title="{{ t('preview.eyebrow') }}">
-        <span aria-hidden="true">&#9654;</span>
-        <span class="visually-hidden">{{ t('preview.eyebrow') }}</span>
-      </a>
-    {% endif %}
-    {% if not item.can_download_file %}
-      <span class="badge text-bg-secondary">{{ t('index.file_deleted') }}</span>
-    {% endif %}
-    {% if preview_url %}
-      <a class="btn btn-sm btn-soft history-icon-action" href="{{ preview_url }}" target="_blank" rel="noreferrer" aria-label="{{ t('preview.open_external') }}" title="{{ t('preview.open_external') }}">
-        <span aria-hidden="true">&#8599;</span>
-        <span class="visually-hidden">{{ t('preview.open_external') }}</span>
-      </a>
-    {% endif %}
-    {% if item.can_repeat and not item.can_download_file %}
-      <form action="{{ ingress_url('web.start_download') }}" method="post" class="repeat-download-form">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="url" value="{{ item.url }}">
-        <input type="hidden" name="title" value="{{ item.title }}">
-        <input type="hidden" name="download_type" value="{{ item.type }}">
-        <input type="hidden" name="storage_name" value="{{ item.storage_name or app_settings.storage_mode or 'local' }}">
-        <input type="hidden" name="allow_duplicate" value="1">
-        {% if item.duration is defined and item.duration %}<input type="hidden" name="duration" value="{{ item.duration }}">{% endif %}
-        {% if item.format_id is defined and item.format_id %}<input type="hidden" name="format_id" value="{{ item.format_id }}">{% endif %}
-        <button class="btn btn-sm btn-soft history-icon-action" type="submit" aria-label="{{ t('index.download_again') }}" title="{{ t('index.download_again') }}">
-          <span aria-hidden="true">&#8635;</span>
-          <span class="visually-hidden">{{ t('index.download_again') }}</span>
-        </button>
-      </form>
-    {% endif %}
-    {% if item.can_view_details %}
-      <a class="btn btn-sm btn-soft history-icon-action" href="{{ ingress_url('web.job_details', job_id=item.job_id) }}" aria-label="{{ t('common.details') }}" title="{{ t('common.details') }}">
-        <span aria-hidden="true">i</span>
-        <span class="visually-hidden">{{ t('common.details') }}</span>
-      </a>
-    {% endif %}
-    {% if item.can_delete_file %}
-      <form action="{{ ingress_url('web.delete', filename=item.filename) }}" method="post" class="delete-form" data-filename="{{ item.filename }}" data-filesize-label="{{ item.size|filesize if item.size is defined and item.size is not none else 'brak danych' }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="{{ t('common.delete_file') }}" title="{{ t('common.delete_file') }}">
-          <span aria-hidden="true">&times;</span>
-          <span class="visually-hidden">{{ t('common.delete_file') }}</span>
-        </button>
-      </form>
-    {% endif %}
-    {% if item.can_delete and not item.can_delete_file %}
-      <form action="{{ ingress_url('web.delete_job', job_id=item.job_id) }}" method="post" class="history-delete-form" data-title="{{ item.title }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-sm btn-outline-danger history-icon-action" type="submit" aria-label="{{ t('common.delete_job') }}" title="{{ t('common.delete_job') }}">
-          <span aria-hidden="true">&#10005;</span>
-          <span class="visually-hidden">{{ t('common.delete_job') }}</span>
-        </button>
-      </form>
-    {% endif %}
-  </div>
-{% endmacro %}
 {% block content %}
-  <section class="hero-card card mb-4">
-    <div class="card-body p-4 p-lg-5">
-      <div class="hero-content">
-        <span class="eyebrow hero-eyebrow">{{ t('index.hero.eyebrow') }}</span>
-        <h1 class="hero-title display-6 fw-bold mb-3">{{ t('index.hero.title_a') }}<br><span class="hero-highlight">{{ t('index.hero.title_b') }}</span></h1>
-        <p class="hero-copy mb-3">{{ t('index.hero.copy') }}</p>
-        <div class="platform-list mb-4" aria-label="{{ t('index.platforms') }}">
-          {% for chip in platform_chips %}
-            <span class="platform-chip {{ chip.class }}">{{ chip.label }}</span>
-          {% endfor %}
+  <section class="download-panel card app-card mb-3" aria-labelledby="download-heading">
+    <div class="card-body p-3 p-lg-4">
+      <div class="section-heading compact-heading mb-3">
+        <div>
+          <span class="eyebrow">{{ t('nav.start') }}</span>
+          <h1 id="download-heading" class="h3 mb-1">{{ t('index.download_media') }}</h1>
+          <p class="section-copy mb-0">{{ t('index.download_media_copy') }}</p>
         </div>
       </div>
       <form action="{{ ingress_url('web.analyze') }}" method="post" class="url-form needs-validation" novalidate>
@@ -78,14 +16,14 @@
         <input type="hidden" name="storage_name" value="{{ app_settings.storage_mode or 'local' }}">
         <input type="hidden" name="quick_download" value="1">
         <label class="visually-hidden" for="media-url">{{ t('index.url_label') }}</label>
-        <div class="input-group input-group-lg hero-input-group">
+        <div class="input-group download-input-group">
           <span class="input-group-text" aria-hidden="true">URL</span>
           <textarea class="form-control media-url" id="media-url" name="url" rows="1" placeholder="{{ t('index.url_placeholder') }}" required autocomplete="url"></textarea>
-          <button class="btn btn-accent px-4 analyze-submit" type="submit">
+          <button class="btn btn-accent analyze-submit" type="submit">
             <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
             <span class="analyze-submit-label">{{ t('index.analyze') }}</span>
           </button>
-          <button class="btn btn-primary px-4 quick-download-submit" type="submit" formaction="{{ ingress_url('web.start_download') }}" data-quick-download-submit>
+          <button class="btn btn-primary quick-download-submit" type="submit" formaction="{{ ingress_url('web.start_download') }}" data-quick-download-submit>
             <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
             <span class="quick-download-submit-label">{{ t('index.quick_download') }}</span>
           </button>
@@ -115,209 +53,79 @@
     </div>
   </section>
 
-  <section class="row g-4 mb-4 dashboard-grid">
-    <div class="col-12 history-panel">
-      <div class="card app-card h-100">
-        <div class="card-body">
-          <div class="section-heading">
-            <div>
-              <span class="eyebrow">{{ t('index.library') }}</span>
-              <h2 class="h4 mb-1">{{ t('index.recent_jobs') }}</h2>
-              <p class="section-copy mb-0">{{ t('index.recent_jobs_copy') }}</p>
-            </div>
-            <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.jobs') }}">{{ t('nav.jobs') }}</a>
-          </div>
-          {% if history %}
-            <div class="table-toolbar row g-2 mb-3 history-controls">
-              <div class="col-sm-6 col-lg-3">
-                <label class="form-label small mb-1" for="history-type-filter">{{ t('index.type_filter') }}</label>
-                <select class="form-select form-select-sm" id="history-type-filter">
-                  <option value="">{{ t('index.all_types') }}</option>
-                </select>
-              </div>
-              <div class="col-sm-6 col-lg-3">
-                <label class="form-label small mb-1" for="history-status-filter">{{ t('index.status_filter') }}</label>
-                <select class="form-select form-select-sm" id="history-status-filter">
-                  <option value="">{{ t('index.all_statuses') }}</option>
-                </select>
-              </div>
-              <div class="col-sm-6 col-lg-2">
-                <label class="form-label small mb-1" for="history-tag-filter">{{ t('preview.tags') }}</label>
-                <select class="form-select form-select-sm" id="history-tag-filter">
-                  <option value="">{{ t('index.all_tags') }}</option>
-                </select>
-              </div>
-              <div class="col-sm-6 col-lg-2">
-                <label class="form-label small mb-1" for="history-source-filter">{{ t('common.source') }}</label>
-                <select class="form-select form-select-sm" id="history-source-filter">
-                  <option value="">{{ t('index.all_sources') }}</option>
-                </select>
-              </div>
-              <div class="col-sm-6 col-lg-2">
-                <label class="form-label small mb-1" for="history-sort">{{ t('index.sort') }}</label>
-                <select class="form-select form-select-sm" id="history-sort">
-                  <option value="newest">{{ t('index.newest_first') }}</option>
-                  <option value="oldest">{{ t('index.oldest_first') }}</option>
-                </select>
-              </div>
-            </div>
-            <form id="history-bulk-form" class="history-bulk-toolbar d-flex flex-wrap align-items-center gap-2 mb-3" action="{{ ingress_url('web.bulk_history_jobs') }}" method="post">
-              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-              <div class="form-check mb-0">
-                <input class="form-check-input" type="checkbox" id="history-bulk-select-all">
-                <label class="form-check-label small" for="history-bulk-select-all">{{ t('index.select_visible') }}</label>
-              </div>
-              <select class="form-select form-select-sm history-bulk-action" name="action" aria-label="{{ t('common.actions') }}">
-                <option value="delete_files">{{ t('index.bulk_delete_files') }}</option>
-                <option value="repeat">{{ t('index.bulk_repeat') }}</option>
-                <option value="delete_jobs">{{ t('index.bulk_delete_jobs') }}</option>
-              </select>
-              <button class="btn btn-sm btn-outline-primary" id="history-bulk-submit" type="submit" disabled>{{ t('index.bulk_apply') }}</button>
-              <span class="small text-body-secondary">{{ t('index.selected_count') }} <span id="history-selected-count">0</span></span>
-            </form>
-            <div class="desktop-only table-responsive history-list">
-              <table class="table align-middle mb-0">
-                <thead><tr><th class="history-select-column"><span class="visually-hidden">{{ t('result.select_all') }}</span></th><th>{{ t('common.thumbnail') }}</th><th>{{ t('common.title') }}</th><th>{{ t('common.type') }}</th><th>{{ t('common.status') }}</th><th>{{ t('common.size') }}</th><th>{{ t('common.result') }}</th><th></th></tr></thead>
-                <tbody class="history-items">
-                  {% for item in history %}
-                    {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
-                    <tr class="history-item" data-history-index="{{ loop.index0 }}" data-history-key="{{ item.job_id }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-tags="{{ item.all_tags|join('|') }}" data-history-platform="{{ item.platform }}" data-history-date="{{ item.downloaded_at }}">
-                      <td class="history-select-column">
-                        <input class="form-check-input history-bulk-select" type="checkbox" name="job_ids" value="{{ item.job_id }}" form="history-bulk-form" aria-label="{{ t('js.select_job', title=item.title) }}">
-                      </td>
-                      <td>
-                        {% if item.thumbnail_exists %}
-                          {% if preview_url %}
-                            <a class="history-thumbnail-link" href="{{ preview_url }}" aria-label="{{ t('js.open_preview', title=item.title) }}">
-                              <img class="history-thumbnail" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
-                            </a>
-                          {% else %}
-                            <img class="history-thumbnail" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
-                          {% endif %}
-                        {% else %}
-                          <span class="text-body-secondary">-</span>
-                        {% endif %}
-                      </td>
-                      <td>
-                        {% if preview_url %}
-                          <a class="history-title-link d-block" href="{{ preview_url }}"><strong>{{ item.title }}</strong></a>
-                        {% else %}
-                          <strong class="d-block">{{ item.title }}</strong>
-                        {% endif %}
-                        {% if item.warning_message is defined and item.warning_message %}<small class="d-block text-warning">{{ item.warning_message }}</small>{% endif %}
-                      </td>
-                      <td>{{ download_type_labels.get(item.type, item.type) }}</td>
-                        <td>{{ item.status_label or status_labels.get(item.status, item.status) }}</td>
-                      <td>{{ item.size|filesize if item.size is defined and item.size is not none else "brak danych" }}</td>
-                      <td>
-                        {% if item.can_download_file %}
-                          <span class="text-body-secondary">-</span>
-                        {% else %}
-                          <span class="badge text-bg-secondary">{{ t('index.file_deleted') }}</span>
-                        {% endif %}
-                      </td>
-                      <td>
-                        {{ history_quick_actions(item, preview_url) }}
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            <div class="mobile-only history-list history-items">
-              {% for item in history %}
-                {% set preview_url = ingress_url('web.preview', filename=item.filename) if item.file_exists else none %}
-                <article class="mobile-list-card p-3 mb-2 history-item" data-history-index="{{ loop.index0 }}" data-history-key="{{ item.job_id }}" data-history-type="{{ item.type }}" data-history-status="{{ item.status }}" data-history-tags="{{ item.all_tags|join('|') }}" data-history-platform="{{ item.platform }}" data-history-date="{{ item.downloaded_at }}">
-                  <div class="form-check mb-2">
-                    <input class="form-check-input history-bulk-select" type="checkbox" name="job_ids" value="{{ item.job_id }}" form="history-bulk-form" aria-label="{{ t('js.select_job', title=item.title) }}">
-                    <label class="form-check-label small text-body-secondary">{{ t('common.actions') }}</label>
-                  </div>
-                  {% if item.thumbnail_exists %}
-                    {% if preview_url %}
-                      <a class="history-thumbnail-link d-block mb-3" href="{{ preview_url }}" aria-label="{{ t('js.open_preview', title=item.title) }}">
-                        <img class="history-thumbnail history-thumbnail-mobile" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
-                      </a>
-                    {% else %}
-                      <img class="history-thumbnail history-thumbnail-mobile mb-3" src="{{ ingress_url('web.thumbnail', filename=item.thumbnail_filename) }}" alt="" loading="lazy">
-                    {% endif %}
-                  {% endif %}
-                  {% if preview_url %}
-                    <a class="history-title-link d-block" href="{{ preview_url }}"><strong>{{ item.title }}</strong></a>
-                  {% else %}
-                    <strong class="d-block">{{ item.title }}</strong>
-                  {% endif %}
-                  {% if item.warning_message is defined and item.warning_message %}<small class="d-block text-warning">{{ item.warning_message }}</small>{% endif %}
-                  <small class="text-body-secondary">{{ download_type_labels.get(item.type, item.type) }} | {{ item.status_label or status_labels.get(item.status, item.status) }} | {{ item.size|filesize if item.size is defined and item.size is not none else t('common.no_data') }}</small>
-                  <div class="mt-2">
-                    {{ history_quick_actions(item, preview_url, mobile=true) }}
-                  </div>
-                </article>
-              {% endfor %}
-            </div>
-            <div id="history-filter-empty" class="empty-state table-empty-state d-none">
-              <strong>{{ t('index.filter_empty') }}</strong>
-            </div>
-            <div id="history-pagination" class="d-flex justify-content-between align-items-center gap-2 mt-3">
-              <button class="btn btn-sm btn-soft" id="history-prev" type="button">{{ t('index.prev_page') }}</button>
-              <span class="small text-body-secondary" id="history-page">{{ t('index.page_count', current=1, total=1) }}</span>
-              <button class="btn btn-sm btn-soft" id="history-next" type="button">{{ t('index.next_page') }}</button>
-            </div>
-          {% else %}
-            <div class="empty-state table-empty-state">
-              <span class="empty-state-mark" aria-hidden="true">+</span>
-              <strong>{{ t('index.no_jobs') }}</strong>
-              <small>{{ t('index.no_jobs_copy') }}</small>
-            </div>
+  <section class="dashboard-stats mb-3" aria-label="{{ t('index.stats_label') }}">
+    <article class="stat-card"><span>{{ t('index.stat_active') }}</span><strong id="stat-active">0</strong></article>
+    <article class="stat-card"><span>{{ t('index.stat_queued') }}</span><strong id="stat-queued">0</strong></article>
+    <article class="stat-card"><span>{{ t('index.stat_errors') }}</span><strong id="stat-errors">0</strong></article>
+    <article class="stat-card"><span>{{ t('index.stat_free') }}</span><strong>{{ storage.free|filesize }}</strong></article>
+  </section>
+
+  <section id="active-downloads-section" class="card app-card mb-3 d-none" aria-labelledby="active-downloads-heading">
+    <div class="card-body p-3 p-lg-4">
+      <div class="section-heading compact-heading">
+        <div>
+          <span class="eyebrow">{{ t('index.live_status') }}</span>
+          <h2 id="active-downloads-heading" class="h5 mb-1">{{ t('index.active_downloads') }}</h2>
+        </div>
+        <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.jobs', filter='active') }}">{{ t('nav.go_jobs') }}</a>
+      </div>
+      <div id="active-downloads-list" class="library-list library-list-compact" data-library-limit="3"></div>
+    </div>
+  </section>
+
+  <section class="card app-card mb-3" aria-labelledby="recent-downloads-heading">
+    <div class="card-body p-3 p-lg-4">
+      <div class="section-heading compact-heading">
+        <div>
+          <span class="eyebrow">{{ t('index.library') }}</span>
+          <h2 id="recent-downloads-heading" class="h5 mb-1">{{ t('index.recent_jobs') }}</h2>
+          <p class="section-copy mb-0">{{ t('index.recent_jobs_copy') }}</p>
+        </div>
+        <a class="btn btn-sm btn-primary" href="{{ ingress_url('web.jobs') }}">{{ t('nav.go_jobs') }}</a>
+      </div>
+      <div id="recent-downloads-list" class="library-list library-list-compact" data-library-limit="5"></div>
+      <div id="recent-downloads-empty" class="library-empty-state">
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M4 7h16v12H4zM8 4h8v3M9 12h6M12 9v6"/></svg>
+        <strong>{{ t('index.no_jobs') }}</strong>
+        <small>{{ t('index.no_jobs_copy') }}</small>
+      </div>
+    </div>
+  </section>
+
+  <section class="secondary-settings" aria-label="{{ t('index.config') }}">
+    <details class="settings-disclosure">
+      <summary>{{ t('index.addon_settings') }}</summary>
+      <div class="settings-disclosure-body">
+        <dl class="row mb-0 small">
+          <dt class="col-sm-5">{{ t('index.storage_mode') }}</dt><dd class="col-sm-7">{{ t('index.storage_nfs') if options.storage_mode == "nfs" else t('index.local') }}</dd>
+          <dt class="col-sm-5">{{ t('index.download_dir') }}</dt><dd class="col-sm-7 text-break">{{ options.download_dir }}</dd>
+          {% if options.storage_mode == "nfs" %}
+            <dt class="col-sm-5">{{ t('index.nfs_server') }}</dt><dd class="col-sm-7 text-break">{{ options.nfs_server or t('index.configured_ha') }}</dd>
+            <dt class="col-sm-5">{{ t('index.nfs_export') }}</dt><dd class="col-sm-7 text-break">{{ options.nfs_export_path or t('index.configured_ha') }}</dd>
+            <dt class="col-sm-5">{{ t('index.nfs_dir') }}</dt><dd class="col-sm-7 text-break">{{ options.nfs_download_dir }}</dd>
+            <dt class="col-sm-5">{{ t('index.username') }}</dt><dd class="col-sm-7">{{ options.nfs_username or t('common.none') }}</dd>
+            <dt class="col-sm-5">{{ t('index.password') }}</dt><dd class="col-sm-7">{{ t('index.set') if options.nfs_password else t('index.not_set') }}</dd>
+            <dt class="col-sm-5">{{ t('index.nfs_options') }}</dt><dd class="col-sm-7 text-break">{{ options.nfs_mount_options or t('index.default') }}</dd>
           {% endif %}
-        </div>
+          <dt class="col-sm-5">{{ t('index.job_limit') }}</dt><dd class="col-sm-7">{{ options.max_concurrent_jobs }}</dd>
+          <dt class="col-sm-5">{{ t('index.default_format') }}</dt><dd class="col-sm-7">{{ download_type_labels.get(options.preferred_format, options.preferred_format) }}</dd>
+          <dt class="col-sm-5">{{ t('index.language') }}</dt><dd class="col-sm-7">{{ t('index.language_en') if options.ui_language == "en" else t('index.language_pl') }}</dd>
+          <dt class="col-sm-5">{{ t('index.external_access') }}</dt><dd class="col-sm-7">{{ t('index.external_port', value=options.external_port) if options.allow_external_port else t('index.disabled') }}</dd>
+        </dl>
       </div>
-    </div>
-    <div class="col-12">
-      <div class="row g-4">
-        <div class="col-lg-6">
-          <div class="card app-card h-100">
-            <div class="card-body">
-              <span class="eyebrow">{{ t('index.config') }}</span>
-              <h2 class="h5">{{ t('index.addon_settings') }}</h2>
-              <dl class="row mb-0 small">
-                <dt class="col-6">{{ t('index.storage_mode') }}</dt><dd class="col-6">{{ "NFS Home Assistant" if options.storage_mode == "nfs" else t('index.local') }}</dd>
-                <dt class="col-6">{{ t('index.download_dir') }}</dt><dd class="col-6 text-break">{{ options.download_dir }}</dd>
-                {% if options.storage_mode == "nfs" %}
-                  <dt class="col-6">{{ t('index.nfs_server') }}</dt><dd class="col-6 text-break">{{ options.nfs_server or t('index.configured_ha') }}</dd>
-                  <dt class="col-6">{{ t('index.nfs_export') }}</dt><dd class="col-6 text-break">{{ options.nfs_export_path or t('index.configured_ha') }}</dd>
-                  <dt class="col-6">{{ t('index.nfs_dir') }}</dt><dd class="col-6 text-break">{{ options.nfs_download_dir }}</dd>
-                  <dt class="col-6">{{ t('index.username') }}</dt><dd class="col-6">{{ options.nfs_username or t('common.none') }}</dd>
-                  <dt class="col-6">{{ t('index.password') }}</dt><dd class="col-6">{{ t('index.set') if options.nfs_password else t('index.not_set') }}</dd>
-                  <dt class="col-6">{{ t('index.nfs_options') }}</dt><dd class="col-6 text-break">{{ options.nfs_mount_options or t('index.default') }}</dd>
-                {% endif %}
-                <dt class="col-6">{{ t('index.job_limit') }}</dt><dd class="col-6">{{ options.max_concurrent_jobs }}</dd>
-                <dt class="col-6">{{ t('index.default_format') }}</dt><dd class="col-6">{{ download_type_labels.get(options.preferred_format, options.preferred_format) }}</dd>
-                <dt class="col-6">{{ t('index.language') }}</dt><dd class="col-6">{{ "English" if options.ui_language == "en" else "polski" }}</dd>
-                <dt class="col-6">{{ t('index.external_access') }}</dt><dd class="col-6">{{ "port " ~ options.external_port if options.allow_external_port else t('index.disabled') }}</dd>
-              </dl>
-            </div>
-          </div>
+    </details>
+    <details class="settings-disclosure">
+      <summary>{{ t('index.disk_space') }}</summary>
+      <div class="settings-disclosure-body">
+        <div class="progress storage-progress mb-3" role="progressbar" aria-label="{{ t('index.disk_space') }}" aria-valuenow="{{ storage.used_percent }}" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar{% if storage.used_percent >= 90 %} bg-danger{% elif storage.used_percent >= 75 %} bg-warning{% else %} bg-success{% endif %}" style="width: {{ storage.used_percent }}%">{{ storage.used_percent }}%</div>
         </div>
-        <div class="col-lg-6">
-          <div class="card app-card storage-card h-100">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-                <h2 class="h5 mb-0">{{ t('index.disk_space') }}</h2>
-                <span class="badge {% if storage.used_percent >= 90 %}text-bg-danger{% elif storage.used_percent >= 75 %}text-bg-warning{% else %}text-bg-success{% endif %}">{{ t('index.free', value=storage.free_percent) }}</span>
-              </div>
-              <p class="small text-body-secondary mb-3">{{ t('index.available_for') }} <span class="text-break">{{ options.download_dir }}</span></p>
-              <div class="progress storage-progress mb-3" role="progressbar" aria-label="{{ t('index.disk_space') }}" aria-valuenow="{{ storage.used_percent }}" aria-valuemin="0" aria-valuemax="100">
-                <div class="progress-bar {% if storage.used_percent >= 90 %}bg-danger{% elif storage.used_percent >= 75 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ storage.used_percent }}%">{{ storage.used_percent }}%</div>
-              </div>
-              <dl class="row mb-0 small">
-                <dt class="col-6">{{ t('common.free') }}</dt><dd class="col-6 text-end fw-semibold">{{ storage.free|filesize }}</dd>
-                <dt class="col-6">{{ t('index.used') }}</dt><dd class="col-6 text-end">{{ storage.used|filesize }}</dd>
-                <dt class="col-6">{{ t('index.total') }}</dt><dd class="col-6 text-end">{{ storage.total|filesize }}</dd>
-              </dl>
-            </div>
-          </div>
-        </div>
+        <dl class="row mb-0 small">
+          <dt class="col-6">{{ t('common.free') }}</dt><dd class="col-6 text-end fw-semibold">{{ storage.free|filesize }}</dd>
+          <dt class="col-6">{{ t('index.used') }}</dt><dd class="col-6 text-end">{{ storage.used|filesize }}</dd>
+          <dt class="col-6">{{ t('index.total') }}</dt><dd class="col-6 text-end">{{ storage.total|filesize }}</dd>
+        </dl>
       </div>
-    </div>
+    </details>
   </section>
 {% endblock %}

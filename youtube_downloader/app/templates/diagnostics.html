@@ -64,9 +64,9 @@
         <dd>{{ diagnostics.yt_dlp.version }}</dd>
         <dt>{{ t('diagnostics.last_update') }}</dt>
         <dd>{{ diagnostics.yt_dlp.last_success|replace("T", " ")|truncate(19, True, "") if diagnostics.yt_dlp.last_success else t('common.no_data') }}</dd>
-        <dt>Poprzednia wersja</dt>
+        <dt>{{ t('diagnostics.previous_version') }}</dt>
         <dd>{{ diagnostics.yt_dlp.previous_version or t('common.no_data') }}</dd>
-        <dt>Nowa wersja</dt>
+        <dt>{{ t('diagnostics.new_version') }}</dt>
         <dd>{{ diagnostics.yt_dlp.new_version or t('common.no_data') }}</dd>
         <dt>{{ t('diagnostics.last_error') }}</dt>
         <dd class="{{ 'text-danger' if diagnostics.yt_dlp.last_error else 'text-body-secondary' }}">{{ diagnostics.yt_dlp.last_error or t('common.none') }}</dd>
@@ -74,7 +74,7 @@
       {% if config.APP_SETTINGS.ytdlp_update_mode == 'manual' %}
         <form method="post" action="{{ ingress_url('web.diagnostics_ytdlp_update') }}" class="mt-3">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-primary" type="submit">Aktualizuj yt-dlp</button>
+          <button class="btn btn-primary" type="submit">{{ t('diagnostics.update_ytdlp') }}</button>
         </form>
       {% endif %}
     </div>

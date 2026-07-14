@@ -16,6 +16,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from app import create_app
+from app.i18n import TRANSLATIONS
 from app.services.error_messages import (
     DOWNLOAD_STOPPED,
     FFMPEG_ERROR_MESSAGE,
@@ -375,9 +376,13 @@ class ApplicationTestCase(unittest.TestCase):
         return manager.get_job(job.job_id)
 
     def test_healthcheck(self) -> None:
-        response = self.client.get("/health")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json(), {"status": "ok"})
+        live = self.client.get("/health/live")
+        self.assertEqual(live.status_code, 200)
+        self.assertEqual(live.get_json(), {"status": "ok"})
+        ready = self.client.get("/health")
+        self.assertIn(ready.status_code, {200, 503})
+        self.assertEqual(set(ready.get_json()), {"status", "checks"})
+        self.assertIn("database", ready.get_json()["checks"])
 
     def test_ingress_prefix_is_used_for_generated_links(self) -> None:
         response = self.client.get(
@@ -400,15 +405,23 @@ class ApplicationTestCase(unittest.TestCase):
 
     def test_jobs_page_describes_live_refresh(self) -> None:
         body = self.client.get("/jobs").get_data(as_text=True)
-        self.assertIn("Status odświeża się na żywo.", body)
+        self.assertIn("Biblioteka", body)
+        self.assertIn("Pobrania i operacje", body)
+        self.assertIn(
+            "Wszystkie pobrania, zapisane pliki i operacje w jednym miejscu.", body
+        )
+        self.assertNotIn("Kolejka operacji", body)
 
     def test_jobs_frontend_uses_live_refresh(self) -> None:
         response = self.client.get("/static/js/app.js")
         try:
             body = response.get_data(as_text=True)
-            self.assertIn("jobsViewVisible ? 500 : 2500", body)
+            self.assertIn("const pollingDelay", body)
+            self.assertIn("return 1000", body)
+            self.assertIn("libraryPageVisible ? 3000 : 5000", body)
             self.assertIn('cache: "no-store"', body)
             self.assertIn('"visibilitychange"', body)
+            self.assertIn('window.addEventListener("focus", refreshJobs)', body)
             self.assertIn("selectedJobIds", body)
             self.assertIn("job.can_delete === true", body)
             self.assertIn("job.can_stop", body)
@@ -416,74 +429,52 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertIn("job.can_retry", body)
             self.assertIn("job.can_repeat", body)
             self.assertIn("/jobs/delete/", body)
-            self.assertIn("Usuń zadanie", body)
+            self.assertIn('t("common.delete_entry")', body)
             self.assertIn("/jobs/retry/", body)
-            self.assertIn("jobs-retry-failed-form", body)
-            self.assertIn("jobs-failed-count", body)
-            self.assertIn("data-jobs-filter", body)
             self.assertIn("jobFilterConfig", body)
-            self.assertIn("data-jobs-filter-count", body)
             self.assertIn('url.searchParams.set("filter", jobsFilter)', body)
-            self.assertIn("jobErrorHint", body)
+            self.assertIn("errorHint", body)
             self.assertIn("job-error-copy", body)
             self.assertIn("copyTextToClipboard", body)
             self.assertIn("navigator.clipboard", body)
-            self.assertIn("jobLogBlock", body)
-            self.assertIn("log_lines", body)
             self.assertIn("recent_log_lines", body)
-            self.assertIn("openJobLogIds", body)
-            self.assertIn("details.open = openJobLogIds.has(job.job_id)", body)
-            self.assertIn('details.addEventListener("toggle"', body)
-            self.assertIn("jobLogScrollTops", body)
-            self.assertIn("captureJobLogScrollPositions", body)
-            self.assertIn("pre.scrollTop = jobLogScrollTops.get(job.job_id)", body)
-            self.assertIn("pre.offsetParent !== null", body)
+            self.assertIn("const scrollTop = refs.logPre.scrollTop", body)
+            self.assertIn("refs.logPre.scrollTop = scrollTop", body)
             self.assertIn("/jobs/log/", body)
-            self.assertIn("job-full-log-link", body)
             self.assertIn("media-web-downloader-restore-path", body)
             self.assertIn('"beforeunload"', body)
             self.assertIn("window.location.replace(route(restorePath))", body)
-            self.assertIn("data-quick-download-submit", body)
-            self.assertIn("Szybkie pobieranie obsługuje jeden link naraz.", body)
-            self.assertIn("jobAutoRetryBlock", body)
+            self.assertIn('t("js.quick_one")', body)
+            self.assertIn("retryLabel", body)
             self.assertIn("next_retry_at", body)
-            self.assertIn("auto_retry_attempts", body)
-            self.assertIn("jobPreviewPath", body)
-            self.assertIn("/view/", body)
-            self.assertIn("Szczeg", body)
-            self.assertIn("route(`/jobs/${encodeURIComponent(job.job_id)}`)", body)
-            self.assertIn("jobTitle", body)
-            self.assertIn("job-title-link", body)
-            self.assertIn("job-thumbnail-link", body)
+            self.assertIn("normalizeJob", body)
+            self.assertIn("createLibraryItem", body)
+            self.assertIn("updateLibraryItem", body)
+            self.assertIn("reconcileList", body)
+            self.assertIn("item.dataset.jobId", body)
+            self.assertNotIn("body.replaceChildren()", body)
+            self.assertNotIn("list.replaceChildren()", body)
         finally:
             response.close()
 
     def test_jobs_page_exposes_delete_toolbar(self) -> None:
         body = self.client.get("/jobs").get_data(as_text=True)
-        self.assertIn('id="jobs-delete-selected-form"', body)
-        self.assertIn('id="jobs-clear-form"', body)
-        self.assertIn("table-toolbar", body)
-        self.assertIn("table-empty-state", body)
+        self.assertIn('id="jobs-search"', body)
+        self.assertIn('id="jobs-sort"', body)
+        self.assertIn('id="jobs-result-count"', body)
+        self.assertIn('id="jobs-bulk-form"', body)
+        self.assertIn('id="jobs-bulk-action"', body)
         self.assertIn('id="jobs-select-all"', body)
         self.assertIn('id="jobs-retry-failed-form"', body)
-        self.assertIn('id="jobs-failed-count"', body)
-        self.assertIn('id="jobs-filter-in-progress"', body)
-        self.assertIn('data-jobs-filter="in_progress"', body)
-        self.assertIn('id="jobs-filter-completed"', body)
-        self.assertIn('data-jobs-filter="completed"', body)
-        self.assertIn('id="jobs-filter-errors"', body)
-        self.assertIn('id="jobs-filter-stopped"', body)
-        self.assertIn('data-jobs-filter="stopped"', body)
-        self.assertIn('id="jobs-filter-interrupted"', body)
-        self.assertIn('data-jobs-filter="interrupted"', body)
-        self.assertIn('id="jobs-error-panel"', body)
-        self.assertIn('id="jobs-select-errors"', body)
-        self.assertIn('id="jobs-filter-empty"', body)
-        self.assertIn('id="jobs-filter-empty-title"', body)
-        self.assertIn('id="jobs-filter-empty-copy"', body)
-        self.assertIn("Kolejka jest pusta", body)
-        self.assertIn("Nie ma zadań w tym filtrze", body)
+        for job_filter in (
+            "all", "active", "queued", "completed", "errors", "stopped", "interrupted"
+        ):
+            self.assertIn(f'data-jobs-filter="{job_filter}"', body)
+        self.assertIn('id="jobs-list" class="library-list"', body)
+        self.assertIn('id="jobs-empty" class="library-empty-state', body)
+        self.assertIn("Biblioteka jest pusta", body)
         self.assertIn('id="jobs-empty-show-all"', body)
+        self.assertNotIn("<table", body)
 
     def test_jobs_page_can_open_error_filter(self) -> None:
         body = self.client.get("/jobs", query_string={"filter": "errors"}).get_data(
@@ -492,7 +483,14 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('id="jobs-filter-state" data-initial-filter="errors"', body)
 
     def test_jobs_page_can_open_status_filters(self) -> None:
-        for job_filter in ("in_progress", "completed", "stopped", "interrupted"):
+        for job_filter in (
+            "active",
+            "queued",
+            "completed",
+            "errors",
+            "stopped",
+            "interrupted",
+        ):
             with self.subTest(job_filter=job_filter):
                 body = self.client.get(
                     "/jobs", query_string={"filter": job_filter}
@@ -538,7 +536,9 @@ class ApplicationTestCase(unittest.TestCase):
             ).fetchone()[0]
         finally:
             connection.close()
-        self.assertEqual(len(json.loads(payload)["log_lines"]), 40)
+        # Logs are normalized into the dedicated SQLite log table, not duplicated
+        # in the serialized job payload.
+        self.assertEqual(json.loads(payload)["log_lines"], [])
 
     def test_job_details_page_displays_timeline_parameters_and_actions(self) -> None:
         manager = self.app.extensions["job_manager"]
@@ -729,7 +729,6 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Tagi", body)
         self.assertIn(">muzyka</span>", body)
         self.assertIn(">tutoriale</span>", body)
-        self.assertIn(">youtube</span>", body)
         self.assertIn(">video</span>", body)
         self.assertNotIn('href="/history', body)
         self.assertIn("Format pliku", body)
@@ -894,6 +893,7 @@ class ApplicationTestCase(unittest.TestCase):
                 "audio_format": "mp3",
                 "embed_thumbnail": True,
                 "add_metadata": True,
+                "duplicate_action": "warning",
             },
         )
 
@@ -1286,46 +1286,32 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Łącznie", body)
 
     def test_index_displays_modern_media_dashboard(self) -> None:
-        response = self.client.get("/")
-        body = response.get_data(as_text=True)
-        self.assertIn("Twoje media.", body)
-        self.assertIn("platform-chip platform-youtube", body)
-        self.assertIn("platform-chip platform-twitch", body)
-        self.assertIn("platform-chip platform-vimeo", body)
-        self.assertIn("platform-chip platform-soundcloud", body)
-        self.assertIn("platform-chip platform-ytdlp", body)
-        self.assertIn(">i inne przez yt-dlp</span>", body)
-        self.assertIn("hero-input-group", body)
+        body = self.client.get("/").get_data(as_text=True)
+        self.assertIn("Pobierz media", body)
+        self.assertIn("download-input-group", body)
         self.assertIn("bulk-url-review", body)
         self.assertIn('data-bulk-url-list', body)
-        self.assertIn('data-bulk-url-copy-invalid', body)
-        self.assertIn('data-bulk-url-remove-invalid', body)
         self.assertIn('action="/analyze"', body)
-        self.assertIn('id="media-url"', body)
-        self.assertIn("Wklej jeden lub wiele link", body)
-        self.assertIn(">Analizuj</span>", body)
-        self.assertNotIn('action="/download/import"', body)
-        self.assertNotIn('id="bulk-media-urls"', body)
-        self.assertNotIn("Import listy URL", body)
-        self.assertNotIn("Utwórz zadania", body)
+        self.assertIn('formaction="/download"', body)
+        self.assertIn('id="stat-active"', body)
+        self.assertIn('id="stat-queued"', body)
+        self.assertIn('id="stat-errors"', body)
+        self.assertIn('id="active-downloads-list"', body)
+        self.assertIn('id="recent-downloads-list"', body)
+        self.assertIn("Ostatnio pobrane", body)
         self.assertIn('href="/jobs"', body)
         self.assertNotIn('href="/history"', body)
-        self.assertIn('class="col-12 history-panel"', body)
-        self.assertNotIn('class="col-lg-7"', body)
+        self.assertNotIn('id="history-pagination"', body)
+        self.assertNotIn('id="history-bulk-form"', body)
+        self.assertNotIn("platform-chip", body)
 
-    def test_index_adds_recent_platform_chips(self) -> None:
-        files = self.app.extensions["file_service"]
-        for filename, title, url in (
-            ("instagram.mp4", "Instagram reel", "https://www.instagram.com/reel/abc/"),
-            ("kick.mp4", "Kick clip", "https://kick.com/channel"),
-        ):
-            (files.download_dir / filename).write_text("media", encoding="utf-8")
-            self._completed_job(filename=filename, title=title, url=url)
-
+    def test_index_uses_api_source_metadata_instead_of_platform_chips(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
-
-        self.assertIn("platform-chip platform-instagram", body)
-        self.assertIn("platform-chip platform-kick", body)
+        script = self.client.get("/static/js/app.js").get_data(as_text=True)
+        self.assertNotIn("platform-chip", body)
+        self.assertIn("sourceLabel", script)
+        self.assertIn("job.source_label", script)
+        self.assertIn("job.url", script)
 
     def test_base_exposes_frontend_configuration(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
@@ -1336,8 +1322,10 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('id="theme-toggle"', body)
         self.assertIn('data-theme-toggle', body)
         self.assertIn("media-web-downloader-theme", body)
-        self.assertIn("☀", body)
-        self.assertIn("☾", body)
+        self.assertIn('class="theme-icon theme-icon-sun"', body)
+        self.assertIn('class="theme-icon theme-icon-moon"', body)
+        self.assertNotIn("☀", body)
+        self.assertNotIn("☾", body)
 
     def test_navbar_marks_current_page(self) -> None:
         history_response = self.client.get("/history", follow_redirects=False)
@@ -1350,6 +1338,57 @@ class ApplicationTestCase(unittest.TestCase):
             '<a class="nav-link active" href="/jobs" aria-current="page">',
             jobs_body,
         )
+
+    def test_library_information_architecture_and_translations(self) -> None:
+        self.assertEqual(TRANSLATIONS["pl"]["nav.start"], "Pobieranie")
+        self.assertEqual(TRANSLATIONS["pl"]["nav.jobs"], "Biblioteka")
+        self.assertEqual(TRANSLATIONS["pl"]["nav.go_jobs"], "Otwórz bibliotekę")
+        self.assertEqual(TRANSLATIONS["pl"]["index.recent_jobs"], "Ostatnio pobrane")
+        self.assertEqual(TRANSLATIONS["pl"]["index.quick_download"], "Pobierz od razu")
+        self.assertEqual(TRANSLATIONS["pl"]["common.delete_entry"], "Usuń wpis")
+        self.assertEqual(TRANSLATIONS["en"]["nav.start"], "Download")
+        self.assertEqual(TRANSLATIONS["en"]["nav.jobs"], "Library")
+        self.assertEqual(TRANSLATIONS["en"]["nav.go_jobs"], "Open library")
+        self.assertEqual(TRANSLATIONS["en"]["index.recent_jobs"], "Recently downloaded")
+        self.assertEqual(TRANSLATIONS["en"]["index.quick_download"], "Download now")
+        self.assertEqual(TRANSLATIONS["en"]["common.delete_entry"], "Delete entry")
+        self.assertEqual(TRANSLATIONS["en"]["jobs.queue"], "Downloads and operations")
+
+        body = self.client.get("/jobs").get_data(as_text=True)
+        self.assertIn("Biblioteka", body)
+        self.assertNotIn("Kolejka operacji", body)
+        self.assertNotIn("Ostatnie zadania", body)
+
+        self.app.config["APP_SETTINGS"].ui_language = "en"
+        english_index = self.client.get("/").get_data(as_text=True)
+        english_library = self.client.get("/jobs").get_data(as_text=True)
+        self.assertIn("Download media", english_index)
+        self.assertIn("Download now", english_index)
+        self.assertIn("Recently downloaded", english_index)
+        self.assertIn("Downloads and operations", english_library)
+        self.assertIn("All downloads, saved files, and operations in one place.", english_library)
+
+    def test_jobs_route_keeps_library_compatibility_and_empty_state(self) -> None:
+        response = self.client.get("/jobs")
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="jobs-empty" class="library-empty-state', body)
+        self.assertIn('id="active-jobs-badge"', body)
+        self.assertIn('data-jobs-filter="active"', body)
+        self.assertIn('data-jobs-filter="queued"', body)
+        self.assertIn("Biblioteka jest pusta", body)
+        script = self.client.get("/static/js/app.js").get_data(as_text=True)
+        self.assertIn("const filterEmpty = jobFilterConfig[jobsFilter]", script)
+        self.assertIn("const emptyTitle = jobsQuery ?", script)
+        self.assertIn("const activeCount = jobs.filter(isActiveJob).length", script)
+        self.assertIn('setNodeText(badge, activeCount)', script)
+        self.assertIn('t("nav.active_jobs", { count: activeCount })', script)
+
+    def test_templates_have_no_dead_false_blocks(self) -> None:
+        templates = Path(__file__).resolve().parents[1] / "app" / "templates"
+        for template in templates.glob("*.html"):
+            with self.subTest(template=template.name):
+                self.assertNotIn("{% if false %}", template.read_text(encoding="utf-8"))
 
     def test_flash_messages_render_as_toasts(self) -> None:
         body = self.client.post(
@@ -1366,7 +1405,7 @@ class ApplicationTestCase(unittest.TestCase):
             session["_flashes"] = [("success", "Uruchomiono zadanie abc123.")]
         success_body = self.client.get("/jobs").get_data(as_text=True)
         self.assertIn("toast-action-link", success_body)
-        self.assertIn("Przejd", success_body)
+        self.assertIn("Otwórz bibliotekę", success_body)
 
     def test_diagnostics_page_displays_tool_and_storage_status(self) -> None:
         updater = self.app.extensions["ytdlp_updater"]
@@ -1430,56 +1469,19 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("playlist-entry-select", script)
         self.assertIn("playlist-select-all", script)
 
-    def test_history_delete_form_contains_filename_and_size(self) -> None:
-        files = self.app.extensions["file_service"]
-        target = files.download_dir / "example video.mp4"
-        target.write_text("media", encoding="utf-8")
-        job = self._completed_job(
-            filename=target.name,
-            title="Example video",
-            url="https://youtu.be/example",
-            download_type="best",
-            tags=["muzyka", "tutoriale"],
-        )
+    def test_index_has_no_history_management_controls(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
-        self.assertIn('data-filename="example video.mp4"', body)
-        self.assertIn('data-filesize-label="5.0 B"', body)
-        self.assertIn('id="history-type-filter"', body)
-        self.assertIn('id="history-status-filter"', body)
-        self.assertIn('id="history-tag-filter"', body)
-        self.assertIn('id="history-source-filter"', body)
-        self.assertIn('id="history-pagination"', body)
-        self.assertIn('id="history-bulk-form"', body)
-        self.assertIn('id="history-bulk-select-all"', body)
-        self.assertIn('id="history-selected-count"', body)
-        self.assertIn('value="delete_files"', body)
-        self.assertIn('value="repeat"', body)
-        self.assertIn('value="delete_jobs"', body)
-        self.assertIn('name="job_ids"', body)
-        self.assertIn(f'value="{job.job_id}" form="history-bulk-form"', body)
-        self.assertIn('data-history-type="best"', body)
-        self.assertIn('data-history-status="completed"', body)
-        self.assertIn('data-history-tags="muzyka|tutoriale|youtube|video"', body)
-        self.assertIn('data-history-platform="youtube"', body)
-        self.assertIn('class="history-delete-form"', body)
-        self.assertIn(f'action="/jobs/delete/{job.job_id}"', body)
-        self.assertIn(f'href="/jobs/{job.job_id}"', body)
-        self.assertNotIn('action="/history/delete"', body)
-        self.assertNotIn("<th>Plik</th>", body)
-        self.assertIn("<th>Status</th>", body)
-        self.assertIn("<th>Wynik</th>", body)
-        self.assertIn(">Szczeg", body)
-        self.assertIn("history-quick-actions", body)
-        self.assertIn("history-icon-action", body)
-        self.assertIn('target="_blank" rel="noreferrer"', body)
-        self.assertNotIn('aria-label="Pobierz plik"', body)
-        self.assertIn('aria-label="Otwórz w nowym oknie"', body)
-        self.assertNotIn('class="repeat-download-form"', body)
-        self.assertNotIn('aria-label="Pobierz ponownie"', body)
-        self.assertNotIn('aria-label="Usuń zadanie"', body)
-        self.assertIn('aria-label="Usuń plik"', body)
+        self.assertNotIn('id="history-type-filter"', body)
+        self.assertNotIn('id="history-status-filter"', body)
+        self.assertNotIn('id="history-tag-filter"', body)
+        self.assertNotIn('id="history-source-filter"', body)
+        self.assertNotIn('id="history-pagination"', body)
+        self.assertNotIn('id="history-bulk-form"', body)
+        self.assertNotIn('class="history-bulk-select"', body)
+        self.assertIn('id="recent-downloads-list"', body)
+        self.assertIn("Otwórz bibliotekę", body)
 
-    def test_downloaded_job_only_offers_file_deletion(self) -> None:
+    def test_downloaded_job_keeps_file_and_entry_deletion_separate(self) -> None:
         files = self.app.extensions["file_service"]
         target = files.download_dir / "downloaded.mp4"
         target.write_text("media", encoding="utf-8")
@@ -1489,23 +1491,17 @@ class ApplicationTestCase(unittest.TestCase):
             url="https://youtu.be/downloaded",
             download_type="best",
         )
-
-        history_body = self.client.get("/").get_data(as_text=True)
-        details_body = self.client.get(f"/jobs/{job.job_id}").get_data(as_text=True)
         api_job = self.client.get(f"/api/jobs/{job.job_id}").get_json()
-
+        script = self.client.get("/static/js/app.js").get_data(as_text=True)
         self.assertTrue(api_job["file_exists"])
-        self.assertNotIn('aria-label="Pobierz plik"', history_body)
-        self.assertNotIn('aria-label="Pobierz ponownie"', history_body)
-        self.assertNotIn('aria-label="Usuń zadanie"', history_body)
-        self.assertIn('aria-label="Usuń plik"', history_body)
-        self.assertNotIn(">Pobierz</a>", details_body)
-        self.assertNotIn(">Usuń zadanie</button>", details_body)
-        self.assertIn(">Usuń plik</button>", details_body)
-
+        self.assertTrue(api_job["can_delete"])
+        self.assertIn("deleteFileForm(job)", script)
+        self.assertIn('t("common.delete_file")', script)
+        self.assertIn('t("common.delete_entry")', script)
+        self.assertIn('t("js.delete_entry_confirm"', script)
+        self.assertIn('route("/jobs/delete/"', script)
         target.unlink()
-        missing_file_job = self.client.get(f"/api/jobs/{job.job_id}").get_json()
-        self.assertFalse(missing_file_job["file_exists"])
+        self.assertFalse(self.client.get(f"/api/jobs/{job.job_id}").get_json()["file_exists"])
 
     def test_index_history_bulk_delete_files_removes_selected_downloads(self) -> None:
         files = self.app.extensions["file_service"]
@@ -1579,31 +1575,12 @@ class ApplicationTestCase(unittest.TestCase):
         )
         self.assertIn("Uruchomiono ponowne pobrania: 1.", response.get_data(as_text=True))
 
-    def test_index_limits_recent_jobs_to_ten_items(self) -> None:
-        manager = self.app.extensions["job_manager"]
-        files = self.app.extensions["file_service"]
-        for index in range(12):
-            target = files.download_dir / f"clip-{index:02d}.mp4"
-            target.write_text("media", encoding="utf-8")
-            job = self._completed_job(
-                filename=target.name,
-                title=f"Clip {index:02d}",
-                url=f"https://youtu.be/clip-{index:02d}",
-            )
-            with manager._lock:
-                active = manager._jobs[job.job_id]
-                timestamp = f"2026-06-{index + 1:02d}T10:00:00+00:00"
-                active.created_at = timestamp
-                active.finished_at = timestamp
-                manager._persist_jobs()
-
+    def test_index_limits_recent_jobs_to_five_items(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
-
-        self.assertIn("10 ostatnich", body)
-        self.assertIn("Clip 11", body)
-        self.assertIn("Clip 02", body)
-        self.assertNotIn("Clip 01", body)
-        self.assertNotIn("Clip 00", body)
+        script = self.client.get("/static/js/app.js").get_data(as_text=True)
+        self.assertIn("Pięć ostatnich", body)
+        self.assertIn("slice(0, 5)", script)
+        self.assertIn('data-library-limit="5"', body)
 
     def test_index_allows_repeat_for_migrated_history_with_deleted_file(self) -> None:
         manager = self.app.extensions["job_manager"]
@@ -1622,14 +1599,13 @@ class ApplicationTestCase(unittest.TestCase):
         )
         manager._migrate_history_records_into_jobs()
         manager._load_jobs()
-
-        body = self.client.get("/").get_data(as_text=True)
-
-        self.assertIn("Deleted legacy clip", body)
-        self.assertIn('aria-label="Pobierz ponownie"', body)
-        self.assertIn('name="url" value="https://youtu.be/deleted"', body)
-        self.assertIn('name="download_type" value="video-720"', body)
-        self.assertIn("plik usuni", body)
+        job = self.client.get("/api/jobs").get_json()["jobs"][0]
+        script = self.client.get("/static/js/app.js").get_data(as_text=True)
+        self.assertEqual(job["title"], "Deleted legacy clip")
+        self.assertTrue(job["can_repeat"])
+        self.assertFalse(job["file_exists"])
+        self.assertIn("repeatJobForm", script)
+        self.assertIn('t("common.download_again")', script)
 
     def test_history_page_searches_metadata_fields(self) -> None:
         files = self.app.extensions["file_service"]
@@ -1682,7 +1658,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Brak wyników", empty)
         self.assertIn("Wyniki: 0 z 1", empty)
 
-    def test_history_single_delete_file_returns_to_history_view(self) -> None:
+    def test_history_single_delete_file_returns_to_library(self) -> None:
         files = self.app.extensions["file_service"]
         target = files.download_dir / "example.mp4"
         target.write_text("media", encoding="utf-8")
@@ -1710,11 +1686,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(target.exists())
         self.assertFalse(files.history()[0]["file_exists"])
-        self.assertIn("/history?", response.headers["Location"])
-        self.assertIn("sort=title", response.headers["Location"])
-        self.assertIn("order=asc", response.headers["Location"])
-        self.assertIn("view=gallery", response.headers["Location"])
-        self.assertIn("q=Example", response.headers["Location"])
+        self.assertEqual(response.headers["Location"], "/jobs")
 
     def test_history_page_sorts_by_supported_fields(self) -> None:
         files = self.app.extensions["file_service"]
@@ -1806,16 +1778,19 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('data-history-mobile-view="compact"', body)
         self.assertIn('history-mobile-card', body)
 
-    def test_history_frontend_toggles_mobile_compact_view(self) -> None:
+    def test_library_uses_one_responsive_component_on_mobile(self) -> None:
         script = self.client.get("/static/js/app.js").get_data(as_text=True)
+        mobile_css = self.client.get("/static/css/mobile.css").get_data(as_text=True)
 
-        self.assertIn("media-web-downloader-history-mobile-view", script)
-        self.assertIn("history-mobile-compact", script)
-        self.assertIn("[data-history-mobile-view]", script)
+        self.assertIn("createLibraryItem", script)
+        self.assertIn('item.className = "library-item"', script)
+        self.assertIn(".library-item,", mobile_css)
+        self.assertIn(".library-list-compact .library-item", mobile_css)
+        self.assertNotIn("history-mobile-compact", script)
+        self.assertNotIn("history-mobile-compact", mobile_css)
         self.assertIn("notifyNewJobErrors", script)
-        self.assertIn("Otwórz log", script)
+        self.assertIn('t("common.open_log")', script)
         self.assertIn("toast-action-link", script)
-        self.assertIn("history-icon-action", script)
 
     def test_history_page_exposes_mini_player_for_local_media(self) -> None:
         files = self.app.extensions["file_service"]
@@ -1869,12 +1844,13 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('class="custom-player custom-player-compact custom-player-video"', body)
         self.assertIn('class="custom-player-media history-mini-player-media"', body)
 
-    def test_history_frontend_toggles_mini_players(self) -> None:
+    def test_library_preview_action_keeps_full_player_behaviour(self) -> None:
         script = self.client.get("/static/js/app.js").get_data(as_text=True)
 
-        self.assertIn(".history-mini-player-toggle", script)
-        self.assertIn("setMiniPlayerOpen", script)
-        self.assertIn("pausePanelMedia", script)
+        self.assertIn('route("/view/" + encodeManagedPath(job.output_file))', script)
+        self.assertIn('t("jobs.open")', script)
+        self.assertIn('t("common.open_file")', script)
+        self.assertNotIn(".history-mini-player-toggle", script)
         self.assertIn("enhanceCustomPlayer", script)
         self.assertIn("custom-player-progress", script)
         self.assertIn("aria-keyshortcuts", script)
@@ -1885,7 +1861,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("media-web-downloader-player-positions", script)
         self.assertIn("playbackRate", script)
         self.assertIn("clampPlaybackRate", script)
-        self.assertIn('max="3"', script)
+        self.assertIn('speedSettingSlider.max = "3"', script)
         self.assertIn("custom-player-speed-slider", script)
         self.assertIn("custom-player-overlay", script)
         self.assertIn("custom-player-captions", script)
@@ -1893,17 +1869,16 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("downloadedCaptions", script)
         self.assertIn("fetch(captionsUrl", script)
         self.assertIn('formData.append("mode", mode)', script)
-        self.assertIn('data-captions-mode="pl"', script)
-        self.assertIn("Polskie", script)
-        self.assertIn("Angielskie", script)
-        self.assertIn("Automatyczne", script)
+        self.assertIn('["pl", "js.captions_polish"]', script)
+        self.assertIn('["en", "js.captions_english"]', script)
+        self.assertIn('["auto", "js.captions_auto"]', script)
         self.assertIn('track.kind = "subtitles"', script)
         self.assertIn("js.captions_status_loading", script)
         self.assertIn("custom-player-captions-status", script)
         self.assertIn("custom-player-settings", script)
         self.assertIn("custom-player-settings-panel", script)
-        self.assertIn("Całe wideo", script)
-        self.assertIn("Wypełnij ekran", script)
+        self.assertIn('["contain", "js.fit_contain"]', script)
+        self.assertIn('["cover", "js.fit_cover"]', script)
         self.assertIn("custom-player-right-controls", script)
         self.assertIn("custom-player-theater-active", script)
         self.assertIn("custom-player-context-menu", script)
@@ -1911,20 +1886,19 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("custom-player-copy-feedback", script)
         self.assertIn("formatVideoDebugStats", script)
         self.assertIn("estimatedBitrateLabel", script)
-        self.assertIn("Bufor realny", script)
-        self.assertIn("Ścieżka pliku", script)
-        self.assertIn("Prędkość połączenia", script)
-        self.assertIn("Aktywność sieci", script)
-        self.assertIn("Stan bufora", script)
-        self.assertIn('["Data"', script)
-        self.assertIn("ID / nazwa filmu", script)
-        self.assertIn("zdarzenie=", script)
+        self.assertIn('t("js.debug_buffer_ranges")', script)
+        self.assertIn('t("js.debug_file_path")', script)
+        self.assertIn('t("js.debug_connection")', script)
+        self.assertIn('t("js.debug_network")', script)
+        self.assertIn('t("js.debug_buffer")', script)
+        self.assertIn('t("js.debug_date")', script)
+        self.assertIn('t("js.debug_video_id")', script)
+        self.assertIn('t("js.network_event"', script)
         self.assertIn("networkActivityLabel", script)
         self.assertIn("contextmenu", script)
         self.assertIn("preventDefault", script)
-        self.assertIn("W tym filmie >", script)
+        self.assertIn('t("preview.file_info")', script)
         self.assertIn("bulk-url-remove", script)
-        self.assertIn("Odtwórz tutaj", script)
 
     def test_history_bulk_delete_records_keeps_files(self) -> None:
         files = self.app.extensions["file_service"]
@@ -2050,7 +2024,7 @@ class ApplicationTestCase(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("q=Example", response.headers["Location"])
+        self.assertEqual(response.headers["Location"], "/jobs")
         self.assertEqual(updater.calls, 0)
         start_download.assert_called_once_with(
             url="https://youtu.be/example",
@@ -2329,7 +2303,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('form="history-delete-record-0">Usuń wpis</button>', body)
         self.assertIn('name="return_to" value="history"', body)
 
-    def test_full_history_record_delete_returns_to_history_view(self) -> None:
+    def test_full_history_record_delete_returns_to_library(self) -> None:
         files = self.app.extensions["file_service"]
         target = files.download_dir / "example.mp4"
         target.write_text("media", encoding="utf-8")
@@ -2357,10 +2331,7 @@ class ApplicationTestCase(unittest.TestCase):
         )
 
         self.assertEqual(files.history(), [])
-        self.assertIn(
-            "/history?sort=title&order=asc&view=gallery&q=Example",
-            response.headers["Location"],
-        )
+        self.assertEqual(response.headers["Location"], "/jobs")
 
     def test_history_repeat_download_keeps_explicit_format_id(self) -> None:
         files = self.app.extensions["file_service"]
@@ -2589,24 +2560,18 @@ class ApplicationTestCase(unittest.TestCase):
 
 _OBSOLETE_HISTORY_PAGE_TESTS = [
     "test_history_page_searches_metadata_fields",
-    "test_history_single_delete_file_returns_to_history_view",
     "test_history_page_sorts_by_supported_fields",
     "test_history_page_exposes_bulk_actions",
     "test_history_page_exposes_mini_player_for_local_media",
     "test_history_gallery_view_exposes_mini_player",
-    "test_history_bulk_delete_records_keeps_files",
-    "test_history_bulk_delete_files_keeps_records",
-    "test_history_bulk_repeat_downloads_selected_records",
     "test_history_tags_can_be_saved_and_searched",
     "test_history_page_exposes_tag_editors",
     "test_history_adds_automatic_tags",
     "test_history_tag_links_filter_by_tag",
     "test_history_gallery_view_displays_thumbnail_grid",
     "test_history_title_and_thumbnail_open_preview",
-    "test_history_record_can_be_deleted_without_removing_file",
     "test_history_repeat_download_is_available_after_file_deletion",
     "test_full_history_repeat_download_is_available_after_file_deletion",
-    "test_full_history_record_delete_returns_to_history_view",
     "test_history_repeat_download_keeps_explicit_format_id",
     "test_history_repeat_download_is_hidden_for_legacy_format_without_id",
     "test_history_displays_thumbnail_warning",
@@ -3057,7 +3022,10 @@ class YtDlpUpdaterTestCase(unittest.TestCase):
             "app.services.ytdlp_updater.subprocess.run", return_value=completed
         ) as run:
             self.assertTrue(updater.ensure_recent())
-        run.assert_called_once()
+        self.assertEqual(run.call_count, 4)
+        self.assertEqual(run.call_args_list[1].args[0], updater.command)
+        self.assertIn("yt_dlp", run.call_args_list[0].args[0])
+        self.assertIn("gen_extractors", run.call_args_list[3].args[0][-1])
         state = json.loads(self.state_file.read_text(encoding="utf-8"))
         self.assertIn("last_attempt", state)
         self.assertEqual(state["last_attempt"], state["last_success"])
@@ -3086,7 +3054,8 @@ class YtDlpUpdaterTestCase(unittest.TestCase):
             "app.services.ytdlp_updater.subprocess.run", return_value=completed
         ) as run:
             self.assertTrue(updater.ensure_recent())
-        run.assert_called_once()
+        self.assertEqual(run.call_count, 4)
+        self.assertEqual(run.call_args_list[1].args[0], updater.command)
 
 
 class FileServiceThumbnailTestCase(unittest.TestCase):

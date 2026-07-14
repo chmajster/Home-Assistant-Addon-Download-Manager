@@ -99,12 +99,12 @@
               {% if media.extractor_key %}<input type="hidden" name="extractor_key" value="{{ media.extractor_key }}">{% endif %}
               {% if media.duplicate_warnings %}<input type="hidden" name="allow_duplicate" value="1">{% endif %}
               {% if media.duration %}<input type="hidden" name="duration" value="{{ media.duration }}">{% endif %}
-              <label class="form-label" for="duplicate-action">Duplikaty</label>
+              <label class="form-label" for="duplicate-action">{{ t('result.duplicates') }}</label>
               <select class="form-select mb-3" id="duplicate-action" name="duplicate_action">
-                <option value="warning">Tylko ostrzeżenie</option>
-                <option value="skip">Pomiń</option>
-                <option value="overwrite">Nadpisz</option>
-                <option value="rename">Utwórz nową nazwę</option>
+                <option value="warning">{{ t('result.duplicate_warning_only') }}</option>
+                <option value="skip">{{ t('result.duplicate_skip') }}</option>
+                <option value="overwrite">{{ t('result.duplicate_overwrite') }}</option>
+                <option value="rename">{{ t('result.duplicate_rename') }}</option>
               </select>
               <label class="form-label" for="download-profile">{{ t('result.profile') }}</label>
               <select class="form-select mb-3" id="download-profile" name="download_profile">

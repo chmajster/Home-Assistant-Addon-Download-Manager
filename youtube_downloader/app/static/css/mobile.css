@@ -74,23 +74,6 @@
     right: 0.5rem !important;
   }
 
-  .hero-card .card-body {
-    padding: 1.4rem !important;
-  }
-
-  .hero-card .display-6 {
-    font-size: 2rem;
-  }
-
-  .hero-eyebrow {
-    font-size: 0.64rem;
-    max-width: 100%;
-  }
-
-  .hero-title {
-    line-height: 1.08;
-  }
-
   .url-form .input-group {
     background: transparent;
     border: 0;
@@ -113,7 +96,7 @@
   }
 
   .url-form .form-control {
-    border: 1px solid rgba(103, 88, 232, 0.18);
+    border: 1px solid rgba(11, 132, 165, 0.18);
     box-shadow: 0 8px 18px rgba(41, 54, 97, 0.08);
     padding-left: 1rem;
   }
@@ -131,8 +114,8 @@
   }
 
   .custom-player-button {
-    height: 1.9rem;
-    min-width: 1.9rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
   }
 
   .custom-player-button svg {
@@ -236,68 +219,6 @@
     min-height: 2.6rem;
   }
 
-  .history-mobile-view-toolbar {
-    display: flex;
-    width: 100%;
-  }
-
-  .history-mobile-view-toolbar .btn {
-    flex: 1 1 0;
-  }
-
-  .history-mobile-compact .history-mobile-card {
-    display: grid;
-    gap: 0.35rem 0.65rem;
-    grid-template-columns: auto minmax(0, 1fr);
-    padding: 0.85rem !important;
-  }
-
-  .history-mobile-compact .history-mobile-select {
-    grid-row: 1 / span 3;
-    margin: 0 !important;
-  }
-
-  .history-mobile-compact .history-mobile-select .form-check-label {
-    display: none;
-  }
-
-  .history-mobile-compact .history-mobile-media,
-  .history-mobile-compact .history-mobile-url,
-  .history-mobile-compact .history-mobile-tags,
-  .history-mobile-compact .history-mobile-tags-editor {
-    display: none !important;
-  }
-
-  .history-mobile-compact .history-mobile-title {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .history-mobile-compact .history-mobile-meta {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .history-mobile-compact .history-mobile-actions {
-    gap: 0.35rem !important;
-    margin-top: 0.1rem !important;
-  }
-
-  .history-mobile-compact .history-mobile-actions .btn,
-  .history-mobile-compact .history-mobile-actions .badge {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.5rem;
-  }
-
-  .history-mobile-compact .history-mobile-actions .history-icon-action {
-    height: 2rem;
-    min-width: 2rem;
-    padding: 0 !important;
-  }
-
   .diagnostics-ytdlp-grid {
     grid-template-columns: 1fr;
   }
@@ -312,5 +233,46 @@
 
   .preview-info-grid dt {
     margin-top: 0.35rem;
+  }
+
+  .dashboard-stats,
+  .secondary-settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .library-toolbar-row,
+  .library-bulk,
+  .library-sort {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .library-sort .form-select,
+  .library-bulk .form-select {
+    flex: 1 1 10rem;
+    width: 100%;
+  }
+
+  .library-item,
+  .library-list-compact .library-item {
+    align-items: start;
+    grid-template-columns: auto 5.5rem minmax(0, 1fr);
+    padding: 0.75rem;
+  }
+
+  .library-thumbnail { grid-column: 2; grid-row: 1; }
+  .library-main { grid-column: 3; grid-row: 1; }
+  .library-state { grid-column: 2 / -1; grid-row: 2; }
+  .library-metrics { grid-column: 2 / -1; grid-row: 3; width: 100%; }
+  .library-actions { grid-column: 2 / -1; grid-row: 4; justify-content: flex-start; width: 100%; }
+  .library-select { grid-column: 1; grid-row: 1 / 3; }
+  .library-primary-action { flex: 1; }
+  .library-primary-action .btn,
+  .library-primary-action form,
+  .library-primary-action form button { width: 100%; }
+  .library-menu-panel { left: auto; right: 0; }
+
+  .library-item-compact .library-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

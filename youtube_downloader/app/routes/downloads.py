@@ -9,12 +9,8 @@ def index():
     """Main panel with URL form and recent completed jobs."""
 
     file_service = _file_service()
-    history = _completed_job_records(limit=10)
     return render_template(
         "index.html",
-        history=history,
-        platform_chips=_platform_chips(history),
-        files=file_service.list_files(),
         storage=file_service.storage_usage(),
         options=current_app.config["APP_SETTINGS"],
     )
