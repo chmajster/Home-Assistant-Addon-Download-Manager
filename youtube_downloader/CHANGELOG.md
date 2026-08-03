@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.84
+
+- Podbito wersję dodatku.
+
 ## 1.3.83
 
 - Przebudowano pasek narzędzi Biblioteki: kontekstowe akcje zaznaczenia, pojedynczy licznik i responsywne menu dodatkowych działań.
