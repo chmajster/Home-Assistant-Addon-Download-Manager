@@ -2008,7 +2008,7 @@
   const primaryAction = (job) => {
     if (job.can_stop) return actionForm(
       route("/" + (job.is_live ? "live" : "download") + "/stop/" + encodeURIComponent(job.job_id)),
-      t("job.stop"), "btn btn-sm btn-outline-danger");
+      t(job.is_live ? "job.stop_live" : "job.stop"), "btn btn-sm btn-outline-danger");
     if (job.can_resume) return actionForm(route("/download/resume/" + encodeURIComponent(job.job_id)),
       t("job.resume"), "btn btn-sm btn-primary");
     if (job.can_retry) return actionForm(route("/jobs/retry/" + encodeURIComponent(job.job_id)),

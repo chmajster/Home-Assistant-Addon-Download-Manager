@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 import re
-import importlib
+from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from .embedded_media_resolver import (
+    EmbeddedMediaError,
+    EmbeddedMediaResolver,
+)
 from .error_messages import operational_error_message
 
 LOGGER = logging.getLogger(__name__)
@@ -76,13 +81,18 @@ class MediaServiceError(RuntimeError):
 class MediaService:
     """Analyze supported public media links and prepare controlled downloads."""
 
-    def __init__(self, download_dir: Path) -> None:
+    def __init__(
+        self,
+        download_dir: Path,
+        embedded_resolver: EmbeddedMediaResolver | None = None,
+    ) -> None:
         self.download_dir = download_dir.resolve()
         self.download_dir.mkdir(parents=True, exist_ok=True)
+        self.embedded_resolver = embedded_resolver or EmbeddedMediaResolver()
 
     @staticmethod
     def validate_url(url: str) -> str:
-        """Allow public HTTP(S) links handled by a concrete yt-dlp extractor."""
+        """Allow concrete extractors and structurally safe embedded-page URLs."""
 
         candidate = (url or "").strip()
         if not candidate or len(candidate) > 2048:
@@ -103,13 +113,14 @@ class MediaService:
         normalized_url = urlunsplit(
             (parts.scheme.lower(), host, parts.path, parts.query, "")
         )
-        if (
-            not MediaService._known_platform(host)
-            and not MediaService._matching_ytdlp_extractor(normalized_url)
-        ):
-            raise MediaServiceError(
-                "Ten adres nie pasuje do żadnego obsługiwanego extractora yt-dlp."
-            )
+        concrete_extractor = MediaService._known_platform(
+            host
+        ) or MediaService._matching_ytdlp_extractor(normalized_url)
+        if not concrete_extractor:
+            try:
+                normalized_url = EmbeddedMediaResolver.normalize_url(normalized_url)
+            except EmbeddedMediaError as error:
+                raise MediaServiceError(str(error)) from error
         if not parts.path:
             raise MediaServiceError("Podaj pełny adres materiału lub kanału.")
         if (
@@ -181,6 +192,17 @@ class MediaService:
         """Extract metadata without downloading media."""
 
         validated_url = self.validate_url(url)
+        host = (urlsplit(validated_url).hostname or "").casefold().rstrip(".")
+        has_concrete_extractor = bool(
+            self._known_platform(host) or self._matching_ytdlp_extractor(validated_url)
+        )
+        if not has_concrete_extractor:
+            try:
+                validated_url = self.embedded_resolver.validate_public_url(
+                    validated_url
+                )
+            except EmbeddedMediaError as error:
+                raise MediaServiceError(str(error)) from error
         options: dict[str, Any] = {
             "quiet": True,
             "no_warnings": True,
@@ -191,21 +213,48 @@ class MediaService:
             "ignoreerrors": False,
         }
         self._apply_public_youtube_options(options, validated_url)
+        if has_concrete_extractor:
+            raw_info = self._extract_info(validated_url, options)
+            if not raw_info:
+                raise MediaServiceError("yt-dlp nie zwrócił metadanych dla tego adresu.")
+            return self._normalize_info(raw_info, validated_url)
+
+        try:
+            resolved = self.embedded_resolver.resolve(validated_url)
+            resolved_options = dict(options)
+            resolved_options["http_headers"] = dict(resolved.headers)
+            resolved_info = self._extract_info(resolved.source_url, resolved_options)
+            if not resolved_info:
+                raise MediaServiceError("yt-dlp nie zwrócił metadanych źródła transmisji.")
+            if resolved.is_live:
+                resolved_info["is_live"] = True
+                resolved_info["live_status"] = "is_live"
+            normalized = self._normalize_info(resolved_info, validated_url)
+            normalized["title"] = resolved.title or normalized["title"]
+            normalized["embedded_media"] = True
+            normalized["media_kind"] = resolved.media_kind
+            normalized["_source_url"] = resolved.source_url
+            normalized["_http_headers"] = dict(resolved.headers)
+            if resolved.persistable_source_url:
+                normalized["resolved_source_url"] = resolved.persistable_source_url
+            return normalized
+        except EmbeddedMediaError as resolver_error:
+            raise MediaServiceError(str(resolver_error)) from resolver_error
+
+    @staticmethod
+    def _extract_info(url: str, options: dict[str, Any]) -> dict[str, Any] | None:
         YoutubeDL, DownloadError = _yt_dlp_api()
         try:
             with YoutubeDL(options) as ydl:
-                raw_info = ydl.extract_info(validated_url, download=False)
+                return ydl.extract_info(url, download=False)
         except DownloadError as error:
-            raise MediaServiceError(self.polish_error(str(error))) from error
+            raise MediaServiceError(MediaService.polish_error(str(error))) from error
         except Exception as error:
             LOGGER.exception("Nieoczekiwany błąd analizy URL")
             raise MediaServiceError(
                 operational_error_message(str(error))
                 or "Nie udało się przeanalizować materiału przez yt-dlp."
             ) from error
-        if not raw_info:
-            raise MediaServiceError("yt-dlp nie zwrócił metadanych dla tego adresu.")
-        return self._normalize_info(raw_info, validated_url)
 
     def download(
         self,
@@ -335,6 +384,16 @@ class MediaService:
         validated_url = self.validate_url(url)
         options = self.download_options(download_type, format_id, download_options)
         self._apply_public_youtube_options(options, validated_url)
+        host = (urlsplit(validated_url).hostname or "").casefold().rstrip(".")
+        if not (
+            self._known_platform(host) or self._matching_ytdlp_extractor(validated_url)
+        ):
+            try:
+                resolved = self.embedded_resolver.resolve(validated_url)
+            except EmbeddedMediaError as error:
+                raise MediaServiceError(str(error)) from error
+            options["http_headers"] = dict(resolved.headers)
+            return resolved.source_url, options
         return validated_url, options
 
     def download_options(
@@ -464,10 +523,29 @@ class MediaService:
         cleaned = " ".join(cleaned.split())[:80].strip(" ._")
         return cleaned or None
 
-    def live_command(self, url: str, live_from_start: bool = True) -> list[str]:
+    def live_command(
+        self,
+        url: str,
+        live_from_start: bool = True,
+        source_url: str | None = None,
+        http_headers: dict[str, str] | None = None,
+    ) -> list[str]:
         """Build a separate yt-dlp process command for live recording."""
 
         validated_url = self.validate_url(url)
+        target_url = source_url
+        headers = dict(http_headers or {})
+        host = (urlsplit(validated_url).hostname or "").casefold().rstrip(".")
+        if target_url is None and not (
+            self._known_platform(host) or self._matching_ytdlp_extractor(validated_url)
+        ):
+            try:
+                resolved = self.embedded_resolver.resolve(validated_url)
+            except EmbeddedMediaError as error:
+                raise MediaServiceError(str(error)) from error
+            target_url = resolved.source_url
+            headers = dict(resolved.headers)
+        target_url = target_url or validated_url
         options = self.download_options("best")
         command = [
             "/venv/bin/python",
@@ -494,9 +572,12 @@ class MediaService:
                     f"youtube:player_client={','.join(YOUTUBE_PUBLIC_PLAYER_CLIENTS)}",
                 ]
             )
+        for name, value in headers.items():
+            if name in {"User-Agent", "Referer", "Origin"} and "\n" not in value:
+                command.extend(["--add-header", f"{name}:{value}"])
         if live_from_start:
             command.append("--live-from-start")
-        command.append(validated_url)
+        command.append(target_url)
         return command
 
     @staticmethod

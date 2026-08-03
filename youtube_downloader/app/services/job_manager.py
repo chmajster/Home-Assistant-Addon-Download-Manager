@@ -46,6 +46,19 @@ PROGRESS_PERSIST_INTERVAL_SECONDS = 2.0
 PROGRESS_MIN_DELTA_PERCENT = 1.0
 LIVE_SIZE_UPDATE_INTERVAL_SECONDS = 4.0
 LIVE_STATUS_LOG_INTERVAL_SECONDS = 60.0
+LIVE_END_FRAGMENT_PATTERNS = (
+    "error: did not get any data blocks",
+    "[download] fragment not found; skipping fragment",
+)
+LOG_URL_RE = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
+LIVE_FRAGMENT_WARNING = (
+    "Transmisja została zapisana. Końcowe niedostępne fragmenty zostały pominięte."
+)
+LIVE_NONZERO_WARNING = (
+    "Transmisja została zapisana poprawnie mimo niezerowego kodu zakończenia yt-dlp."
+)
+LIVE_MANUAL_STOP_WARNING = "Nagrywanie zostało zakończone ręcznie przez użytkownika."
+YTDLP_FORMAT_PART_RE = re.compile(r"\.f[0-9A-Za-z_-]+\.[^.]+$")
 
 
 class DownloadStoppedError(RuntimeError):
@@ -150,6 +163,7 @@ class JobManager:
         self._retry_timers: dict[str, threading.Timer] = {}
         self._orphaned_processes: list[OrphanedYtDlpProcess] = []
         self._orphan_live_urls: set[str] = set()
+        self._blocking_file_operations: dict[str, str] = {}
         self._shutdown_event = threading.Event()
         self._shutdown_lock = threading.Lock()
         self._shutdown_complete = False
@@ -451,7 +465,16 @@ class JobManager:
         LOGGER.info("Ponowiono błędne zadanie %s", job_id)
         return snapshot
 
-    def start_live(self, url: str, title: str, live_from_start: bool = True) -> Job:
+    def start_live(
+        self,
+        url: str,
+        title: str,
+        live_from_start: bool = True,
+        *,
+        source_url: str | None = None,
+        http_headers: dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Job:
         """Queue a uniquely identified live stream recording process."""
 
         if self._shutdown_event.is_set():
@@ -468,13 +491,14 @@ class JobManager:
             "live",
             is_live=True,
             live_from_start=live_from_start,
+            metadata=metadata,
         )
         stop_event = threading.Event()
         with self._lock:
             self._stop_events[job.job_id] = stop_event
         thread = threading.Thread(
             target=self._run_live,
-            args=(job.job_id,),
+            args=(job.job_id, source_url, dict(http_headers or {})),
             daemon=True,
             name=f"live-{job.job_id[:8]}",
         )
@@ -554,6 +578,24 @@ class JobManager:
         with self._lock:
             jobs = [Job(**asdict(job)) for job in self._jobs.values()]
         return sorted(jobs, key=lambda item: item.created_at, reverse=True)
+
+    def blocking_file_operations(self) -> dict[str, str]:
+        """Return critical copy/move operations that must finish before shutdown."""
+
+        with self._lock:
+            return dict(self._blocking_file_operations)
+
+    @staticmethod
+    def _file_operation_from_hook(data: dict[str, Any]) -> str | None:
+        """Identify yt-dlp postprocessors that copy or move completed files."""
+
+        label = str(data.get("postprocessor") or data.get("postprocessor_key") or "")
+        normalized = label.casefold()
+        if "move" in normalized:
+            return "moving"
+        if "copy" in normalized:
+            return "copying"
+        return None
 
     def delete_job(self, job_id: str) -> None:
         """Delete one completed or still-queued job from the persistent queue."""
@@ -647,7 +689,7 @@ class JobManager:
             )
             if not process_urls:
                 continue
-            command_line = " ".join(args)
+            command_line = self._redact_log_line(" ".join(args))
             processes.append(
                 OrphanedYtDlpProcess(
                     pid=pid,
@@ -667,7 +709,7 @@ class JobManager:
                 LOGGER.warning(
                     "Osierocony yt-dlp pid=%s urls=%s",
                     process.pid,
-                    ", ".join(process.urls),
+                    ", ".join(self._redact_url(url) for url in process.urls),
                 )
         elif log_empty:
             LOGGER.info("Nie wykryto osieroconych procesow yt-dlp dodatku.")
@@ -851,6 +893,13 @@ class JobManager:
                     active.format_id = None
                     active.is_live = True
                     active.live_from_start = True
+                    for key in (
+                        "embedded_media",
+                        "media_kind",
+                        "resolved_source_url",
+                    ):
+                        if media.get(key) not in (None, ""):
+                            active.metadata[key] = media[key]
                     active.auto_tags = generate_auto_tags(
                         active.url, active.download_type, active.metadata, True
                     )
@@ -859,7 +908,12 @@ class JobManager:
                         "[quick] Wykryto aktywna transmisje; uruchamiam zapis od poczatku live.",
                     )
                     self._persist_jobs()
-                self._run_live(job_id)
+                source_url = str(media.get("_source_url") or "") or None
+                http_headers = dict(media.get("_http_headers") or {})
+                if source_url or http_headers:
+                    self._run_live(job_id, source_url, http_headers)
+                else:
+                    self._run_live(job_id)
                 return
         if stop_event.is_set():
             with self._lock:
@@ -1037,6 +1091,7 @@ class JobManager:
         source_id: str | None = None,
         download_options: dict[str, Any] | None = None,
         storage_name: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Job:
         job = Job(
             job_id=uuid.uuid4().hex,
@@ -1052,6 +1107,7 @@ class JobManager:
             duration=duration,
             auto_retry_max_attempts=AUTO_RETRY_MAX_ATTEMPTS,
             storage_name=storage_name or self.file_service.storage_name,
+            metadata=dict(metadata or {}),
             auto_tags=generate_auto_tags(url, download_type, is_live=is_live),
         )
         with self._lock:
@@ -1227,12 +1283,15 @@ class JobManager:
             job.url, job.download_type, job.format_id, job.download_options
         )
         payload = {
-            "url": validated_url,
+            "url": self._redact_url(validated_url),
             "download_type": job.download_type,
             "format_id": job.format_id,
             "source_id": job.source_id,
             "download_options": job.download_options,
-            "yt_dlp_options": options,
+            "yt_dlp_options": {
+                key: ("[redacted]" if key == "http_headers" else value)
+                for key, value in options.items()
+            },
         }
         self._append_log_line(job, "[yt-dlp] Parametry pobierania:", limit=None)
         for line in json.dumps(
@@ -1356,6 +1415,12 @@ class JobManager:
                     collect_path(data)
                     with self._lock:
                         active = self._jobs[job_id]
+                        operation = self._file_operation_from_hook(data)
+                        hook_status = str(data.get("status") or "").casefold()
+                        if operation and hook_status in {"started", "processing"}:
+                            self._blocking_file_operations[job_id] = operation
+                        elif operation and hook_status in {"finished", "error"}:
+                            self._blocking_file_operations.pop(job_id, None)
                         metadata_title = self._metadata_title(data)
                         if metadata_title:
                             active.title = metadata_title
@@ -1430,10 +1495,16 @@ class JobManager:
                     )
         finally:
             with self._lock:
+                self._blocking_file_operations.pop(job_id, None)
                 if self._stop_events.get(job_id) is stop_event:
                     self._stop_events.pop(job_id, None)
 
-    def _run_live(self, job_id: str) -> None:
+    def _run_live(
+        self,
+        job_id: str,
+        source_url: str | None = None,
+        http_headers: dict[str, str] | None = None,
+    ) -> None:
         stop_event = self._stop_events.get(job_id)
         if stop_event is None:
             return
@@ -1453,10 +1524,20 @@ class JobManager:
             paths: set[Path] = set()
             output_lines: deque[str] = deque(maxlen=40)
             last_status_log = 0.0
+            skipped_fragments = False
+            fatal_process_error = False
             try:
-                command = self.media_service.live_command(
-                    job.url, live_from_start=job.live_from_start
-                )
+                if source_url or http_headers:
+                    command = self.media_service.live_command(
+                        job.url,
+                        live_from_start=job.live_from_start,
+                        source_url=source_url,
+                        http_headers=dict(http_headers or {}),
+                    )
+                else:
+                    command = self.media_service.live_command(
+                        job.url, live_from_start=job.live_from_start
+                    )
                 process = subprocess.Popen(
                     command,
                     stdout=subprocess.PIPE,
@@ -1469,7 +1550,13 @@ class JobManager:
                     self._live_processes[job_id] = process
                 assert process.stdout is not None
                 for line in process.stdout:
+                    line = self._redact_log_line(line)
                     output_lines.append(line)
+                    benign_fragment_line = self._is_live_end_fragment_line(line)
+                    skipped_fragments = skipped_fragments or benign_fragment_line
+                    fatal_process_error = (
+                        fatal_process_error or self._is_fatal_live_process_line(line)
+                    )
                     LOGGER.info("[live %s] %s", job_id[:8], line.rstrip())
                     with self._lock:
                         active = self._jobs.get(job_id)
@@ -1490,28 +1577,59 @@ class JobManager:
                     if stop_event.is_set() and process.poll() is None:
                         self._interrupt_process(process)
                 return_code = process.wait()
-                status = (
-                    ("interrupted" if self._shutdown_event.is_set() else "stopped")
-                    if stop_event.is_set()
-                    else ("completed" if return_code == 0 else "error")
-                )
-                files = self._record_existing_outputs(job_id, paths, status)
+                files = self._record_existing_outputs(job_id, paths)
+                valid_files = self._valid_live_outputs(files)
+                user_stopped = stop_event.is_set() and not self._shutdown_event.is_set()
+                if self._shutdown_event.is_set():
+                    status = "interrupted"
+                elif user_stopped and valid_files:
+                    status = "completed"
+                elif user_stopped:
+                    status = "stopped"
+                elif valid_files and not fatal_process_error:
+                    status = "completed"
+                else:
+                    status = "error"
                 with self._lock:
                     active = self._jobs[job_id]
-                    active.output_files = files
-                    active.output_file = files[0] if files else None
-                    active.downloaded_bytes = self._output_size(files)
+                    active.output_files = valid_files
+                    active.output_file = valid_files[0] if valid_files else None
+                    active.downloaded_bytes = self._output_size(valid_files)
                     active.total_bytes = active.downloaded_bytes
+                    if status == "completed":
+                        active.progress = 100.0
+                        active.error_message = None
+                        active.error_code = None
+                        warning = None
+                        if skipped_fragments:
+                            warning = LIVE_FRAGMENT_WARNING
+                        elif return_code != 0:
+                            warning = LIVE_NONZERO_WARNING
+                        if user_stopped:
+                            active.metadata["stopped_by_user"] = True
+                            self._append_log_line(
+                                active, f"[live] {LIVE_MANUAL_STOP_WARNING}"
+                            )
+                            warning = self._merge_warning(
+                                warning, LIVE_MANUAL_STOP_WARNING
+                            )
+                        if warning:
+                            active.warning_message = self._merge_warning(
+                                active.warning_message, warning
+                            )
                     if status == "error":
                         active.error_message = (
                             operational_error_message("".join(output_lines))
-                            or "yt-dlp nie mógł zapisać transmisji live. Sprawdź logi dodatku."
+                            or "yt-dlp nie mógł zapisać poprawnego pliku transmisji "
+                            "live. Sprawdź logi dodatku."
                         )
                     self._finish(
                         active,
                         status,
                         error_code=DOWNLOAD_STOPPED if status == "interrupted" else None,
                     )
+                if user_stopped:
+                    self._cleanup_live_part_files(paths)
             except Exception as error:
                 LOGGER.exception("Błąd procesu live %s", job_id)
                 if self._shutdown_event.is_set() or stop_event.is_set():
@@ -1561,7 +1679,11 @@ class JobManager:
                         return
                     if media.get("is_live"):
                         handed_off = True
-                        self._run_live(job_id)
+                        self._run_live(
+                            job_id,
+                            str(media.get("_source_url") or "") or None,
+                            dict(media.get("_http_headers") or {}),
+                        )
                         return
                 if stop_event.wait(LIVE_WAIT_INTERVAL_SECONDS):
                     break
@@ -1594,6 +1716,33 @@ class JobManager:
             if self.file_service.is_managed_file(path):
                 paths.add(path)
 
+    @staticmethod
+    def _is_live_end_fragment_line(line: str) -> bool:
+        normalized = " ".join(line.casefold().split())
+        return any(pattern in normalized for pattern in LIVE_END_FRAGMENT_PATTERNS)
+
+    @classmethod
+    def _is_fatal_live_process_line(cls, line: str) -> bool:
+        """Classify terminal failures without treating known live gaps as fatal."""
+
+        if cls._is_live_end_fragment_line(line):
+            return False
+        normalized = " ".join(line.casefold().split())
+        if "error:" in normalized:
+            return True
+        return any(
+            marker in normalized
+            for marker in (
+                "no space left on device",
+                "permission denied",
+                "read-only file system",
+                "ffmpeg conversion failed",
+                "postprocessing failed",
+                "unable to write",
+                "input/output error",
+            )
+        )
+
     def _refresh_live_progress(
         self,
         job_id: str,
@@ -1625,7 +1774,7 @@ class JobManager:
             self._persist_progress(job)
 
     def _record_existing_outputs(
-        self, job_id: str, paths: set[Path], status: str
+        self, job_id: str, paths: set[Path], status: str | None = None
     ) -> list[str]:
         with self._lock:
             job = self._jobs[job_id]
@@ -1655,6 +1804,54 @@ class JobManager:
                 except (FileNotFoundError, ValueError):
                     LOGGER.warning("Pominięto wynik poza katalogiem pobrań: %s", path)
         return files
+
+    def _valid_live_outputs(self, filenames: list[str]) -> list[str]:
+        valid: list[str] = []
+        for filename in filenames:
+            if YTDLP_FORMAT_PART_RE.search(Path(filename).name):
+                LOGGER.info("Pominięto źródłowy format live: %s", filename)
+                continue
+            try:
+                path = self.file_service.resolve_download(filename)
+            except (FileNotFoundError, OSError, ValueError):
+                continue
+            if self.file_service.is_valid_media_file(path):
+                valid.append(filename)
+            else:
+                LOGGER.warning("Odrzucono niepoprawny wynik zapisu live: %s", path)
+        return valid
+
+    def _cleanup_live_part_files(self, paths: set[Path]) -> None:
+        for path in paths:
+            if not path.name.endswith((".part", ".ytdl")):
+                continue
+            if self.file_service.is_managed_file(path) and path.is_file():
+                try:
+                    path.unlink()
+                except OSError:
+                    LOGGER.warning("Nie można usunąć pliku częściowego live: %s", path)
+
+    @staticmethod
+    def _merge_warning(current: str | None, addition: str) -> str:
+        if not current:
+            return addition
+        if addition in current:
+            return current
+        return f"{current} {addition}"
+
+    @staticmethod
+    def _redact_url(value: str) -> str:
+        try:
+            parts = urlsplit(value)
+        except ValueError:
+            return "[redacted URL]"
+        if not parts.query:
+            return value
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, "REDACTED", ""))
+
+    @classmethod
+    def _redact_log_line(cls, line: str) -> str:
+        return LOG_URL_RE.sub(lambda match: cls._redact_url(match.group(0)), line)
 
     @staticmethod
     def _paths_size(paths: set[Path]) -> int | None:

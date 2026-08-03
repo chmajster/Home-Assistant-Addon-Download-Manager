@@ -1,8 +1,8 @@
 # Media Web Downloader
 
-Dodatek Home Assistant udostępnia przez Ingress panel do analizy i legalnego pobierania publicznych materiałów przez `yt-dlp`. Interfejs obsługuje YouTube, Instagram, Kick, Twitch oraz inne serwisy, dla których bieżący `yt-dlp` udostępnia konkretny extractor.
+Dodatek Home Assistant udostępnia przez Ingress panel do analizy i legalnego pobierania publicznych materiałów przez `yt-dlp`. Interfejs obsługuje YouTube, Instagram, Kick, Twitch, inne konkretne extractory `yt-dlp` oraz publiczne strony z osadzonym źródłem HLS, DASH lub bezpośrednim wideo.
 
-Obsługiwane są między innymi filmy, Shorts, playlisty, publiczne posty i reels Instagram, kanały live, VOD i klipy Kick oraz Twitch, a także inne publiczne materiały wykrywane przez extractory `yt-dlp`, np. Vimeo lub SoundCloud. W bieżącej wersji `yt-dlp` zapis publicznego live działa dla YouTube, Kick i Twitch. `yt-dlp` nie udostępnia osobnego extractora Instagram live, więc dodatek nie obiecuje zapisu transmisji Instagram.
+Obsługiwane są między innymi filmy, Shorts, playlisty, publiczne posty i reels Instagram, kanały live, VOD i klipy Kick oraz Twitch, a także inne publiczne materiały wykrywane przez extractory `yt-dlp`, np. Vimeo lub SoundCloud. Resolver stron osadzonych rozpoznaje elementy `video` i `source`, ramki iframe, manifesty `.m3u8` i `.mpd` oraz typowe konfiguracje JavaScript odtwarzaczy. Źródło jest rozwiązywane dynamicznie, dlatego chwilowe tokeny nie są wpisywane na stałe do konfiguracji ani historii.
 
 Obraz korzysta z oficjalnego wieloplatformowego `ghcr.io/home-assistant/base-python:3.14-alpine3.23` i wspiera aktualne architektury Home Assistant: `amd64` oraz `aarch64`. Platforma `armv7` nie jest już wspierana przez Home Assistant.
 
@@ -169,5 +169,5 @@ Dodatek wysyła trwałe powiadomienia Home Assistant po zakończeniu pobierania 
 
 ## Bezpieczeństwo
 
-Dodatek akceptuje wyłącznie adresy HTTP i HTTPS bez danych logowania i niestandardowego portu. Poza znanymi domenami YouTube, Instagram, Kick i Twitch URL musi pasować do konkretnego extractora `yt-dlp`; ogólny extractor `Generic` nie jest traktowany jako wystarczające wsparcie. Dodatek nie implementuje logowania, cookies, dostępu do prywatnych materiałów, omijania DRM ani paywalli. Pliki trafiają wyłącznie do skonfigurowanego katalogu w `/share` lub `/media`.
+Dodatek akceptuje wyłącznie adresy HTTP i HTTPS bez danych logowania i jawnego niestandardowego portu. Dla stron bez konkretnego extractora bezpieczny resolver ponownie sprawdza każdy URL, przekierowanie, iframe i źródło, blokuje localhost, adresy prywatne, loopback, link-local i sieci zarezerwowane oraz ogranicza liczbę przekierowań, głębokość ramek i rozmiar HTML. Dodatek nie implementuje logowania, cookies, dostępu do prywatnych materiałów, omijania DRM ani paywalli. Tokenizowane URL-e nie są pokazywane w UI, logach ani powiadomieniach. Pliki trafiają wyłącznie do skonfigurowanego katalogu w `/share` lub `/media`.
 

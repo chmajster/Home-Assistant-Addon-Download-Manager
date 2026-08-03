@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .shared import *  # noqa: F401,F403
 
+
 @web_bp.get("/")
 def index():
     """Main panel with URL form and recent completed jobs."""
@@ -247,7 +248,10 @@ def start_live():
         if not media["is_live"]:
             raise MediaServiceError("Ta transmisja jeszcze się nie rozpoczęła.")
         job = _job_manager().start_live(
-            media["url"], media["title"], live_from_start=_live_from_start_value()
+            media["url"],
+            media["title"],
+            live_from_start=_live_from_start_value(),
+            **_embedded_live_job_options(media),
         )
         flash(f"Uruchomiono zapis transmisji {job.job_id[:8]}.", "success")
     except MediaServiceError as error:
@@ -270,7 +274,10 @@ def watch_live():
             raise MediaServiceError("Podany adres nie prowadzi do transmisji live.")
         if media["is_live"]:
             job = _job_manager().start_live(
-                media["url"], media["title"], live_from_start=_live_from_start_value()
+                media["url"],
+                media["title"],
+                live_from_start=_live_from_start_value(),
+                **_embedded_live_job_options(media),
             )
             flash(f"Uruchomiono zapis transmisji {job.job_id[:8]}.", "success")
         else:
@@ -329,6 +336,23 @@ def stop_live(job_id: str):
     except KeyError:
         flash("Nie znaleziono aktywnego zadania live.", "danger")
     return redirect(ingress_url("web.jobs"))
+
+
+def _embedded_live_job_options(media: dict) -> dict:
+    """Keep transient source secrets out of persisted job metadata."""
+
+    if not media.get("embedded_media") and not media.get("_source_url"):
+        return {}
+    metadata = {
+        key: media[key]
+        for key in ("embedded_media", "media_kind", "resolved_source_url")
+        if media.get(key) not in (None, "")
+    }
+    return {
+        "source_url": str(media.get("_source_url") or "") or None,
+        "http_headers": dict(media.get("_http_headers") or {}),
+        "metadata": metadata,
+    }
 
 @web_bp.get("/downloaded/<path:filename>")
 def downloaded(filename: str):

@@ -17,6 +17,7 @@ from .config import AppConfig
 from .i18n import download_type_labels, frontend_catalog, status_labels, translate
 from .services.file_service import FileService
 from .services.ha_notifications import HomeAssistantNotifier
+from .services.host_shutdown import HostShutdownService
 from .services.job_manager import JobManager
 from .services.media_service import MediaService
 from .services.startup_checks import assert_startup_ready
@@ -120,6 +121,9 @@ def create_app() -> Flask:
         enabled_event_types=getattr(settings, "ha_event_types", None),
     )
     ytdlp_updater = YtDlpUpdater(settings.jobs_dir / "ytdlp_update.json")
+    host_shutdown_service = HostShutdownService(
+        enabled=not settings.allow_external_port
+    )
     job_manager = JobManager(
         media_service=media_service,
         file_service=file_service,
@@ -133,6 +137,7 @@ def create_app() -> Flask:
     app.extensions["job_manager"] = job_manager
     app.extensions["ha_notifier"] = notifier
     app.extensions["ytdlp_updater"] = ytdlp_updater
+    app.extensions["host_shutdown_service"] = host_shutdown_service
     app.extensions["request_limiter"] = RequestLimiter()
     _install_shutdown_handlers(job_manager, ytdlp_updater)
 

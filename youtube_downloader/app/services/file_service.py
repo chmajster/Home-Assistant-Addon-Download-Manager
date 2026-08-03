@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -16,7 +17,7 @@ from typing import Any
 
 from .error_messages import thumbnail_warning_message
 from .state_store import SQLiteStateStore
-from .storage import StorageManager, STORAGE_LOCAL
+from .storage import STORAGE_LOCAL, StorageManager
 
 LOGGER = logging.getLogger(__name__)
 THUMBNAIL_DIRNAME = ".thumbnails"
@@ -145,6 +146,49 @@ class FileService:
         except ValueError:
             return False
         return resolved != self.download_dir
+
+    def is_valid_media_file(self, path: str | Path) -> bool:
+        """Return true when ffprobe can read audio or video from a non-empty managed file."""
+
+        try:
+            candidate = Path(path).resolve()
+        except OSError:
+            return False
+        if (
+            not self.is_managed_file(candidate)
+            or not candidate.is_file()
+            or candidate.name.endswith((".part", ".ytdl"))
+        ):
+            return False
+        try:
+            if candidate.stat().st_size <= 0:
+                return False
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "stream=codec_type",
+                    "-of",
+                    "json",
+                    str(candidate),
+                ],
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                return False
+            payload = json.loads(result.stdout or "{}")
+        except (OSError, subprocess.TimeoutExpired, ValueError, json.JSONDecodeError):
+            return False
+        streams = payload.get("streams") if isinstance(payload, dict) else None
+        return isinstance(streams, list) and any(
+            isinstance(stream, dict) and stream.get("codec_type") in {"audio", "video"}
+            for stream in streams
+        )
 
     def list_files(self) -> list[dict[str, Any]]:
         """List downloadable files from persistent storage."""

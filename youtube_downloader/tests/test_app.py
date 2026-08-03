@@ -6,7 +6,10 @@ import errno
 import importlib.util
 import io
 import json
+import signal
+import socket
 import sqlite3
+import subprocess
 import tempfile
 import threading
 import time
@@ -15,10 +18,17 @@ import zipfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from app import create_app
 from app.i18n import TRANSLATIONS
+from app.routes.web import _automatic_download_type
+from app.services.auto_tags import generate_auto_tags
+from app.services.embedded_media_resolver import (
+    EmbeddedMediaError,
+    EmbeddedMediaResolver,
+    ResolvedMedia,
+)
 from app.services.error_messages import (
     DOWNLOAD_STOPPED,
     FFMPEG_ERROR_MESSAGE,
@@ -27,19 +37,17 @@ from app.services.error_messages import (
     THUMBNAIL_FFMPEG_WARNING,
     THUMBNAIL_STORAGE_WARNING,
 )
-from app.services.auto_tags import generate_auto_tags
 from app.services.file_service import FileService, ThumbnailResult, UnsafeFilenameError
+from app.services.ha_notifications import HomeAssistantNotifier
 from app.services.ha_options import (
     _network_mount_root,
     _validated_storage_mode,
     load_options,
 )
-from app.services.ha_notifications import HomeAssistantNotifier
 from app.services.job_manager import JobManager, now_iso
 from app.services.media_service import MediaService, MediaServiceError
-from app.routes.web import _automatic_download_type
-from app.services.state_store import SQLiteStateStore
 from app.services.startup_checks import run_startup_checks
+from app.services.state_store import SQLiteStateStore
 from app.services.storage import StorageManager
 from app.services.ytdlp_updater import YtDlpUpdater
 
@@ -476,6 +484,7 @@ class ApplicationTestCase(unittest.TestCase):
             self.assertIn('t("common.download_file")', body)
             self.assertIn("job.can_delete === true", body)
             self.assertIn("job.can_stop", body)
+            self.assertIn('job.is_live ? "job.stop_live" : "job.stop"', body)
             self.assertIn("job.can_resume", body)
             self.assertIn("job.can_retry", body)
             self.assertIn("job.can_repeat", body)
@@ -1267,7 +1276,7 @@ class ApplicationTestCase(unittest.TestCase):
                 "/analyze",
                 data={
                     "_csrf_token": self._csrf_token(),
-                    "url": "https://youtu.be/one, https://example.com/nope",
+                    "url": "https://youtu.be/one, http://127.0.0.1/private",
                 },
                 follow_redirects=True,
             ).get_data(as_text=True)
@@ -1275,7 +1284,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertEqual(updater.calls, 0)
         start_download.assert_not_called()
         self.assertIn("Niepoprawne URL-e", body)
-        self.assertIn("https://example.com/nope", body)
+        self.assertIn("http://127.0.0.1/private", body)
 
     def test_analyze_requires_at_least_one_url(self) -> None:
         response = self.client.post(
@@ -1323,6 +1332,50 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         start_live.assert_called_once_with(
             "https://youtu.be/live", "Live", live_from_start=False
+        )
+
+    def test_start_embedded_live_passes_transient_source_and_safe_metadata(self) -> None:
+        self.app.extensions["ytdlp_updater"] = SimpleNamespace(
+            ensure_recent=lambda: True
+        )
+        media = {
+            "url": "https://page.example/embed",
+            "title": "Embedded live",
+            "content_type": "live",
+            "is_live": True,
+            "embedded_media": True,
+            "media_kind": "hls",
+            "_source_url": "https://cdn.example/index.m3u8?token=secret",
+            "_http_headers": {
+                "Referer": "https://page.example/embed",
+                "User-Agent": "Media Web Downloader/1.0",
+            },
+        }
+        manager = self.app.extensions["job_manager"]
+        with (
+            patch.object(self.app.extensions["media_service"], "analyze", return_value=media),
+            patch.object(
+                manager,
+                "start_live",
+                return_value=SimpleNamespace(job_id="12345678"),
+            ) as start_live,
+        ):
+            response = self.client.post(
+                "/live/start",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": media["url"],
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        start_live.assert_called_once_with(
+            media["url"],
+            media["title"],
+            live_from_start=True,
+            source_url=media["_source_url"],
+            http_headers=media["_http_headers"],
+            metadata={"embedded_media": True, "media_kind": "hls"},
         )
 
     def test_quick_download_is_queued_before_background_analysis(self) -> None:
@@ -2732,23 +2785,24 @@ class MediaUrlTestCase(unittest.TestCase):
         self.assertEqual(url, "https://vimeo.com/123456")
         self.assertEqual(MediaService.detect_platform(url), "vimeo")
 
-    def test_unknown_extractor_domain_is_rejected(self) -> None:
-        with (
-            patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None),
-            self.assertRaises(MediaServiceError),
-        ):
-            MediaService.validate_url("https://example.com/watch?v=abc")
+    def test_public_generic_page_is_accepted_for_safe_embedded_resolution(self) -> None:
+        with patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None):
+            url = MediaService.validate_url("https://example.com/watch?v=abc")
+
+        self.assertEqual(url, "https://example.com/watch?v=abc")
 
     def test_file_scheme_is_rejected(self) -> None:
         with self.assertRaises(MediaServiceError):
             MediaService.validate_url("file:///etc/passwd")
 
-    def test_youtube_subdomain_confusion_is_rejected(self) -> None:
-        with (
-            patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None),
-            self.assertRaises(MediaServiceError),
-        ):
-            MediaService.validate_url("https://youtube.com.example.org/watch?v=abc")
+    def test_youtube_subdomain_confusion_is_not_classified_as_youtube(self) -> None:
+        with patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None):
+            url = MediaService.validate_url(
+                "https://youtube.com.example.org/watch?v=abc"
+            )
+
+        self.assertEqual(url, "https://youtube.com.example.org/watch?v=abc")
+        self.assertIsNone(MediaService._known_platform("youtube.com.example.org"))
 
     def test_youtube_redirect_endpoint_is_rejected(self) -> None:
         with self.assertRaises(MediaServiceError):
@@ -3098,6 +3152,225 @@ class HomeAssistantNotifierTestCase(unittest.TestCase):
         )
         self.assertNotIn("Otworz log", message)
         self.assertNotIn("Usun zadanie", message)
+
+
+class EmbeddedMediaResolverTestCase(unittest.TestCase):
+    """Resolve embedded manifests while enforcing the SSRF boundary."""
+
+    @staticmethod
+    def _public_dns(*args, **kwargs):
+        return [
+            (
+                socket.AF_INET,
+                socket.SOCK_STREAM,
+                socket.IPPROTO_TCP,
+                "",
+                ("93.184.216.34", 443),
+            )
+        ]
+
+    @staticmethod
+    def _resolver(pages: dict[str, tuple[str, str]]) -> EmbeddedMediaResolver:
+        class FakeResolver(EmbeddedMediaResolver):
+            def _fetch(self, url):
+                if url not in pages:
+                    raise EmbeddedMediaError("missing fixture")
+                body, content_type = pages[url]
+                return body.encode(), content_type, url
+
+        return FakeResolver(dns_resolver=EmbeddedMediaResolverTestCase._public_dns)
+
+    def test_relative_hls_source_is_resolved_with_request_headers(self) -> None:
+        resolver = self._resolver(
+            {
+                "https://video.example/player/embed.html": (
+                    '<video><source src="../live/index.m3u8"></video>',
+                    "text/html",
+                ),
+                "https://video.example/live/index.m3u8": (
+                    "#EXTM3U\n#EXT-X-TARGETDURATION:4\n",
+                    "application/vnd.apple.mpegurl",
+                ),
+            }
+        )
+
+        result = resolver.resolve("https://video.example/player/embed.html")
+
+        self.assertEqual(result.source_url, "https://video.example/live/index.m3u8")
+        self.assertTrue(result.is_live)
+        self.assertEqual(
+            result.headers["Referer"], "https://video.example/player/embed.html"
+        )
+        self.assertEqual(result.headers["Origin"], "https://video.example")
+        self.assertIn("Media Web Downloader", result.headers["User-Agent"])
+
+    def test_nested_iframe_source_is_resolved(self) -> None:
+        resolver = self._resolver(
+            {
+                "https://site.example/watch": (
+                    '<iframe src="/player/frame.html"></iframe>',
+                    "text/html",
+                ),
+                "https://site.example/player/frame.html": (
+                    '<script>player({file: "/channel/manifest.mpd"})</script>',
+                    "text/html",
+                ),
+                "https://site.example/channel/manifest.mpd": (
+                    '<MPD type="dynamic"></MPD>',
+                    "application/dash+xml",
+                ),
+            }
+        )
+
+        result = resolver.resolve("https://site.example/watch")
+
+        self.assertEqual(result.media_kind, "dash")
+        self.assertTrue(result.is_live)
+        self.assertEqual(
+            result.headers["Referer"], "https://site.example/player/frame.html"
+        )
+
+    def test_video_element_can_resolve_direct_media(self) -> None:
+        resolver = self._resolver(
+            {
+                "https://site.example/watch": (
+                    '<video src="/media/camera.mp4"></video>',
+                    "text/html",
+                ),
+                "https://site.example/media/camera.mp4": ("media", "video/mp4"),
+            }
+        )
+
+        result = resolver.resolve("https://site.example/watch")
+
+        self.assertEqual(result.media_kind, "video")
+        self.assertFalse(result.is_live)
+
+    def test_flussonic_style_stream_configuration_is_resolved_generically(self) -> None:
+        resolver = self._resolver(
+            {
+                "https://stream.example/channel/embed.html": (
+                    '<script>var config={"streamName":"channel",'
+                    '"type":"live","protocols":{"hls":true}}</script>',
+                    "text/html",
+                ),
+                "https://stream.example/channel/index.m3u8": (
+                    "#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:42\n",
+                    "application/vnd.apple.mpegurl",
+                ),
+            }
+        )
+
+        result = resolver.resolve("https://stream.example/channel/embed.html")
+
+        self.assertEqual(result.source_url, "https://stream.example/channel/index.m3u8")
+
+    def test_private_localhost_and_private_dns_are_rejected(self) -> None:
+        resolver = EmbeddedMediaResolver(
+            dns_resolver=lambda *args, **kwargs: [
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.8", 443))
+            ]
+        )
+        for url in (
+            "http://localhost/player",
+            "http://127.0.0.1/player",
+            "https://private.example/player",
+        ):
+            with self.subTest(url=url), self.assertRaises(EmbeddedMediaError):
+                resolver.resolve(url)
+
+    def test_media_service_blocks_private_dns_before_ytdlp_generic(self) -> None:
+        resolver = EmbeddedMediaResolver(
+            dns_resolver=lambda *args, **kwargs: [
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.20", 443))
+            ]
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = MediaService(Path(temp_dir), embedded_resolver=resolver)
+            with (
+                patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None),
+                patch.object(service, "_extract_info") as extract,
+                self.assertRaises(MediaServiceError),
+            ):
+                service.analyze("https://private.example/embed")
+
+        extract.assert_not_called()
+
+    def test_iframe_loop_and_depth_limit_stop_resolution(self) -> None:
+        pages = {
+            "https://loop.example/one": ('<iframe src="/two"></iframe>', "text/html"),
+            "https://loop.example/two": ('<iframe src="/one"></iframe>', "text/html"),
+        }
+        resolver = self._resolver(pages)
+
+        with self.assertRaises(EmbeddedMediaError):
+            resolver.resolve("https://loop.example/one")
+
+    def test_media_service_analyzes_resolved_manifest_as_live(self) -> None:
+        resolved = ResolvedMedia(
+            original_url="https://page.example/embed",
+            source_url="https://cdn.example/live/index.m3u8?token=secret",
+            headers={
+                "User-Agent": "Media Web Downloader/1.0",
+                "Referer": "https://page.example/embed",
+                "Origin": "https://page.example",
+            },
+            is_live=True,
+            media_kind="hls",
+            title="Embedded camera",
+        )
+        resolver = SimpleNamespace(
+            validate_public_url=lambda url: url,
+            resolve=lambda _url: resolved,
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = MediaService(Path(temp_dir), embedded_resolver=resolver)
+            with (
+                patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None),
+                patch.object(
+                    service,
+                    "_extract_info",
+                    return_value={
+                        "id": "live",
+                        "title": "manifest",
+                        "formats": [{"format_id": "hls", "ext": "mp4"}],
+                    },
+                ) as extract,
+            ):
+                media = service.analyze("https://page.example/embed")
+
+        self.assertTrue(media["is_live"])
+        self.assertEqual(media["content_type"], "live")
+        self.assertEqual(media["url"], "https://page.example/embed")
+        self.assertEqual(media["title"], "Embedded camera")
+        self.assertNotIn("resolved_source_url", media)
+        self.assertEqual(extract.call_args.args[0], resolved.source_url)
+        self.assertEqual(
+            extract.call_args.args[1]["http_headers"]["Referer"],
+            "https://page.example/embed",
+        )
+
+    def test_live_command_passes_embed_headers_to_ytdlp(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = MediaService(Path(temp_dir))
+            with patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None):
+                command = service.live_command(
+                    "https://page.example/embed",
+                    source_url="https://cdn.example/live/index.m3u8",
+                    http_headers={
+                        "Referer": "https://page.example/embed",
+                        "Origin": "https://page.example",
+                        "User-Agent": "Media Web Downloader/1.0",
+                    },
+                )
+
+        self.assertEqual(command[-1], "https://cdn.example/live/index.m3u8")
+        self.assertIn("Referer:https://page.example/embed", command)
+        self.assertIn("Origin:https://page.example", command)
+
+
+class HomeAssistantNotifierAdditionalTestCase(unittest.TestCase):
+    """Keep the remaining Home Assistant notification scenarios grouped."""
 
     def test_playlist_and_storage_notifications_use_specific_titles(self) -> None:
         notifier = HomeAssistantNotifier(token="token", base_url="http://ha", timeout=1)
@@ -4158,6 +4431,241 @@ class JobManagerTestCase(unittest.TestCase):
             self.assertEqual(stopped.status, "stopped")
         finally:
             self.manager._slots.release()
+
+    def test_live_end_data_block_errors_complete_after_merge(self) -> None:
+        completed = self._run_fake_live(
+            [
+                "ERROR: Did not get any data blocks\n",
+                "[download] 100% of 10.00MiB\n",
+                "[Merger] Merging formats into \"{output}\"\n",
+                "Deleting original file stream.f299.mp4\n",
+                "Deleting original file stream.f140.mp4\n",
+            ],
+            return_code=0,
+        )
+
+        self.assertEqual(completed.status, "completed")
+        self.assertEqual(completed.progress, 100.0)
+        self.assertEqual(completed.output_file, "stream.mp4")
+        self.assertEqual(completed.output_files, ["stream.mp4"])
+        self.assertIsNotNone(completed.finished_at)
+        self.assertIsNone(completed.error_message)
+        self.assertIsNone(completed.error_code)
+        self.assertIn("fragment", completed.warning_message.casefold())
+
+    def test_live_missing_fragment_with_zero_exit_completes(self) -> None:
+        completed = self._run_fake_live(
+            [
+                "[download] fragment not found; Skipping fragment 2062 ...\n",
+                "[download] Destination: {output}\n",
+            ],
+            return_code=0,
+        )
+
+        self.assertEqual(completed.status, "completed")
+        self.assertEqual(completed.output_file, "stream.mp4")
+
+    def test_live_nonzero_exit_with_valid_media_completes_with_warning(self) -> None:
+        completed = self._run_fake_live(
+            ["[download] Destination: {output}\n"],
+            return_code=1,
+        )
+
+        self.assertEqual(completed.status, "completed")
+        self.assertIn("niezerowego kodu", completed.warning_message)
+
+    def test_live_fragment_errors_without_output_fail(self) -> None:
+        failed = self._run_fake_live(
+            [
+                "ERROR: Did not get any data blocks\n",
+                "[download] Destination: {output}\n",
+            ],
+            return_code=1,
+            create_output=False,
+        )
+
+        self.assertEqual(failed.status, "error")
+        self.assertIsNone(failed.output_file)
+
+    def test_live_empty_or_corrupt_output_fails(self) -> None:
+        for content, valid_media in ((b"", None), (b"corrupt", False)):
+            with self.subTest(content=content):
+                failed = self._run_fake_live(
+                    ["[download] Destination: {output}\n"],
+                    return_code=0,
+                    content=content,
+                    valid_media=valid_media,
+                )
+                self.assertEqual(failed.status, "error")
+                self.assertEqual(failed.output_files, [])
+
+    def test_live_source_format_without_final_merged_file_fails(self) -> None:
+        failed = self._run_fake_live(
+            ["[download] Destination: {output}\n"],
+            return_code=1,
+            output_name="stream.f299.mp4",
+        )
+
+        self.assertEqual(failed.status, "error")
+        self.assertEqual(failed.output_files, [])
+
+    def test_live_fragment_warning_does_not_change_running_status(self) -> None:
+        job = self.manager._new_job(
+            "https://youtu.be/live", "Live", "live", is_live=True
+        )
+        with self.manager._lock:
+            self.manager._start(self.manager._jobs[job.job_id])
+
+        self.manager._parse_live_line(
+            job.job_id,
+            "[download] fragment not found; Skipping fragment 2062 ...",
+            set(),
+        )
+
+        self.assertEqual(self.manager.get_job(job.job_id).status, "downloading")
+
+    def test_manual_live_stop_keeps_valid_media_without_error(self) -> None:
+        stopped = self._run_fake_live(
+            [
+                "[download] Destination: {output}\n",
+                "[download] 100% of 10.00MiB\n",
+            ],
+            return_code=130,
+            stop_during_output=True,
+        )
+
+        self.assertEqual(stopped.status, "completed")
+        self.assertEqual(stopped.output_file, "stream.mp4")
+        self.assertIsNone(stopped.error_message)
+        self.assertTrue(stopped.metadata["stopped_by_user"])
+
+    def test_manual_live_stop_without_recorded_data_is_stopped(self) -> None:
+        stopped = self._run_fake_live(
+            ["[download] Destination: {output}\n"],
+            return_code=130,
+            create_output=False,
+            stop_during_output=True,
+        )
+
+        self.assertEqual(stopped.status, "stopped")
+        self.assertIsNone(stopped.output_file)
+
+    def test_live_interrupt_signals_process_group_with_escalation(self) -> None:
+        process = SimpleNamespace(pid=4242, wait=Mock())
+        process.wait.side_effect = [
+            subprocess.TimeoutExpired("yt-dlp", 10),
+            subprocess.TimeoutExpired("yt-dlp", 5),
+        ]
+
+        with (
+            patch("app.services.job_manager.os.killpg", create=True) as kill_group,
+            patch("app.services.job_manager.signal.SIGKILL", 9, create=True),
+        ):
+            self.manager._interrupt_process(process)
+
+        self.assertEqual(
+            [call.args for call in kill_group.call_args_list],
+            [
+                (4242, signal.SIGINT),
+                (4242, signal.SIGTERM),
+                (4242, 9),
+            ],
+        )
+
+    def test_live_logs_redact_source_query_tokens(self) -> None:
+        line = "[download] https://cdn.example/live/index.m3u8?token=top-secret\n"
+
+        redacted = self.manager._redact_log_line(line)
+
+        self.assertNotIn("top-secret", redacted)
+        self.assertIn("?REDACTED", redacted)
+
+    def test_real_ffmpeg_or_disk_error_still_fails_with_valid_file(self) -> None:
+        for error_line in (
+            "ERROR: Postprocessing: ffmpeg conversion failed\n",
+            "ERROR: [Errno 28] No space left on device\n",
+        ):
+            with self.subTest(error_line=error_line):
+                failed = self._run_fake_live(
+                    ["[download] Destination: {output}\n", error_line],
+                    return_code=1,
+                )
+                self.assertEqual(failed.status, "error")
+
+    def test_media_validation_requires_ffprobe_audio_or_video_stream(self) -> None:
+        target = self.download_dir / "probe.mp4"
+        target.write_bytes(b"media")
+        for streams, expected in (
+            ([{"codec_type": "video"}], True),
+            ([{"codec_type": "audio"}], True),
+            ([{"codec_type": "subtitle"}], False),
+            ([], False),
+        ):
+            with self.subTest(streams=streams), patch(
+                "app.services.file_service.subprocess.run",
+                return_value=SimpleNamespace(
+                    returncode=0, stdout=json.dumps({"streams": streams})
+                ),
+            ) as probe:
+                self.assertEqual(self.files.is_valid_media_file(target), expected)
+                self.assertEqual(probe.call_args.args[0][0], "ffprobe")
+
+    def _run_fake_live(
+        self,
+        lines: list[str],
+        *,
+        return_code: int,
+        create_output: bool = True,
+        content: bytes = b"valid media",
+        valid_media: bool | None = True,
+        stop_during_output: bool = False,
+        output_name: str = "stream.mp4",
+    ):
+        job = self.manager._new_job(
+            "https://youtu.be/fake-live", "Fake live", "live", is_live=True
+        )
+        stop_event = threading.Event()
+        with self.manager._lock:
+            self.manager._stop_events[job.job_id] = stop_event
+        output = self.download_dir / output_name
+        if create_output:
+            output.write_bytes(content)
+        rendered_lines = [line.format(output=output) for line in lines]
+
+        class FakeProcess:
+            pid = 12345
+
+            def __init__(self):
+                self.stdout = self._output()
+
+            def _output(self):
+                for line in rendered_lines:
+                    yield line
+                    if stop_during_output:
+                        stop_event.set()
+
+            def poll(self):
+                return None
+
+            def wait(self, timeout=None):
+                return return_code
+
+        validation = (
+            patch.object(self.files, "is_valid_media_file", return_value=valid_media)
+            if valid_media is not None
+            else patch.object(
+                self.files,
+                "is_valid_media_file",
+                wraps=self.files.is_valid_media_file,
+            )
+        )
+        with (
+            patch("app.services.job_manager.subprocess.Popen", return_value=FakeProcess()),
+            patch.object(self.manager, "_interrupt_process"),
+            validation,
+        ):
+            self.manager._run_live(job.job_id)
+        return self.manager.get_job(job.job_id)
 
     def test_orphaned_live_process_blocks_duplicate_recording(self) -> None:
         orphan_args = [

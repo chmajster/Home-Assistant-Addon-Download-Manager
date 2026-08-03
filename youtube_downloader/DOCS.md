@@ -2,7 +2,9 @@
 
 ## Analiza przez yt-dlp
 
-Po przesłaniu URL aplikacja sprawdza schemat, blokuje dane logowania i niestandardowe porty, a następnie weryfikuje, czy adres pasuje do znanej domeny albo konkretnego extractora `yt-dlp`. Ogólny extractor `Generic` nie wystarcza do zaakceptowania URL. Potem aplikacja uruchamia `yt-dlp` w trybie pobierania samych metadanych. Extractor zwraca tytuł, kanał, miniaturę, czas trwania, status transmisji i dostępne formaty. Dla playlist aplikacja pokazuje elementy zwrócone przez extractor.
+Po przesłaniu URL aplikacja sprawdza schemat, blokuje dane logowania i niestandardowe porty, a następnie najpierw wybiera konkretny extractor `yt-dlp`. Dla publicznej strony bez konkretnego extractora używa `EmbeddedMediaResolver`: weryfikuje publiczne adresy DNS, bezpiecznie śledzi przekierowania i maksymalnie kilka poziomów iframe, a następnie szuka elementów `video`/`source`, HLS, DASH oraz typowych konfiguracji JavaScript. Dopiero potwierdzone bezpośrednie źródło trafia do extractora Generic `yt-dlp`. Każdy znaleziony URL jest sprawdzany ponownie przed pobraniem.
+
+Przepływ strony osadzonej wygląda następująco: `URL strony → resolver → potwierdzony manifest lub plik → yt-dlp/ffmpeg → walidacja ffprobe → gotowy plik`. Resolver przekazuje `Referer`, `Origin` i standardowy `User-Agent`, jeśli źródło ich wymaga. Oryginalny URL pozostaje adresem zadania. Rozwiązane źródło trafia do trwałych metadanych tylko bez parametrów zapytania; URL-e podpisane lub tokenizowane pozostają wyłącznie w pamięci bieżącego uruchomienia i są redagowane w logach.
 
 Przy właściwym pobieraniu aplikacja nie przyjmuje ścieżki docelowej od użytkownika. Wybiera szablon nazwy wewnątrz skonfigurowanego katalogu trwałego i ogranicza nazwy plików do bezpiecznego zestawu znaków obsługiwanego przez `yt-dlp`.
 
@@ -53,7 +55,9 @@ Po zakończeniu pobierania albo błędzie zadania dodatek wysyła trwałe powiad
 
 ## Zapis transmisji live
 
-Aktywna transmisja live jest zapisywana przez osobny proces `yt-dlp`. Menedżer zadań przechowuje PID procesu, czyta jego postęp i pozwala wysłać bezpieczny sygnał przerwania z interfejsu. Jednoczesny drugi zapis tego samego URL jest odrzucany. Mechanizm działa dla publicznych transmisji zwracanych przez extractor jako aktywne live, w tym YouTube, Kick i Twitch.
+Aktywna transmisja live jest zapisywana przez osobny proces `yt-dlp`. Menedżer zadań przechowuje PID procesu, czyta jego postęp i pozwala wysłać bezpieczny sygnał przerwania z interfejsu. Jednoczesny drugi zapis tego samego URL jest odrzucany. Mechanizm działa dla publicznych transmisji zwracanych przez extractor jako aktywne live, w tym YouTube, Kick i Twitch, oraz dla potwierdzonych publicznych manifestów HLS/DASH odnalezionych na stronach osadzonych.
+
+Przycisk **Zakończ nagrywanie** wysyła `SIGINT` do całej grupy procesu, dając `yt-dlp` i `ffmpeg` czas na zamknięcie kontenera. Po przekroczeniu limitu następuje `SIGTERM`, a dopiero na końcu `SIGKILL`. Jeżeli `ffprobe` potwierdzi niepusty plik audio/wideo, ręcznie zakończone zadanie otrzymuje status `completed` i metadane `stopped_by_user`. Jeśli nie zapisano użytecznych danych, pozostaje `stopped`; kontrolowane zatrzymanie samo w sobie nigdy nie oznacza błędu.
 
 Zaplanowana transmisja może zostać przeanalizowana, a przycisk **Oczekuj na live** uruchamia zadanie, które monitoruje start i rozpoczyna zapis automatycznie.
 
