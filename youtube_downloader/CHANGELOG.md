@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.86
+
+- Dodano automatyczne przewijanie pełnego logu do najnowszych wpisów oraz przyciski ułatwiające przewijanie w górę i w dół.
+- Rozszerzono walidację adresów URL tak, aby nie ograniczała serwisów obsługiwanych przez yt-dlp do zdefiniowanej listy domen.
+- Dodano menu kontekstowe wierszy Biblioteki, otwierane prawym przyciskiem myszy i udostępniające te same akcje co menu „…”.
+
 ## 1.3.85
 
 - Poprawiono menu akcji w listach pobrań, aby otwarcie kolejnego automatycznie zamykało poprzednie.
