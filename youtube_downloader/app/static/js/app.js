@@ -1658,19 +1658,23 @@
     });
     mini.addEventListener("click", () => {
       if (!(media instanceof HTMLVideoElement)) return;
-      player.classList.toggle("custom-player-theater");
+      const theaterActive = player.classList.toggle("custom-player-theater");
       document.body.classList.toggle(
         "custom-player-theater-active",
-        player.classList.contains("custom-player-theater") && Boolean(player.closest(".preview-stage"))
+        theaterActive && Boolean(player.closest(".preview-stage"))
       );
       mini.classList.toggle(
         "custom-player-button-active",
-        player.classList.contains("custom-player-theater")
+        theaterActive
       );
       mini.setAttribute(
         "aria-pressed",
-        String(player.classList.contains("custom-player-theater"))
+        String(theaterActive)
       );
+      if (!theaterActive) {
+        document.documentElement.scrollLeft = 0;
+        document.body.scrollLeft = 0;
+      }
     });
     player.addEventListener("mousemove", showControls);
     player.addEventListener("mouseenter", () => {

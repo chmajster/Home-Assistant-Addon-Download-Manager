@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.93
+
+- Poprawiono powrót z trybu kinowego, aby strona nie zachowywała poziomego przesunięcia ani czarnego pasa po prawej stronie.
+
 ## 1.3.92
 
 - Usunięto ograniczenie rozmiaru odtwarzacza w pełnym ekranie, eliminując czarny pas po prawej stronie i rozciągając pasek sterowania na całą szerokość.

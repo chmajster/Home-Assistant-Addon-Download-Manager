@@ -1193,6 +1193,8 @@ a:hover {
 
 body.custom-player-theater-active {
   background: #050505;
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .custom-player-theater-active .preview-stage {
