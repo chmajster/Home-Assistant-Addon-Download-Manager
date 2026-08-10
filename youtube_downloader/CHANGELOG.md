@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.89
+
+- Dodano repozytoryjną instrukcję automatycznego tworzenia osobnego, odpowiednio opisanego commita po każdej zweryfikowanej zmianie.
+
 ## 1.3.88
 
 - Dodano sekcję „Miniatury” w szczegółach ukończonego zadania, obejmującą miniaturę z filmu i miniaturę źródłową.
