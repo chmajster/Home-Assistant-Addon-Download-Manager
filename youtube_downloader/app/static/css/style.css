@@ -808,10 +808,7 @@ a:hover {
   width: 0.9rem;
 }
 
-.custom-player-speed-scale {
-  color: rgba(255, 255, 255, 0.62);
-  display: flex;
-  font-size: 0.65rem;
+.custom-player-speed-presets {
   justify-content: space-between;
 }
 

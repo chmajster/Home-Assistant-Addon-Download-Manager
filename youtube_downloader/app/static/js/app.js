@@ -530,7 +530,6 @@
   const readPlayerSettings = () => ({
     volume: 1,
     muted: false,
-    playbackRate: 1,
     loop: false,
     autoplayNext: false,
     fitMode: "contain",
@@ -542,7 +541,6 @@
     const normalized = {
       volume: Math.min(1, Math.max(0, Number(settings.volume) || 0)),
       muted: Boolean(settings.muted),
-      playbackRate: clampPlaybackRate(settings.playbackRate),
       loop: Boolean(settings.loop),
       autoplayNext: Boolean(settings.autoplayNext),
       fitMode,
@@ -784,7 +782,7 @@
     const storedVolume = Number(storedSettings.volume);
     media.volume = Number.isFinite(storedVolume) ? Math.min(1, Math.max(0, storedVolume)) : 1;
     media.muted = Boolean(storedSettings.muted);
-    media.playbackRate = clampPlaybackRate(storedSettings.playbackRate);
+    media.playbackRate = 1;
     media.loop = Boolean(storedSettings.loop);
     player.classList.toggle("custom-player-fit-cover", storedSettings.fitMode === "cover");
     const isVideo = media instanceof HTMLVideoElement;
@@ -871,11 +869,15 @@
     speedSettingSlider.value = String(media.playbackRate);
     speedSettingSlider.dataset.speedSlider = "";
     speedSettingSlider.setAttribute("aria-label", t("js.speed"));
-    const speedScale = document.createElement("div");
-    speedScale.className = "custom-player-speed-scale";
-    speedScale.setAttribute("aria-hidden", "true");
-    speedScale.append(text("span", "0.25x"), text("span", "1x"), text("span", "3x"));
-    speedControl.append(speedSettingSlider, speedScale);
+    const speedPresets = document.createElement("div");
+    speedPresets.className = "custom-player-settings-options custom-player-speed-presets";
+    [0.25, 0.5, 1, 1.25, 1.5, 2, 3].forEach((rate) => {
+      const button = text("button", playbackRateLabel(rate));
+      button.type = "button";
+      button.dataset.playbackRate = String(rate);
+      speedPresets.append(button);
+    });
+    speedControl.append(speedSettingSlider, speedPresets);
     speedGroup.append(speedRow, speedControl);
     const settingToggle = (label, dataName) => {
       const wrapper = document.createElement("label");
@@ -968,6 +970,7 @@
     const settingAutoplayNext = settingsPanel.querySelector("[data-setting-autoplay-next]");
     const speedSlider = settingsPanel.querySelector("[data-speed-slider]");
     const speedValue = settingsPanel.querySelector("[data-speed-value]");
+    const speedPresetButtons = Array.from(settingsPanel.querySelectorAll("[data-playback-rate]"));
     const fitButtons = Array.from(settingsPanel.querySelectorAll("[data-fit]"));
     const captionsModeButtons = Array.from(settingsPanel.querySelectorAll("[data-captions-mode]"));
     const captionsPanelStatus = settingsPanel.querySelector("[data-captions-panel-status]");
@@ -1394,7 +1397,6 @@
     const persistSettings = () => writePlayerSettings({
       volume: media.volume,
       muted: media.muted,
-      playbackRate: media.playbackRate,
       loop: media.loop,
       autoplayNext: settingAutoplayNext instanceof HTMLInputElement && settingAutoplayNext.checked,
       fitMode: player.classList.contains("custom-player-fit-cover") ? "cover" : "contain",
@@ -1413,6 +1415,11 @@
           "--speed-fill"
         );
       }
+      speedPresetButtons.forEach((button) => {
+        const active = clampPlaybackRate(button.dataset.playbackRate) === media.playbackRate;
+        button.classList.toggle("custom-player-settings-active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
     };
     const syncSettingsPanel = () => {
       syncSpeedButton();
@@ -1566,9 +1573,13 @@
       media.playbackRate = clampPlaybackRate(speed.value);
       syncSpeedButton();
     });
-    speedSlider?.addEventListener("change", () => {
-      persistSettings();
-      syncSettingsPanel();
+    speedSlider?.addEventListener("change", syncSettingsPanel);
+    speedPresetButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        media.playbackRate = clampPlaybackRate(button.dataset.playbackRate);
+        speed.value = String(media.playbackRate);
+        syncSettingsPanel();
+      });
     });
     fitButtons.forEach((button) => {
       button.addEventListener("click", () => setFitMode(button.dataset.fit === "cover" ? "cover" : "contain"));
@@ -1599,7 +1610,6 @@
     speed.addEventListener("change", () => {
       media.playbackRate = clampPlaybackRate(speed.value);
       syncSpeedButton();
-      persistSettings();
     });
     progress.addEventListener("input", () => {
       seeking = true;
@@ -1712,7 +1722,6 @@
       speed.value = String(media.playbackRate);
       syncSpeedButton();
       syncSettingsPanel();
-      persistSettings();
     });
     media.addEventListener("ended", () => {
       writePlayerPosition(media);

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.90
+
+- Wyłączono zapamiętywanie prędkości odtwarzania i dodano natychmiastowe przełączanie tempa przyciskami presetów od 0,25× do 3×.
+
 ## 1.3.89
 
 - Dodano repozytoryjną instrukcję automatycznego tworzenia osobnego, odpowiednio opisanego commita po każdej zweryfikowanej zmianie.
