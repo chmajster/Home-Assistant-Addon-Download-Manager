@@ -665,6 +665,39 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("download_type", body)
         self.assertIn("Retry history", body)
 
+    def test_completed_job_details_can_open_existing_download(self) -> None:
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "details.mp4"
+        target.write_bytes(b"media")
+        thumbnail = files.thumbnail_dir / "details.mp4.jpg"
+        thumbnail.write_bytes(b"thumbnail")
+        job = self._completed_job(
+            filename=target.name,
+            title="Downloaded details",
+            thumbnail_filename=thumbnail.name,
+        )
+
+        body = self.client.get(f"/jobs/{job.job_id}").get_data(as_text=True)
+
+        self.assertIn('id="job-action-open"', body)
+        self.assertIn('href="/view/details.mp4"', body)
+        self.assertIn(">Otwórz</a>", body)
+        self.assertIn('id="job-thumbnails"', body)
+        self.assertIn('src="/thumbnails/details.mp4.jpg"', body)
+        self.assertIn("Miniatura z filmu", body)
+        self.assertIn("Brak miniatury z metadanych źródła.", body)
+
+    def test_job_details_hide_open_action_without_download(self) -> None:
+        manager = self.app.extensions["job_manager"]
+        job = manager._new_job(
+            "https://youtu.be/not-downloaded", "Not downloaded", "best", is_live=False
+        )
+
+        body = self.client.get(f"/jobs/{job.job_id}").get_data(as_text=True)
+
+        self.assertNotIn('id="job-action-open"', body)
+        self.assertNotIn('id="job-thumbnails"', body)
+
     def test_inactive_job_can_be_deleted_from_jobs_page(self) -> None:
         manager = self.app.extensions["job_manager"]
         job = manager._new_job("https://youtu.be/abc", "Example", "best", is_live=False)

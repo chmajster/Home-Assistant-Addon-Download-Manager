@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.88
+
+- Dodano sekcję „Miniatury” w szczegółach ukończonego zadania, obejmującą miniaturę z filmu i miniaturę źródłową.
+
+## 1.3.87
+
+- Dodano przycisk „Otwórz” w szczegółach ukończonego zadania, gdy pobrany plik nadal istnieje.
+
 ## 1.3.86
 
 - Dodano automatyczne przewijanie pełnego logu do najnowszych wpisów oraz przyciski ułatwiające przewijanie w górę i w dół.

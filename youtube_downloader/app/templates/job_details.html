@@ -8,6 +8,9 @@
       <p class="section-copy mb-0 text-break">{{ job.job_id }}</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+      {% if job.status == "completed" and job.file_exists and job.output_file %}
+        <a id="job-action-open" class="btn btn-primary" href="{{ ingress_url('web.preview', filename=job.output_file) }}">{{ t('jobs.open') }}</a>
+      {% endif %}
       <a class="btn btn-soft" href="{{ ingress_url('web.jobs') }}">{{ t('nav.jobs') }}</a>
       <a class="btn btn-outline-primary" href="{{ ingress_url('web.job_log', job_id=job.job_id) }}">{{ t('common.open_log') }}</a>
       {% if job.status == "error" %}
@@ -62,6 +65,37 @@
   </section>
 
   <section class="job-detail-grid">
+    {% if job.status == "completed" and job.output_file %}
+      <article id="job-thumbnails" class="card app-card job-detail-wide">
+        <div class="card-body">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">{{ t('preview.thumbnails') }}</span>
+              <h2 class="h5 mb-0">{{ t('preview.thumbnails') }}</h2>
+            </div>
+          </div>
+          <div class="thumbnail-switcher">
+            <div>
+              <strong>{{ t('preview.video_thumbnail') }}</strong>
+              {% if job.thumbnail_exists and job.thumbnail_filename %}
+                <img class="preview-thumbnail d-block mt-2" src="{{ ingress_url('web.thumbnail', filename=job.thumbnail_filename) }}" alt="{{ t('preview.video_thumbnail') }}" loading="lazy">
+              {% else %}
+                <p class="text-body-secondary mb-0 mt-2">{{ t('preview.video_thumbnail_missing') }}</p>
+              {% endif %}
+            </div>
+            <div>
+              <strong>{{ t('preview.source_thumbnail') }}</strong>
+              {% if job.source_thumbnail_exists and job.source_thumbnail_filename %}
+                <img class="preview-thumbnail d-block mt-2" src="{{ ingress_url('web.thumbnail', filename=job.source_thumbnail_filename) }}" alt="{{ t('preview.source_thumbnail') }}" loading="lazy">
+              {% else %}
+                <p class="text-body-secondary mb-0 mt-2">{{ t('preview.source_thumbnail_missing') }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </article>
+    {% endif %}
+
     <article class="card app-card">
       <div class="card-body">
         <div class="section-heading">
