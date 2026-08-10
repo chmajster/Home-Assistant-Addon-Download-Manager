@@ -2067,6 +2067,16 @@ body.custom-player-theater-active {
   z-index: 20;
 }
 
+.library-menu-context-open > .library-menu-panel {
+  left: var(--library-menu-context-left);
+  max-height: calc(100vh - 1rem);
+  overflow-y: auto;
+  position: fixed;
+  right: auto;
+  top: var(--library-menu-context-top);
+  z-index: 1080;
+}
+
 .library-menu-action {
   background: transparent;
   border: 0;

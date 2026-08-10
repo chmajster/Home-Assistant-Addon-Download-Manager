@@ -1881,6 +1881,13 @@
   const isActiveJob = (job) => activeJobStatuses.has(job.status);
   const isRemovableJob = (job) => job.can_delete === true;
 
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".library-menu")) return;
+    document.querySelectorAll(".library-menu[open]").forEach((menu) => {
+      menu.open = false;
+    });
+  });
+
   const setNodeText = (node, value) => {
     if (!node) return;
     const next = String(value ?? "");
@@ -2158,11 +2165,35 @@
     const menuPanel = document.createElement("div");
     menuPanel.className = "library-menu-panel";
     menu.append(menuButton, menuPanel);
+    menuButton.addEventListener("click", () => {
+      menu.classList.remove("library-menu-context-open");
+    });
     menu.addEventListener("toggle", () => {
       menuButton.setAttribute("aria-expanded", String(menu.open));
-      if (!menu.open) return;
+      if (!menu.open) {
+        menu.classList.remove("library-menu-context-open");
+        return;
+      }
       document.querySelectorAll(".library-menu[open]").forEach((otherMenu) => {
         if (otherMenu !== menu) otherMenu.open = false;
+      });
+    });
+    item.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      document.querySelectorAll(".library-menu[open]").forEach((otherMenu) => {
+        if (otherMenu !== menu) otherMenu.open = false;
+      });
+      const panelWidth = 208;
+      const panelHeight = Math.min(menuPanel.scrollHeight || 280, window.innerHeight - 16);
+      const left = Math.max(8, Math.min(event.clientX, window.innerWidth - panelWidth - 8));
+      const top = Math.max(8, Math.min(event.clientY, window.innerHeight - panelHeight - 8));
+      menu.style.setProperty("--library-menu-context-left", `${left}px`);
+      menu.style.setProperty("--library-menu-context-top", `${top}px`);
+      menu.classList.add("library-menu-context-open");
+      menu.open = true;
+      menuButton.setAttribute("aria-expanded", "true");
+      requestAnimationFrame(() => {
+        menuPanel.querySelector("a, button")?.focus({ preventScroll: true });
       });
     });
     actions.append(primary, menu);
