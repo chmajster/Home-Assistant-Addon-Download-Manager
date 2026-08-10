@@ -1408,6 +1408,50 @@ body.custom-player-theater-active {
   white-space: pre-wrap;
 }
 
+.job-full-log-layout {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.job-full-log-controls {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  position: sticky;
+  top: 6rem;
+}
+
+.job-full-log-scroll {
+  align-items: center;
+  background: var(--app-surface);
+  border: 1px solid var(--app-line);
+  border-radius: 50%;
+  color: var(--app-primary-dark);
+  display: inline-flex;
+  height: 2.75rem;
+  justify-content: center;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  width: 2.75rem;
+}
+
+.job-full-log-scroll:hover,
+.job-full-log-scroll:focus-visible {
+  background: color-mix(in srgb, var(--app-primary) 12%, var(--app-surface-solid));
+  border-color: var(--app-primary);
+}
+
+.job-full-log-scroll svg {
+  fill: none;
+  height: 1.25rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 1.25rem;
+}
+
 .action-panel {
   position: sticky;
   top: 5.8rem;

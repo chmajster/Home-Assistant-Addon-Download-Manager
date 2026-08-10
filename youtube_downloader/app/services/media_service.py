@@ -9,7 +9,7 @@ from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 from .embedded_media_resolver import (
     EmbeddedMediaError,
@@ -92,37 +92,15 @@ class MediaService:
 
     @staticmethod
     def validate_url(url: str) -> str:
-        """Allow concrete extractors and structurally safe embedded-page URLs."""
+        """Normalize a safe HTTP(S) URL without restricting yt-dlp domains."""
 
         candidate = (url or "").strip()
-        if not candidate or len(candidate) > 2048:
-            raise MediaServiceError("Podaj poprawny adres URL obsługiwanego serwisu.")
         try:
-            parts = urlsplit(candidate)
-        except ValueError as error:
-            raise MediaServiceError("Podany adres URL jest niepoprawny.") from error
+            normalized_url = EmbeddedMediaResolver.normalize_url(candidate)
+        except EmbeddedMediaError as error:
+            raise MediaServiceError(str(error)) from error
+        parts = urlsplit(normalized_url)
         host = (parts.hostname or "").lower().rstrip(".")
-        if parts.scheme.lower() not in {"http", "https"}:
-            raise MediaServiceError(
-                "Dozwolone są wyłącznie adresy używające HTTP lub HTTPS."
-            )
-        if parts.username or parts.password or parts.port:
-            raise MediaServiceError(
-                "Adres URL nie może zawierać danych logowania ani niestandardowego portu."
-            )
-        normalized_url = urlunsplit(
-            (parts.scheme.lower(), host, parts.path, parts.query, "")
-        )
-        concrete_extractor = MediaService._known_platform(
-            host
-        ) or MediaService._matching_ytdlp_extractor(normalized_url)
-        if not concrete_extractor:
-            try:
-                normalized_url = EmbeddedMediaResolver.normalize_url(normalized_url)
-            except EmbeddedMediaError as error:
-                raise MediaServiceError(str(error)) from error
-        if not parts.path:
-            raise MediaServiceError("Podaj pełny adres materiału lub kanału.")
         if (
             MediaService._known_platform(host) == "youtube"
             and parts.path.rstrip("/").lower()

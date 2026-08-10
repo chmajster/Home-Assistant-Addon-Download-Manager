@@ -16,7 +16,17 @@
   <section class="card app-card">
     <div class="card-body">
       {% if job.log_lines %}
-        <pre class="job-full-log mb-0">{{ job.log_lines|join("\n") }}</pre>
+        <div class="job-full-log-layout">
+          <pre id="job-full-log" class="job-full-log mb-0" tabindex="0">{{ job.log_lines|join("\n") }}</pre>
+          <div class="job-full-log-controls" aria-label="{{ t('log.scroll_controls') }}">
+            <button class="job-full-log-scroll" type="button" data-log-scroll="up" aria-label="{{ t('log.scroll_up') }}" title="{{ t('log.scroll_up') }}">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 15 6-6 6 6"/></svg>
+            </button>
+            <button class="job-full-log-scroll" type="button" data-log-scroll="down" aria-label="{{ t('log.scroll_down') }}" title="{{ t('log.scroll_down') }}">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
+        </div>
       {% else %}
         <div class="empty-state">
           <strong>{{ t('log.empty') }}</strong>

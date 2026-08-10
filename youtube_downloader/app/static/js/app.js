@@ -171,6 +171,20 @@
     window.bootstrap?.Toast?.getOrCreateInstance(toastNode)?.show();
   });
 
+  const fullLog = document.getElementById("job-full-log");
+  if (fullLog) {
+    requestAnimationFrame(() => {
+      fullLog.scrollTop = fullLog.scrollHeight;
+    });
+    document.querySelectorAll("[data-log-scroll]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const direction = button.dataset.logScroll === "up" ? -1 : 1;
+        fullLog.scrollBy({ top: direction * fullLog.clientHeight * 0.85, behavior: "smooth" });
+        fullLog.focus({ preventScroll: true });
+      });
+    });
+  }
+
   const text = (tag, value, className = "") => {
     const node = document.createElement(tag);
     node.textContent = value ?? "";
@@ -2139,10 +2153,18 @@
     menu.className = "library-menu";
     const menuButton = document.createElement("summary");
     menuButton.className = "library-menu-button";
+    menuButton.setAttribute("aria-expanded", "false");
     menuButton.append(svgIcon("more"));
     const menuPanel = document.createElement("div");
     menuPanel.className = "library-menu-panel";
     menu.append(menuButton, menuPanel);
+    menu.addEventListener("toggle", () => {
+      menuButton.setAttribute("aria-expanded", String(menu.open));
+      if (!menu.open) return;
+      document.querySelectorAll(".library-menu[open]").forEach((otherMenu) => {
+        if (otherMenu !== menu) otherMenu.open = false;
+      });
+    });
     actions.append(primary, menu);
     if (!options.selectable) selectWrap.classList.add("d-none");
     if (options.compact) item.classList.add("library-item-compact");

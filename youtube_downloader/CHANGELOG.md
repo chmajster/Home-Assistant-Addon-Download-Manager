@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.85
+
+- Poprawiono menu akcji w listach pobrań, aby otwarcie kolejnego automatycznie zamykało poprzednie.
+
 ## 1.3.84
 
 - Podbito wersję dodatku.

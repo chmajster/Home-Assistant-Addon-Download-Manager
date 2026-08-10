@@ -604,7 +604,12 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Example", body)
         self.assertIn("line 00", body)
         self.assertIn("line 44", body)
-        self.assertIn('class="job-full-log mb-0"', body)
+        self.assertIn('id="job-full-log"', body)
+        self.assertIn('data-log-scroll="up"', body)
+        self.assertIn('data-log-scroll="down"', body)
+        script = self.client.get("/static/js/app.js").get_data(as_text=True)
+        self.assertIn("fullLog.scrollTop = fullLog.scrollHeight", script)
+        self.assertIn("fullLog.scrollBy", script)
         self.assertEqual(len(manager.get_job(job.job_id).log_lines), 40)
         self.assertEqual(len(manager.state_store.job_logs(job.job_id)), 45)
         self.assertEqual(len(api_job["log_lines"]), 40)
@@ -2032,6 +2037,8 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('route("/view/" + encodeManagedPath(job.output_file))', script)
         self.assertIn('t("jobs.open")', script)
         self.assertIn('t("common.open_file")', script)
+        self.assertIn('document.querySelectorAll(".library-menu[open]")', script)
+        self.assertIn('otherMenu.open = false', script)
         self.assertNotIn(".history-mini-player-toggle", script)
         self.assertIn("enhanceCustomPlayer", script)
         self.assertIn("custom-player-progress", script)
@@ -2770,20 +2777,33 @@ for _test_name in _OBSOLETE_HISTORY_PAGE_TESTS:
 
 
 class MediaUrlTestCase(unittest.TestCase):
-    """Keep extractor input limited to safe public URLs supported by yt-dlp."""
+    """Accept safe public URLs without limiting yt-dlp's supported websites."""
 
     def test_supported_url_is_normalized(self) -> None:
         url = MediaService.validate_url("HTTPS://WWW.YOUTUBE.COM/watch?v=abc#fragment")
         self.assertEqual(url, "https://www.youtube.com/watch?v=abc")
 
     def test_ytdlp_extractor_domain_is_supported(self) -> None:
-        with patch.object(
-            MediaService, "_matching_ytdlp_extractor", return_value="Vimeo"
-        ):
+        with patch.object(MediaService, "_matching_ytdlp_extractor") as matcher:
             url = MediaService.validate_url("https://vimeo.com/123456#comments")
 
         self.assertEqual(url, "https://vimeo.com/123456")
         self.assertEqual(MediaService.detect_platform(url), "vimeo")
+        matcher.assert_not_called()
+
+    def test_url_validation_does_not_require_a_known_domain(self) -> None:
+        with patch.object(MediaService, "_matching_ytdlp_extractor") as matcher:
+            url = MediaService.validate_url(
+                "https://www.ardmediathek.de/video/example-id"
+            )
+
+        self.assertEqual(url, "https://www.ardmediathek.de/video/example-id")
+        matcher.assert_not_called()
+
+    def test_root_url_is_deferred_to_ytdlp_instead_of_rejected(self) -> None:
+        url = MediaService.validate_url("https://supported.example")
+
+        self.assertEqual(url, "https://supported.example/")
 
     def test_public_generic_page_is_accepted_for_safe_embedded_resolution(self) -> None:
         with patch.object(MediaService, "_matching_ytdlp_extractor", return_value=None):
