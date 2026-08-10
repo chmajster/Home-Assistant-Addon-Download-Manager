@@ -2065,7 +2065,14 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn('class="custom-player-media history-mini-player-media"', body)
 
     def test_library_preview_action_keeps_full_player_behaviour(self) -> None:
-        script = self.client.get("/static/js/app.js").get_data(as_text=True)
+        script_response = self.client.get("/static/js/app.js")
+        style_response = self.client.get("/static/css/style.css")
+        try:
+            script = script_response.get_data(as_text=True)
+            style = style_response.get_data(as_text=True)
+        finally:
+            script_response.close()
+            style_response.close()
 
         self.assertIn('route("/view/" + encodeManagedPath(job.output_file))', script)
         self.assertIn('t("jobs.open")', script)
@@ -2109,6 +2116,12 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("custom-player-settings-panel", script)
         self.assertIn('["contain", "js.fit_contain"]', script)
         self.assertIn('["cover", "js.fit_cover"]', script)
+        self.assertIn('media.style.objectFit = cover ? "cover" : "contain"', script)
+        self.assertIn(
+            ".custom-player-video:not(.custom-player-compact) > .custom-player-media",
+            style,
+        )
+        self.assertIn("position: absolute", style)
         self.assertIn("custom-player-right-controls", script)
         self.assertIn("custom-player-theater-active", script)
         self.assertIn("custom-player-context-menu", script)

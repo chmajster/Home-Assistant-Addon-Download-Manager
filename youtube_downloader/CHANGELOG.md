@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.91
+
+- Poprawiono opcję „Wypełnij ekran” w ustawieniu dopasowania odtwarzacza, aby obraz rzeczywiście zajmował cały obszar odtwarzania.
+
 ## 1.3.90
 
 - Wyłączono zapamiętywanie prędkości odtwarzania i dodano natychmiastowe przełączanie tempa przyciskami presetów od 0,25× do 3×.

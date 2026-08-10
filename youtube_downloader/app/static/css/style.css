@@ -472,6 +472,12 @@ a:hover {
   object-fit: contain;
 }
 
+.custom-player-video:not(.custom-player-compact) > .custom-player-media {
+  inset: 0;
+  max-height: none;
+  position: absolute;
+}
+
 .custom-player-video.custom-player-fit-cover .custom-player-media {
   object-fit: cover;
 }

@@ -1434,7 +1434,9 @@
       }
     };
     const setFitMode = (mode) => {
-      player.classList.toggle("custom-player-fit-cover", mode === "cover");
+      const cover = mode === "cover";
+      player.classList.toggle("custom-player-fit-cover", cover);
+      media.style.objectFit = cover ? "cover" : "contain";
       syncSettingsPanel();
       persistSettings();
     };
