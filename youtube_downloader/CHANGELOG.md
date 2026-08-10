@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.92
+
+- Usunięto ograniczenie rozmiaru odtwarzacza w pełnym ekranie, eliminując czarny pas po prawej stronie i rozciągając pasek sterowania na całą szerokość.
+
 ## 1.3.91
 
 - Poprawiono opcję „Wypełnij ekran” w ustawieniu dopasowania odtwarzacza, aby obraz rzeczywiście zajmował cały obszar odtwarzania.

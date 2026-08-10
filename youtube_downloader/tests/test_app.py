@@ -2122,6 +2122,9 @@ class ApplicationTestCase(unittest.TestCase):
             style,
         )
         self.assertIn("position: absolute", style)
+        self.assertIn(".preview-stage .custom-player-video:fullscreen", style)
+        self.assertIn("aspect-ratio: auto", style)
+        self.assertIn("box-sizing: border-box", style)
         self.assertIn("custom-player-right-controls", script)
         self.assertIn("custom-player-theater-active", script)
         self.assertIn("custom-player-context-menu", script)
