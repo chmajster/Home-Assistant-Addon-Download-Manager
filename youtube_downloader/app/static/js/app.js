@@ -454,6 +454,8 @@
       captions: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 14.5v-8Zm2.5-.7a.7.7 0 0 0-.7.7v8c0 .39.31.7.7.7h11a.7.7 0 0 0 .7-.7v-8a.7.7 0 0 0-.7-.7h-11ZM7.5 10.1c0-1.2.95-2.1 2.25-2.1.78 0 1.38.25 1.85.7l-.8 1.02c-.3-.25-.6-.42-1.02-.42-.58 0-.95.35-.95.8v.8c0 .45.37.8.95.8.42 0 .72-.17 1.02-.42l.8 1.02c-.47.45-1.07.7-1.85.7-1.3 0-2.25-.9-2.25-2.1v-.8Zm5.2 0c0-1.2.95-2.1 2.25-2.1.78 0 1.38.25 1.85.7l-.8 1.02c-.3-.25-.6-.42-1.02-.42-.58 0-.95.35-.95.8v.8c0 .45.37.8.95.8.42 0 .72-.17 1.02-.42l.8 1.02c-.47.45-1.07.7-1.85.7-1.3 0-2.25-.9-2.25-2.1v-.8Z"/></svg>',
       fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9V5h4v2H7v2H5Zm10-4h4v4h-2V7h-2V5ZM7 15v2h2v2H5v-4h2Zm10 2v-2h2v4h-4v-2h2Z"/></svg>',
       fullscreenExit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v4H5V7h2V5h2Zm8 0v2h2v2h-4V5h2ZM5 15h4v4H7v-2H5v-2Zm14 0v2h-2v2h-2v-4h4Z"/></svg>',
+      frameBackward: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6V5Zm12 1.2v11.6L9.5 12 18 6.2Z"/></svg>',
+      frameForward: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2V5ZM6 6.2l8.5 5.8L6 17.8V6.2Z"/></svg>',
       copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3h1V7Zm3-1.2A1.2 1.2 0 0 0 9.8 7v6a1.2 1.2 0 0 0 1.2 1.2h6a1.2 1.2 0 0 0 1.2-1.2V7A1.2 1.2 0 0 0 17 5.8h-6ZM7 9.8A1.2 1.2 0 0 0 5.8 11v6A1.2 1.2 0 0 0 7 18.2h6a1.2 1.2 0 0 0 1.2-1.2v-1H11a3 3 0 0 1-3-3V9.8H7Z"/></svg>',
       debug: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.6 5.2 4 8.8l3.6 3.6-1.25 1.25L1.5 8.8l4.85-4.85L7.6 5.2Zm8.8 0 1.25-1.25L22.5 8.8l-4.85 4.85-1.25-1.25L20 8.8l-3.6-3.6ZM14.2 3.5h1.9l-6.3 17H7.9l6.3-17Z"/></svg>',
       embed: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13Zm2.5-.7a.7.7 0 0 0-.7.7v2.7h12.4V5.5a.7.7 0 0 0-.7-.7h-11Zm-.7 5.2v8.5c0 .39.31.7.7.7h11a.7.7 0 0 0 .7-.7V10H5.8Zm4.8 2.2 1.25 1.25L10.3 15l1.55 1.55-1.25 1.25L7.8 15l2.8-2.8Zm2.8 0 2.8 2.8-2.8 2.8-1.25-1.25L13.7 15l-1.55-1.55 1.25-1.25Z"/></svg>',
@@ -788,7 +790,7 @@
     const isVideo = media instanceof HTMLVideoElement;
     if (isVideo && !player.hasAttribute("tabindex")) {
       player.tabIndex = 0;
-      player.setAttribute("aria-keyshortcuts", "Space K J L ArrowLeft ArrowRight ArrowUp ArrowDown M F");
+      player.setAttribute("aria-keyshortcuts", "Space K J L ArrowLeft ArrowRight ArrowUp ArrowDown Comma Period M F");
     }
 
     const progress = document.createElement("input");
@@ -806,6 +808,17 @@
       playerIcon("play"),
       "custom-player-play custom-player-play-secondary"
     );
+    const frameBackward = customPlayerButton(
+      t("js.previous_frame"),
+      playerIcon("frameBackward"),
+      "custom-player-frame custom-player-frame-backward"
+    );
+    const frameForward = customPlayerButton(
+      t("js.next_frame"),
+      playerIcon("frameForward"),
+      "custom-player-frame custom-player-frame-forward"
+    );
+    const frameSteppingEnabled = isVideo && player.hasAttribute("data-frame-stepping");
     const mute = customPlayerButton(t("js.mute"), playerIcon("volume"), "custom-player-mute");
     const captions = customPlayerButton(
       t("js.captions"),
@@ -955,7 +968,9 @@
     const volumeGroup = document.createElement("div");
     volumeGroup.className = "custom-player-volume-group";
     volumeGroup.append(mute, volume);
-    leftControls.append(play, volumeGroup, time, inThisVideo);
+    leftControls.append(play);
+    if (frameSteppingEnabled) leftControls.append(frameBackward, frameForward);
+    leftControls.append(volumeGroup, time, inThisVideo);
     const rightControls = document.createElement("div");
     rightControls.className = "custom-player-row custom-player-right-controls";
     rightControls.append(playSecondary, captionsGroup, settings, mini, fullscreen);
@@ -1459,6 +1474,14 @@
       const target = Math.max(0, media.currentTime + seconds);
       media.currentTime = duration ? Math.min(duration, target) : target;
     };
+    const stepFrame = (direction) => {
+      if (!frameSteppingEnabled) return;
+      media.pause();
+      // Browsers do not expose a portable frame-rate API. A 30 FPS step gives
+      // predictable frame inspection while the decoder snaps to display frames.
+      seekBy(direction / 30);
+      syncTime();
+    };
     const updateSeekPreview = (clientX) => {
       if (!seekPreview || !seekPreviewTime) return;
       const duration = Number.isFinite(media.duration) ? media.duration : 0;
@@ -1519,6 +1542,12 @@
       } else if (key === "arrowright") {
         event.preventDefault();
         seekBy(5);
+      } else if (key === "," && frameSteppingEnabled) {
+        event.preventDefault();
+        stepFrame(-1);
+      } else if (key === "." && frameSteppingEnabled) {
+        event.preventDefault();
+        stepFrame(1);
       } else if (key === "arrowup") {
         event.preventDefault();
         changeVolumeBy(0.05);
@@ -1542,6 +1571,8 @@
       else media.pause();
     });
     playSecondary.addEventListener("click", () => play.click());
+    frameBackward.addEventListener("click", () => stepFrame(-1));
+    frameForward.addEventListener("click", () => stepFrame(1));
     if (!isVideo || !captionsUrl) {
       captions.hidden = true;
       captionsStatus.hidden = true;

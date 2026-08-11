@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.94
+
+- Dodano w widoku Podgląd przyciski oraz skróty klawiaturowe do przechodzenia do poprzedniej i następnej klatki filmu.
+
 ## 1.3.93
 
 - Poprawiono powrót z trybu kinowego, aby strona nie zachowywała poziomego przesunięcia ani czarnego pasa po prawej stronie.

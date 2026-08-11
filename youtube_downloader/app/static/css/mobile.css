@@ -154,6 +154,10 @@
     width: 3.7rem;
   }
 
+  .custom-player[data-frame-stepping] .custom-player-volume-group {
+    display: none;
+  }
+
   .custom-player-time {
     font-size: 0.7rem;
     min-width: 5.5rem;
