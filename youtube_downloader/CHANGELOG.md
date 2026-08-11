@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.98
+
+- Podniesiono wersję dodatku po wdrożeniu blokowania duplikatów istniejących plików.
+
 ## 1.3.97
 
 - Domyślnie blokowane są duplikaty istniejących plików i aktywnych zadań, natomiast wpisy po usunięciu pliku pozwalają pobrać materiał ponownie.
