@@ -411,8 +411,14 @@ class ApplicationTestCase(unittest.TestCase):
             script_response.close()
         self.assertIn('formaction="/download"', body)
         self.assertIn('data-quick-download-submit', body)
+        self.assertIn('data-url-clear', body)
+        self.assertIn("Wyczyść pole URL", body)
         self.assertIn('name="download_type"', body)
         self.assertIn("keepalive: true", script)
+        self.assertIn('headers: { Accept: "application/json" }', script)
+        self.assertIn('input.value = ""', script)
+        self.assertIn('clearUrl?.addEventListener("click"', script)
+        self.assertNotIn("window.location.assign(response.url", script)
 
     def test_index_explains_each_analysis_check(self) -> None:
         body = self.client.get("/").get_data(as_text=True)
@@ -1461,6 +1467,42 @@ class ApplicationTestCase(unittest.TestCase):
         )
         analyze.assert_not_called()
         start_download.assert_not_called()
+
+    def test_quick_download_json_stays_on_page_and_reports_success(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        manager = self.app.extensions["job_manager"]
+        with patch.object(
+            manager,
+            "start_quick_download",
+            return_value=SimpleNamespace(job_id="12345678"),
+        ):
+            response = self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/live",
+                    "download_type": "best",
+                    "quick_download": "1",
+                },
+                headers={"Accept": "application/json"},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get_json(),
+            {
+                "category": "success",
+                "clear_url": True,
+                "message": "Dodano zadanie 12345678 do kolejki.",
+                "ok": True,
+                "queued": True,
+            },
+        )
 
     def test_watch_live_defaults_to_live_from_start(self) -> None:
         class FakeUpdater:

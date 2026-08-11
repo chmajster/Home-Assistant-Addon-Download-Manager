@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from flask import jsonify
+
 from .shared import *  # noqa: F401,F403
 
 
@@ -65,16 +67,34 @@ def analyze():
 def start_download():
     """Queue a regular video, audio, playlist, or explicit-format download."""
 
-    if not _valid_form():
+    quick_json = bool(
+        request.form.get("quick_download")
+        and request.accept_mimetypes.best == "application/json"
+    )
+    if quick_json and not valid_csrf_token(request.form.get("_csrf_token")):
+        return jsonify(
+            ok=False,
+            message="Sesja formularza wygasła. Odśwież stronę i spróbuj ponownie.",
+        ), 400
+    if not quick_json and not _valid_form():
         return redirect(ingress_url("web.index"))
     urls = _bulk_url_candidates(request.form.get("url", ""))
     if not urls:
+        if quick_json:
+            return jsonify(ok=False, message=translate(_language(), "js.paste_one")), 400
         flash("Wklej co najmniej jeden adres URL.", "warning")
         return redirect(ingress_url("web.index"))
     if len(urls) > 1 and not request.form.get("playlist_picker"):
+        if quick_json:
+            return jsonify(ok=False, message=translate(_language(), "js.quick_one")), 400
         flash("Szybkie pobieranie obsługuje jeden link naraz.", "warning")
         return redirect(ingress_url("web.index"))
     if _limited("download", 10):
+        if quick_json:
+            return jsonify(
+                ok=False,
+                message=translate(_language(), "js.quick_rate_limited"),
+            ), 429
         flash("Zbyt wiele prób uruchomienia pobierania. Odczekaj chwilę.", "warning")
         return redirect(ingress_url("web.jobs"))
     try:
@@ -113,6 +133,14 @@ def start_download():
             extractor_key=str(request.form.get("extractor_key") or "").strip(),
         )
         if download_options.get("duplicate_action") == "skip" and duplicate_warnings:
+            if quick_json:
+                return jsonify(
+                    ok=True,
+                    queued=False,
+                    clear_url=False,
+                    category="info",
+                    message=translate(_language(), "js.quick_duplicate_skipped"),
+                )
             flash("Pominięto duplikat zgodnie z wybraną polityką.", "info")
             return redirect(ingress_url("web.jobs"))
         playlist_entries, skipped_existing = _selected_playlist_entries()
@@ -128,7 +156,7 @@ def start_download():
             raise MediaServiceError(
                 "Konkretny format nie jest obsługiwany dla wielu elementów playlisty. Wybierz profil albo jakość."
             )
-        if not request.form.get("allow_duplicate"):
+        if not request.form.get("allow_duplicate") and not quick_json:
             _flash_duplicate_warnings(
                 duplicate_warnings
             )
@@ -170,10 +198,28 @@ def start_download():
             source_id=str(request.form.get("source_id") or "").strip() or None,
             download_options=download_options,
         )
+        if quick_json:
+            message = translate(
+                _language(), "js.quick_added", job_id=job.job_id[:8]
+            )
+            if automatic_rule:
+                rule_message = translate(
+                    _language(), "js.automatic_rule", rule=automatic_rule
+                )
+                message = f"{message} {rule_message}"
+            return jsonify(
+                ok=True,
+                queued=True,
+                clear_url=True,
+                category="success",
+                message=message,
+            )
         flash(f"Uruchomiono zadanie {job.job_id[:8]}.", "success")
         if automatic_rule:
             flash(f"Zastosowano regułę automatyczną: {automatic_rule}", "info")
     except MediaServiceError as error:
+        if quick_json:
+            return jsonify(ok=False, message=str(error)), 400
         flash(str(error), "danger")
     return redirect(ingress_url("web.jobs"))
 

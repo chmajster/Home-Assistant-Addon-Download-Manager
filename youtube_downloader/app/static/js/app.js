@@ -262,6 +262,12 @@
     const bulkSummary = form.querySelector("[data-bulk-url-summary]");
     const copyInvalidUrls = form.querySelector("[data-bulk-url-copy-invalid]");
     const removeInvalidUrls = form.querySelector("[data-bulk-url-remove-invalid]");
+    const clearUrl = form.querySelector("[data-url-clear]");
+    const syncClearButton = () => {
+      if (clearUrl instanceof HTMLButtonElement) {
+        clearUrl.disabled = !String(input?.value || "").trim();
+      }
+    };
     const syncTextareaHeight = () => {
       if (!(input instanceof HTMLTextAreaElement)) return;
       input.style.height = "auto";
@@ -284,6 +290,7 @@
       input.value = urls.join("\n");
       syncTextareaHeight();
       renderBulkUrlReview();
+      syncClearButton();
     };
     const renderBulkUrlReview = () => {
       if (!bulkReview || !bulkList) return;
@@ -350,9 +357,21 @@
     removeInvalidUrls?.addEventListener("click", () => {
       setBulkUrls(pastedUrls(input?.value || "").filter(isValidMediaUrl));
     });
+    clearUrl?.addEventListener("click", () => {
+      if (!(input instanceof HTMLTextAreaElement)) return;
+      input.value = "";
+      input.classList.remove("is-invalid");
+      form.classList.remove("was-validated");
+      if (feedback) feedback.textContent = t("index.invalid_url");
+      renderBulkUrlReview();
+      syncTextareaHeight();
+      syncClearButton();
+      input.focus();
+    });
     input?.addEventListener("input", () => {
       syncTextareaHeight();
       renderBulkUrlReview();
+      syncClearButton();
     });
     input?.addEventListener("paste", () => setTimeout(() => {
       syncTextareaHeight();
@@ -391,6 +410,7 @@
         submitButton.setAttribute("disabled", "disabled");
         submitButton.setAttribute("aria-disabled", "true");
       });
+      clearUrl?.setAttribute("disabled", "disabled");
       button?.querySelector(".spinner-border")?.classList.remove("d-none");
       const label = button?.querySelector(
         quickDownload ? ".quick-download-submit-label" : ".analyze-submit-label"
@@ -416,25 +436,52 @@
       if (quickDownload) {
         event.preventDefault();
         const action = event.submitter?.formAction || form.action;
+        const resetQuickDownloadForm = () => {
+          form.querySelectorAll('button[type="submit"]').forEach((submitButton) => {
+            submitButton.removeAttribute("disabled");
+            submitButton.removeAttribute("aria-disabled");
+          });
+          button?.querySelector(".spinner-border")?.classList.add("d-none");
+          if (label) label.textContent = t("index.quick_download");
+          loading?.classList.add("d-none");
+          syncClearButton();
+          intentionalNavigation = false;
+        };
         try {
           const response = await fetch(action, {
             method: "POST",
             body: new FormData(form),
             credentials: "same-origin",
             keepalive: true,
+            headers: { Accept: "application/json" },
           });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          intentionalNavigation = true;
-          window.location.assign(response.url || route("/jobs"));
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.message || t("js.quick_failed"));
+          }
+          if (payload.clear_url && input instanceof HTMLTextAreaElement) {
+            input.value = "";
+            input.classList.remove("is-invalid");
+            form.classList.remove("was-validated");
+            renderBulkUrlReview();
+            syncTextareaHeight();
+            syncClearButton();
+            input.focus();
+          }
+          resetQuickDownloadForm();
+          showAppToast(payload.message || t("js.quick_added_plain"), {
+            type: payload.category || "success",
+            actionHref: payload.queued ? route("/jobs") : "",
+            actionLabel: payload.queued ? t("nav.go_jobs") : "",
+          });
         } catch (error) {
           if (document.visibilityState === "hidden") return;
-          console.error("Nie udało się wysłać pobierania w tle:", error);
-          intentionalNavigation = true;
-          form.action = action;
-          form.submit();
+          resetQuickDownloadForm();
+          showAppToast(error?.message || t("js.quick_failed"), { type: "danger" });
         }
       }
     });
+    syncClearButton();
   });
 
   const formatMediaTime = (seconds) => {

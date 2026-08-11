@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.96
+
+- Szybkie pobieranie pozostaje teraz na stronie startowej, po poprawnym dodaniu pokazuje powiadomienie i czyści pole URL.
+- Dodano przycisk do ręcznego czyszczenia pola URL wraz ze stanem walidacji i listą wykrytych linków.
+
 ## 1.3.95
 
 - Usunięto czarny pasek wychodzący poza prawą krawędź odtwarzacza przez ograniczenie szerokości podglądu i kontrolek.

@@ -1664,6 +1664,17 @@ body.custom-player-theater-active {
   min-height: 2.75rem;
 }
 
+.url-clear-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.url-clear-button [aria-hidden="true"] {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .compact-heading {
   margin-bottom: 1rem;
 }

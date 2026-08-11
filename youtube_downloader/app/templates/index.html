@@ -19,6 +19,10 @@
         <div class="input-group download-input-group">
           <span class="input-group-text" aria-hidden="true">URL</span>
           <textarea class="form-control media-url" id="media-url" name="url" rows="1" placeholder="{{ t('index.url_placeholder') }}" required autocomplete="url"></textarea>
+          <button class="btn btn-outline-secondary url-clear-button" type="button" data-url-clear disabled aria-label="{{ t('index.clear_url') }}" title="{{ t('index.clear_url') }}">
+            <span aria-hidden="true">×</span>
+            <span>{{ t('index.clear') }}</span>
+          </button>
           <button class="btn btn-accent analyze-submit" type="submit">
             <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
             <span class="analyze-submit-label">{{ t('index.analyze') }}</span>
