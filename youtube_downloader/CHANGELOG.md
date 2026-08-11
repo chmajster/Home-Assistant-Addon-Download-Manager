@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.99
+
+- Usunięto pionowy pasek po prawej stronie trybu kinowego przez rozciągnięcie sekcji odtwarzacza na pełną szerokość viewportu.
+
 ## 1.3.98
 
 - Podniesiono wersję dodatku po wdrożeniu blokowania duplikatów istniejących plików.

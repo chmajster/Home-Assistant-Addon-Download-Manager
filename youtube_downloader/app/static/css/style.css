@@ -1212,6 +1212,8 @@ body.custom-player-theater-active {
   box-shadow: none;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
+  max-width: none;
+  width: auto;
 }
 
 .custom-player-theater-active .preview-stage .custom-player-video {

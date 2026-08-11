@@ -2292,6 +2292,11 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("custom-player-right-controls", script)
         self.assertIn("custom-player-theater-active", script)
         self.assertIn("overflow-x: clip", style)
+        theater_stage_rule = style.split(
+            ".custom-player-theater-active .preview-stage {", 1
+        )[1].split("}", 1)[0]
+        self.assertIn("max-width: none", theater_stage_rule)
+        self.assertIn("width: auto", theater_stage_rule)
         self.assertIn("document.documentElement.scrollLeft = 0", script)
         self.assertIn("document.body.scrollLeft = 0", script)
         self.assertIn("custom-player-context-menu", script)
