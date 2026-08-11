@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.95
+
+- Usunięto czarny pasek wychodzący poza prawą krawędź odtwarzacza przez ograniczenie szerokości podglądu i kontrolek.
+
 ## 1.3.94
 
 - Dodano w widoku Podgląd przyciski oraz skróty klawiaturowe do przechodzenia do poprzedniej i następnej klatki filmu.

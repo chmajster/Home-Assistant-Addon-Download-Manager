@@ -441,11 +441,14 @@ a:hover {
 .custom-player {
   background: #000;
   border-radius: 0.5rem;
+  box-sizing: border-box;
   color: #f8fafc;
   isolation: isolate;
+  max-width: 100%;
   overflow: hidden;
   position: relative;
   touch-action: manipulation;
+  width: 100%;
 }
 
 .custom-player-video {
@@ -511,9 +514,11 @@ a:hover {
   background:
     linear-gradient(0deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.5) 58%, transparent);
   bottom: 0;
+  box-sizing: border-box;
   display: grid;
   gap: 0.28rem;
   left: 0;
+  max-width: 100%;
   padding: 2rem 0.85rem 0.58rem;
   position: absolute;
   right: 0;
@@ -552,7 +557,10 @@ a:hover {
 .custom-player-main-row {
   flex-wrap: nowrap;
   justify-content: space-between;
+  max-width: 100%;
   min-height: 2.15rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .custom-player-left-controls,
@@ -563,6 +571,7 @@ a:hover {
 .custom-player-left-controls {
   flex: 1 1 auto;
   flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .custom-player-right-controls {
@@ -2169,8 +2178,11 @@ body.custom-player-theater-active {
 .preview-stage {
   background: #000;
   border-radius: 0.5rem;
+  box-sizing: border-box;
   box-shadow: var(--app-shadow);
+  max-width: 100%;
   overflow: hidden;
+  width: 100%;
 }
 
 .preview-stage .custom-player-video {
