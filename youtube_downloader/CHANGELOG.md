@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.97
+
+- Domyślnie blokowane są duplikaty istniejących plików i aktywnych zadań, natomiast wpisy po usunięciu pliku pozwalają pobrać materiał ponownie.
+
 ## 1.3.96
 
 - Szybkie pobieranie pozostaje teraz na stronie startowej, po poprawnym dodaniu pokazuje powiadomienie i czyści pole URL.

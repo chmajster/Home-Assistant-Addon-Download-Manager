@@ -576,10 +576,10 @@ def _download_options_from_form(playlist_title: str | None = None) -> dict[str, 
         "embed_thumbnail": _form_bool("embed_thumbnail", True),
         "add_metadata": _form_bool("add_metadata", True),
         "duplicate_action": (
-            str(request.form.get("duplicate_action") or "warning")
-            if str(request.form.get("duplicate_action") or "warning")
+            str(request.form.get("duplicate_action") or "skip")
+            if str(request.form.get("duplicate_action") or "skip")
             in {"warning", "skip", "overwrite", "rename"}
-            else "warning"
+            else "skip"
         ),
     }
     if playlist_title and _form_bool("playlist_folder"):
@@ -643,16 +643,58 @@ def _automatic_download_type(
     return download_type, None
 
 
+def _job_blocks_duplicate(job: Any) -> bool:
+    if job.status in JobManager.ACTIVE_STATUSES:
+        return True
+    filenames = list(job.output_files or [])
+    if job.output_file and job.output_file not in filenames:
+        filenames.append(job.output_file)
+    for filename in filenames:
+        try:
+            if _file_service().resolve_download(str(filename)).is_file():
+                return True
+        except (FileNotFoundError, OSError, UnsafeFilenameError, ValueError):
+            continue
+    return False
+
+
+def _downloaded_filename_keys() -> set[str]:
+    return {
+        Path(str(item.get("filename") or "")).name.casefold()
+        for item in _file_service().list_files()
+        if item.get("filename")
+    }
+
+
+def _identity_blocks_duplicate(
+    identity: dict[str, Any], jobs_by_id: dict[str, Any], filename_keys: set[str]
+) -> bool:
+    job = jobs_by_id.get(str(identity.get("job_id") or ""))
+    if job is not None:
+        return _job_blocks_duplicate(job)
+    filename_key = str(identity.get("filename_key") or "").casefold()
+    return bool(filename_key and filename_key in filename_keys)
+
+
 def _known_source_ids() -> set[str]:
+    jobs = _job_manager().list_jobs()
+    jobs_by_id = {job.job_id: job for job in jobs}
+    identities = _job_manager().state_store.download_identities()
+    filename_keys = (
+        _downloaded_filename_keys()
+        if any(str(item.get("job_id") or "") not in jobs_by_id for item in identities)
+        else set()
+    )
     current = {
         str(job.source_id)
-        for job in _job_manager().list_jobs()
-        if job.source_id and job.status != "error"
+        for job in jobs
+        if job.source_id and _job_blocks_duplicate(job)
     }
     current.update(
         str(item["source_id"])
-        for item in _job_manager().state_store.download_identities()
+        for item in identities
         if item.get("source_id")
+        and _identity_blocks_duplicate(item, jobs_by_id, filename_keys)
     )
     return current
 
@@ -820,7 +862,17 @@ def _duplicate_download_warnings(
             }
         )
 
-    for job in _job_manager().list_jobs():
+    jobs = _job_manager().list_jobs()
+    jobs_by_id = {job.job_id: job for job in jobs}
+    identities = _job_manager().state_store.download_identities()
+    filename_keys = (
+        _downloaded_filename_keys()
+        if any(str(item.get("job_id") or "") not in jobs_by_id for item in identities)
+        else set()
+    )
+    for job in jobs:
+        if not _job_blocks_duplicate(job):
+            continue
         source = "queue" if job.status in JobManager.ACTIVE_STATUSES else "jobs"
         detail = job.output_file or job.job_id[:8]
         metadata = job.metadata if isinstance(job.metadata, dict) else {}
@@ -836,7 +888,9 @@ def _duplicate_download_warnings(
             add("title", source, job.title, detail)
         elif filename_key and Path(job.output_file or "").name.casefold() == filename_key:
             add("filename", source, job.title, detail)
-    for identity in _job_manager().state_store.download_identities():
+    for identity in identities:
+        if not _identity_blocks_duplicate(identity, jobs_by_id, filename_keys):
+            continue
         matches = (
             (source_id and identity.get("source_id") == source_id, "source_id"),
             (source_id and extractor_key and identity.get("extractor_key") == extractor_key

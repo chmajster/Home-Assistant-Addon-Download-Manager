@@ -132,7 +132,9 @@ def start_download():
             source_id=str(request.form.get("source_id") or "").strip(),
             extractor_key=str(request.form.get("extractor_key") or "").strip(),
         )
-        if download_options.get("duplicate_action") == "skip" and duplicate_warnings:
+        if duplicate_warnings and (
+            quick_download or download_options.get("duplicate_action") == "skip"
+        ):
             if quick_json:
                 return jsonify(
                     ok=True,

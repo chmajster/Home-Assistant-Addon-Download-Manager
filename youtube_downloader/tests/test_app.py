@@ -1069,7 +1069,7 @@ class ApplicationTestCase(unittest.TestCase):
                 "audio_format": "mp3",
                 "embed_thumbnail": True,
                 "add_metadata": True,
-                "duplicate_action": "warning",
+                "duplicate_action": "skip",
             },
         )
 
@@ -1224,7 +1224,7 @@ class ApplicationTestCase(unittest.TestCase):
         self.assertIn("Podobny tytuł lub plik", body)
         self.assertIn("Same title", body)
 
-    def test_start_download_flashes_duplicate_warning_for_direct_post(self) -> None:
+    def test_start_download_skips_existing_file_by_default(self) -> None:
         class FakeUpdater:
             def ensure_recent(self) -> bool:
                 return True
@@ -1244,7 +1244,7 @@ class ApplicationTestCase(unittest.TestCase):
             manager,
             "start_download",
             return_value=SimpleNamespace(job_id="12345678"),
-        ):
+        ) as start_download:
             body = self.client.post(
                 "/download",
                 data={
@@ -1256,8 +1256,9 @@ class ApplicationTestCase(unittest.TestCase):
                 follow_redirects=True,
             ).get_data(as_text=True)
 
-        self.assertIn("Uwaga: ten URL", body)
-        self.assertIn("Uruchomiono zadanie", body)
+        self.assertIn("Pominięto duplikat", body)
+        self.assertNotIn("Uruchomiono zadanie", body)
+        start_download.assert_not_called()
 
     def test_analyze_imports_multiple_unique_valid_urls(self) -> None:
         class FakeUpdater:
@@ -1462,7 +1463,7 @@ class ApplicationTestCase(unittest.TestCase):
                 "audio_format": "mp3",
                 "embed_thumbnail": True,
                 "add_metadata": True,
-                "duplicate_action": "warning",
+                "duplicate_action": "skip",
             },
         )
         analyze.assert_not_called()
@@ -1503,6 +1504,117 @@ class ApplicationTestCase(unittest.TestCase):
                 "queued": True,
             },
         )
+
+    def test_quick_download_skips_duplicate_when_downloaded_file_exists(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_bytes(b"media")
+        self._completed_job(filename=target.name, url="https://youtu.be/example")
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        manager = self.app.extensions["job_manager"]
+        with patch.object(manager, "start_quick_download") as start_quick_download:
+            response = self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/example",
+                    "download_type": "best",
+                    "quick_download": "1",
+                },
+                headers={"Accept": "application/json"},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get_json(),
+            {
+                "category": "info",
+                "clear_url": False,
+                "message": (
+                    "Plik jest już pobrany lub zadanie znajduje się w kolejce. "
+                    "Duplikat nie został dodany."
+                ),
+                "ok": True,
+                "queued": False,
+            },
+        )
+        start_quick_download.assert_not_called()
+
+    def test_quick_download_allows_entry_after_its_file_was_deleted(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_bytes(b"media")
+        existing = self._completed_job(
+            filename=target.name,
+            url="https://youtu.be/example",
+        )
+        manager = self.app.extensions["job_manager"]
+        manager._remember_identity(existing)
+        target.unlink()
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        with patch.object(
+            manager,
+            "start_quick_download",
+            return_value=SimpleNamespace(job_id="87654321"),
+        ) as start_quick_download:
+            response = self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/example",
+                    "download_type": "best",
+                    "quick_download": "1",
+                },
+                headers={"Accept": "application/json"},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["queued"])
+        self.assertTrue(response.get_json()["clear_url"])
+        start_quick_download.assert_called_once()
+
+    def test_quick_download_uses_identity_when_job_entry_was_deleted(self) -> None:
+        class FakeUpdater:
+            def ensure_recent(self) -> bool:
+                return True
+
+        files = self.app.extensions["file_service"]
+        target = files.download_dir / "example.mp4"
+        target.write_bytes(b"media")
+        existing = self._completed_job(
+            filename=target.name,
+            url="https://youtu.be/example",
+        )
+        manager = self.app.extensions["job_manager"]
+        manager._remember_identity(existing)
+        manager.delete_job(existing.job_id)
+        self.app.extensions["ytdlp_updater"] = FakeUpdater()
+        with patch.object(manager, "start_quick_download") as start_quick_download:
+            response = self.client.post(
+                "/download",
+                data={
+                    "_csrf_token": self._csrf_token(),
+                    "url": "https://youtu.be/example",
+                    "download_type": "best",
+                    "quick_download": "1",
+                },
+                headers={"Accept": "application/json"},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.get_json()["queued"])
+        start_quick_download.assert_not_called()
 
     def test_watch_live_defaults_to_live_from_start(self) -> None:
         class FakeUpdater:
