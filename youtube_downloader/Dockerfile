@@ -1,6 +1,6 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/base-python:3.14-alpine3.23
 
-FROM mwader/static-ffmpeg:8.1.1 AS ffmpeg
+FROM mwader/static-ffmpeg:8.1.2 AS ffmpeg
 
 FROM ${BUILD_FROM}
 
