@@ -18,8 +18,8 @@ from .i18n import download_type_labels, frontend_catalog, status_labels, transla
 from .services.file_service import FileService
 from .services.ha_notifications import HomeAssistantNotifier
 from .services.host_shutdown import HostShutdownService
-from .services.process_job_manager import ProcessJobManager as JobManager
 from .services.media_service import MediaService
+from .services.process_job_manager import ProcessJobManager as JobManager
 from .services.startup_checks import assert_startup_ready
 from .services.storage import StorageManager
 from .services.ytdlp_updater import YtDlpUpdater
