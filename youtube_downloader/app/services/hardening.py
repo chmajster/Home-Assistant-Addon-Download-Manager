@@ -10,7 +10,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from flask import Flask, Response, jsonify, redirect, render_template_string, request, session
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    redirect,
+    render_template_string,
+    request,
+    session,
+)
 
 from .job_state import JobStatus, ensure_job_transition
 
@@ -36,7 +44,7 @@ def load_runtime_hardening_options(path: Path = OPTIONS_FILE) -> RuntimeHardenin
 
     try:
         payload = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-    except (OSError, ValueError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError):
         LOGGER.warning("Nie można odczytać opcji hardeningu; używam bezpiecznych wartości.")
         payload = {}
     if not isinstance(payload, dict):
@@ -145,9 +153,7 @@ def _install_state_guards(manager: Any) -> None:
         job = manager.get_job(job_id)
         if job.status in manager.STOPPABLE_STATUSES and not job.is_live:
             target = (
-                JobStatus.STOPPED
-                if job.status == JobStatus.PENDING
-                else JobStatus.STOPPING
+                JobStatus.STOPPED if job.status == JobStatus.PENDING else JobStatus.STOPPING
             )
             ensure_job_transition(job.status, target)
         return original_stop_download(job_id)
@@ -209,7 +215,8 @@ def _install_external_auth(app: Flask, options: RuntimeHardeningOptions) -> None
             return None
         if len(options.external_access_token) < MIN_EXTERNAL_TOKEN_LENGTH:
             return _external_error(
-                "Dostęp zewnętrzny wymaga external_access_token o długości co najmniej 20 znaków.",
+                "Dostęp zewnętrzny wymaga external_access_token o długości "
+                "co najmniej 20 znaków.",
                 503,
             )
         if session.get(EXTERNAL_SESSION_KEY) is True:
@@ -249,7 +256,10 @@ def _install_external_auth(app: Flask, options: RuntimeHardeningOptions) -> None
   <p>Podaj token skonfigurowany w opcjach dodatku.</p>
   {% if error %}<p role="alert"><strong>{{ error }}</strong></p>{% endif %}
   <form method="post">
-    <label>Token <input name="token" type="password" autocomplete="current-password" required></label>
+    <label>
+      Token
+      <input name="token" type="password" autocomplete="current-password" required>
+    </label>
     <button type="submit">Zaloguj</button>
   </form>
 </body>

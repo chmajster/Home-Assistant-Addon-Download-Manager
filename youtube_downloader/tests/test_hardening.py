@@ -62,7 +62,10 @@ class RuntimeOptionsTestCase(unittest.TestCase):
             options = load_runtime_hardening_options(path)
         self.assertTrue(options.allow_external_port)
         self.assertEqual(options.external_port, 10001)
-        self.assertEqual(options.external_access_token, "x" * MIN_EXTERNAL_TOKEN_LENGTH)
+        self.assertEqual(
+            options.external_access_token,
+            "x" * MIN_EXTERNAL_TOKEN_LENGTH,
+        )
         self.assertTrue(options.resume_interrupted_downloads_on_startup)
 
     def test_invalid_file_falls_back_to_safe_defaults(self) -> None:
@@ -83,7 +86,11 @@ class ExternalAuthenticationTestCase(unittest.TestCase):
         app.secret_key = "test-secret"
         app.add_url_rule("/", "index", lambda: "ok")
         app.add_url_rule("/health/ready", "ready", lambda: "ready")
-        app.add_url_rule("/api/probe", "probe", lambda: jsonify({"ok": True}))
+        app.add_url_rule(
+            "/api/probe",
+            "probe",
+            lambda: jsonify({"ok": True}),
+        )
         _install_external_auth(
             app,
             RuntimeHardeningOptions(
@@ -96,10 +103,13 @@ class ExternalAuthenticationTestCase(unittest.TestCase):
         return app
 
     def test_ingress_listener_is_not_forced_through_external_login(self) -> None:
-        response = self._app().test_client().get("/", base_url="http://localhost:8099")
+        response = self._app().test_client().get(
+            "/",
+            base_url="http://localhost:8099",
+        )
         self.assertEqual(response.status_code, 200)
 
-    def test_external_browser_is_redirected_to_login_and_session_unlocks_it(self) -> None:
+    def test_external_browser_redirect_and_session_login(self) -> None:
         client = self._app().test_client()
         blocked = client.get("/", base_url="http://localhost:999")
         self.assertEqual(blocked.status_code, 302)
@@ -114,7 +124,7 @@ class ExternalAuthenticationTestCase(unittest.TestCase):
         allowed = client.get("/", base_url="http://localhost:999")
         self.assertEqual(allowed.status_code, 200)
 
-    def test_external_api_accepts_bearer_token_and_rejects_missing_token(self) -> None:
+    def test_external_api_accepts_bearer_and_rejects_missing_token(self) -> None:
         client = self._app().test_client()
         blocked = client.get("/api/probe", base_url="http://localhost:999")
         self.assertEqual(blocked.status_code, 401)
@@ -127,13 +137,15 @@ class ExternalAuthenticationTestCase(unittest.TestCase):
 
     def test_external_listener_without_configured_token_fails_closed(self) -> None:
         response = self._app(token="").test_client().get(
-            "/api/probe", base_url="http://localhost:999"
+            "/api/probe",
+            base_url="http://localhost:999",
         )
         self.assertEqual(response.status_code, 503)
 
     def test_health_probe_remains_public_on_external_listener(self) -> None:
         response = self._app().test_client().get(
-            "/health/ready", base_url="http://localhost:999"
+            "/health/ready",
+            base_url="http://localhost:999",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -156,7 +168,10 @@ class QueueGateTestCase(unittest.TestCase):
         gate = QueueGate(manager)
         gate.pause()
         stop_event = threading.Event()
-        worker = threading.Thread(target=manager._run_download, args=("job", stop_event))
+        worker = threading.Thread(
+            target=manager._run_download,
+            args=("job", stop_event),
+        )
         worker.start()
         time.sleep(0.05)
         self.assertFalse(called.is_set())
@@ -172,14 +187,19 @@ class QueueGateTestCase(unittest.TestCase):
         manager = SimpleNamespace(
             _run_download=lambda *_args: called.set(),
             _shutdown_event=threading.Event(),
-            list_jobs=lambda: [SimpleNamespace(is_live=False, status=JobStatus.PENDING)],
+            list_jobs=lambda: [
+                SimpleNamespace(is_live=False, status=JobStatus.PENDING)
+            ],
             ACTIVE_STATUSES={"pending", "downloading", "stopping", "waiting"},
             max_concurrent_jobs=1,
         )
         gate = QueueGate(manager)
         gate.pause()
         stop_event = threading.Event()
-        worker = threading.Thread(target=manager._run_download, args=("job", stop_event))
+        worker = threading.Thread(
+            target=manager._run_download,
+            args=("job", stop_event),
+        )
         worker.start()
         stop_event.set()
         worker.join(timeout=1)
