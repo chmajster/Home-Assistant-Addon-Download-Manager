@@ -42,6 +42,7 @@ class ProcessJobManager(JobManager):
         stderr_queue: queue.Queue[str] = queue.Queue()
         stdout_done = threading.Event()
         outcome = WorkerOutcome()
+        stderr_lines: list[str] = []
 
         try:
             with self._slots:
@@ -103,7 +104,9 @@ class ProcessJobManager(JobManager):
                 stop_signal_sent = False
                 while True:
                     self._drain_worker_messages(job_id, stdout_queue, outcome)
-                    self._drain_worker_stderr(job_id, stderr_queue)
+                    stderr_lines.extend(
+                        self._drain_worker_stderr(job_id, stderr_queue)
+                    )
 
                     if (
                         stop_event.is_set()
@@ -128,11 +131,9 @@ class ProcessJobManager(JobManager):
                 if stderr_thread:
                     stderr_thread.join(timeout=1)
                 self._drain_worker_messages(job_id, stdout_queue, outcome)
-                stderr_lines = self._drain_worker_stderr(job_id, stderr_queue)
-
-                if outcome.error_message:
-                    self._fail(job_id, outcome.error_message)
-                    return
+                stderr_lines.extend(
+                    self._drain_worker_stderr(job_id, stderr_queue)
+                )
 
                 if process.returncode == 0 and outcome.completed:
                     files = self._record_worker_outputs(job_id, outcome.paths)
@@ -167,6 +168,10 @@ class ProcessJobManager(JobManager):
                                 "interrupted" if shutdown else "stopped",
                                 error_code=DOWNLOAD_STOPPED if shutdown else None,
                             )
+                    return
+
+                if outcome.error_message:
+                    self._fail(job_id, outcome.error_message)
                     return
 
                 if process.returncode != 0:
