@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.100
+
+- Naprawiono zatrzymywanie zwykłych pobrań przez uruchamianie `yt-dlp` i jego procesów `ffmpeg` w osobnej grupie procesów, którą można przerwać natychmiast po użyciu akcji Stop.
+- Zatrzymane ręcznie pobrania kończą się statusem `stopped`, zachowując częściowe pliki do późniejszego wznowienia.
+
 ## 1.3.99
 
 - Usunięto pionowy pasek po prawej stronie trybu kinowego przez rozciągnięcie sekcji odtwarzacza na pełną szerokość viewportu.
@@ -248,7 +253,7 @@
 ## 1.3.52
 
 - Poprawiono przewijanie podglądu logu zadań, aby ukryty widok mobilny/desktopowy nie resetował pozycji do góry.
-- Dodano przycisk `Pełny log`, który otwiera cały log zadania na osobnej stronie.
+- Dodano przycisk `Pełen log`, który otwiera cały log zadania na osobnej stronie.
 
 ## 1.3.51
 
