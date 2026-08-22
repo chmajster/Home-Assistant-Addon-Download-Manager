@@ -101,9 +101,13 @@ class ExternalAuthenticationTestCase(unittest.TestCase):
         return app
 
     def test_ingress_listener_is_not_forced_through_external_login(self) -> None:
-        response = self._app().test_client().get(
-            "/",
-            base_url="http://localhost:8099",
+        response = (
+            self._app()
+            .test_client()
+            .get(
+                "/",
+                base_url="http://localhost:8099",
+            )
         )
         self.assertEqual(response.status_code, 200)
 
@@ -139,16 +143,24 @@ class ExternalAuthenticationTestCase(unittest.TestCase):
         self.assertEqual(allowed.status_code, 200)
 
     def test_external_listener_without_configured_token_fails_closed(self) -> None:
-        response = self._app(token="").test_client().get(
-            "/api/probe",
-            base_url="http://localhost:999",
+        response = (
+            self._app(token="")
+            .test_client()
+            .get(
+                "/api/probe",
+                base_url="http://localhost:999",
+            )
         )
         self.assertEqual(response.status_code, 503)
 
     def test_health_probe_remains_public_on_external_listener(self) -> None:
-        response = self._app().test_client().get(
-            "/health/ready",
-            base_url="http://localhost:999",
+        response = (
+            self._app()
+            .test_client()
+            .get(
+                "/health/ready",
+                base_url="http://localhost:999",
+            )
         )
         self.assertEqual(response.status_code, 200)
 
