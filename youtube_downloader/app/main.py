@@ -1,8 +1,10 @@
 """Gunicorn entry point."""
 
 from . import create_app
+from .services.hardening import install_runtime_hardening
 
 app = create_app()
+install_runtime_hardening(app)
 
 
 if __name__ == "__main__":

@@ -28,10 +28,16 @@ configuration:
     description: "Maximum number of simultaneous downloads and live recordings."
   allow_external_port:
     name: "Enable page without Ingress"
-    description: "Starts an additional public application port, for example 999, available without Home Assistant login. Use only on a trusted network."
+    description: "Starts an additional application port outside Home Assistant. Access requires the token configured below."
+  external_access_token:
+    name: "External access token"
+    description: "Secret token at least 20 characters long required on the non-Ingress port. The API accepts a Bearer token or X-API-Key."
+  resume_interrupted_downloads_on_startup:
+    name: "Resume interrupted downloads on startup"
+    description: "Automatically resumes regular downloads marked interrupted after an add-on restart. Live recordings are not restarted."
   external_port:
     name: "Port without Ingress"
-    description: "Port used by the additional unauthenticated listener. Defaults to 999; the port must also be exposed in the add-on Network section."
+    description: "Additional token-protected listener. Defaults to 999; it must differ from Ingress port 8099 and be exposed in the add-on Network section."
   debug:
     name: "Debug mode"
     description: "Enables verbose application logging."
@@ -43,4 +49,4 @@ configuration:
     description: "Language used by the Media Web Downloader panel: Polish or English."
 network:
   8099/tcp: "Optional external access to the web interface"
-  999/tcp: "Public access without Ingress after enabling the option"
+  999/tcp: "Token-protected access without Ingress after enabling the option"

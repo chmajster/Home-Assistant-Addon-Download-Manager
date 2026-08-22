@@ -28,10 +28,16 @@ configuration:
     description: "Maksymalna liczba jednoczesnych pobrań i zapisów live."
   allow_external_port:
     name: "Włącz stronę bez Ingress"
-    description: "Uruchamia dodatkowy publiczny port aplikacji, np. 999, dostępny bez logowania do Home Assistant. Używaj tylko w zaufanej sieci."
+    description: "Uruchamia dodatkowy port aplikacji dostępny poza Home Assistant. Dostęp wymaga tokenu skonfigurowanego poniżej."
+  external_access_token:
+    name: "Token dostępu zewnętrznego"
+    description: "Sekretny token o długości co najmniej 20 znaków wymagany na porcie bez Ingress. API akceptuje Bearer token lub X-API-Key."
+  resume_interrupted_downloads_on_startup:
+    name: "Wznawiaj przerwane pobrania po starcie"
+    description: "Automatycznie ponawia zwykłe pobrania ze statusem przerwane po restarcie dodatku. Nie uruchamia ponownie transmisji live."
   external_port:
     name: "Port strony bez Ingress"
-    description: "Port, na którym aplikacja uruchamia dodatkowy dostęp bez logowania. Domyślnie 999; port musi być też udostępniony w sekcji Sieć dodatku."
+    description: "Port dodatkowego dostępu chronionego tokenem. Domyślnie 999; musi różnić się od portu Ingress 8099 i być udostępniony w sekcji Sieć dodatku."
   debug:
     name: "Tryb debug"
     description: "Włącza rozszerzone logi aplikacji."
@@ -43,4 +49,4 @@ configuration:
     description: "Język panelu Media Web Downloader: polski albo angielski."
 network:
   8099/tcp: "Opcjonalny zewnętrzny dostęp do interfejsu webowego"
-  999/tcp: "Publiczny dostęp bez Ingress po włączeniu opcji"
+  999/tcp: "Dostęp bez Ingress chroniony tokenem po włączeniu opcji"

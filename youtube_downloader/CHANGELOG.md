@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.101
+
+- Zabezpieczono dostęp bez Ingress osobnym tokenem, trybem fail-closed i blokadą współdzielenia portu 8099 z listenerem zewnętrznym.
+- Dodano walidację przejść stanów zadań, pauzę i wznowienie startu nowych pobrań, diagnostykę runtime oraz opcjonalne automatyczne wznawianie przerwanych zwykłych zadań po restarcie.
+- Odtworzono CI i walidację release z testami jakości, pełnym zestawem testów oraz buildami `amd64` i `aarch64`; dodano osobny moduł testów hardeningu.
+- Przypięto bazową wersję `yt-dlp` do wheelhouse dla odtwarzalnych buildów oraz usunięto śledzony plik `.test-output.txt` z artefaktami testów.
+
 ## 1.3.100
 
 - Naprawiono zatrzymywanie zwykłych pobrań przez uruchamianie `yt-dlp` i jego procesów `ffmpeg` w osobnej grupie procesów, którą można przerwać natychmiast po użyciu akcji Stop.

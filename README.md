@@ -33,6 +33,18 @@ Dodatek korzysta z natywnego Home Assistant Ingress. Panel **Media Web Downloade
 
 Port `8099/tcp` jest domyślnie niewystawiony na hosta. W typowej instalacji wystarcza bezpieczny dostęp przez Ingress.
 
+## Dostęp bez Ingress
+
+Opcja `allow_external_port` uruchamia dodatkowy listener, domyślnie na porcie `999`. Od wersji `1.3.101` ten listener działa w trybie fail-closed i wymaga `external_access_token` o długości co najmniej 20 znaków. Port zewnętrzny musi różnić się od portu Ingress `8099`.
+
+Przeglądarka przekierowuje niezalogowanego użytkownika do prostego formularza tokenu. Klienci API mogą przesłać token jako `Authorization: Bearer <token>` albo nagłówek `X-API-Key`. Endpointy healthcheck pozostają dostępne bez uwierzytelniania dla watchdoga i systemów monitoringu.
+
+## Kolejka i diagnostyka runtime
+
+Nowe zwykłe pobrania można tymczasowo wstrzymać bez przerywania aktywnych transferów i nagrań live przez `POST /api/queue/pause`; `POST /api/queue/resume` ponownie dopuszcza start oczekujących workerów. `GET /api/runtime` pokazuje stan bramki kolejki oraz etap wykonywania zadań, retry, prędkość, ETA i PID aktywnych procesów live.
+
+Opcja `resume_interrupted_downloads_on_startup` automatycznie wznawia po restarcie zwykłe zadania ze statusem `interrupted`. Nagrania live nie są automatycznie uruchamiane ponownie.
+
 ## Audio i playlisty
 
 Panel obsługuje pobieranie samego audio w formatach `mp3`, `m4a` i `opus`. Dla plików audio można osadzić miniaturę jako okładkę oraz zapisać metadane z `yt-dlp`: tytuł, autora/kanał, datę publikacji i URL źródłowy.
@@ -79,7 +91,7 @@ nfs_download_dir: /media/nas/youtube_downloader
 
 ## Aktualizacja yt-dlp
 
-Przy każdym starcie kontenera dodatek próbuje zaktualizować `yt-dlp`, czyli backend i zestaw extractorów używanych do obsługi zmian po stronie serwisów. Aplikacja zapisuje stan aktualizacji w `/data/jobs/ytdlp_update.json`, ponawia sprawdzenie co 24 godziny oraz przed analizą lub pobieraniem, jeśli ostatnia udana aktualizacja jest za stara albo wcześniejsza próba się nie powiodła. Nie są aktualizowane serwisy źródłowe. Chwilowy brak sieci nie blokuje uruchomienia dodatku.
+Obraz dodatku zawiera przypiętą, testowalną wersję bazową `yt-dlp` z lokalnego wheelhouse. W trybie `startup` kontener przed uruchomieniem aplikacji próbuje zaktualizować `yt-dlp`, weryfikuje extractory i w razie nieudanej weryfikacji przywraca poprzednią wersję. Stan aktualizacji jest zapisywany w `/data/jobs/ytdlp_update.json`. Chwilowy brak sieci nie blokuje uruchomienia dodatku.
 
 ## Powiadomienia Home Assistant
 

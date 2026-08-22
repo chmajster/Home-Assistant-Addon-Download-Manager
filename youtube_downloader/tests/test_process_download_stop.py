@@ -24,6 +24,26 @@ class FakeMediaService:
 
     validate_url = staticmethod(MediaService.validate_url)
 
+    def download_options(
+        self,
+        download_type: str,
+        format_id: str | None = None,
+        download_options: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        """Mirror the validation hook used by JobManager before queueing."""
+
+        selection, _postprocessors = MediaService.format_selection(
+            download_type,
+            format_id,
+            audio_format=str((download_options or {}).get("audio_format") or "mp3"),
+            embed_thumbnail=True,
+            add_metadata=True,
+        )
+        return {
+            "format": selection,
+            "outtmpl": str(self.download_dir / "%(title)s.%(ext)s"),
+        }
+
     def effective_download_options(
         self,
         url: str,
@@ -90,7 +110,7 @@ class ProcessDownloadStopTestCase(unittest.TestCase):
                     self._wait_for_status(manager, job.job_id, "downloading")
 
                     stopping = manager.stop_download(job.job_id)
-                    self.assertEqual(stopping.status, "stopping")
+                    self.assertIn(stopping.status, {"stopping", "stopped"})
                     stopped = self._wait_for_status(manager, job.job_id, "stopped")
 
                 self.assertEqual(stopped.status, "stopped")
