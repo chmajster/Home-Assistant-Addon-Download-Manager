@@ -24,6 +24,7 @@ class AppConfig:
     jobs_dir: Path
     history_file: Path
     max_concurrent_jobs: int
+    min_free_space_gb: float
     allow_external_port: bool
     enable_ha_events: bool
     ha_event_types: dict[str, bool]
@@ -54,6 +55,7 @@ class AppConfig:
             jobs_dir=jobs_dir,
             history_file=jobs_dir / "history.json",
             max_concurrent_jobs=options.max_concurrent_jobs,
+            min_free_space_gb=options.min_free_space_gb,
             allow_external_port=options.allow_external_port,
             enable_ha_events=options.enable_ha_events,
             ha_event_types=options.ha_event_types,
