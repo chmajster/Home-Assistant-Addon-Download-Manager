@@ -47,7 +47,7 @@ def load_runtime_hardening_options(path: Path = OPTIONS_FILE) -> RuntimeHardenin
 
     try:
         payload = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-    except (OSError, json.JSONDecodeError):
+    except OSError, json.JSONDecodeError:
         LOGGER.warning("Nie można odczytać opcji hardeningu; używam bezpiecznych wartości.")
         payload = {}
     if not isinstance(payload, dict):
@@ -55,7 +55,7 @@ def load_runtime_hardening_options(path: Path = OPTIONS_FILE) -> RuntimeHardenin
 
     try:
         external_port = int(payload.get("external_port", 999))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         external_port = 999
     if not 1 <= external_port <= 65535:
         external_port = 999
@@ -74,7 +74,7 @@ def load_runtime_hardening_options(path: Path = OPTIONS_FILE) -> RuntimeHardenin
 def _server_port() -> int | None:
     try:
         return int(request.environ.get("SERVER_PORT", ""))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
@@ -99,8 +99,7 @@ def _external_error(message: str, status: int) -> Response:
 
 
 def _external_request_key() -> str:
-    forwarded = request.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip()
-    return forwarded or request.remote_addr or "unknown"
+    return request.remote_addr or "unknown"
 
 
 def _install_external_auth(app: Flask, options: RuntimeHardeningOptions) -> None:
