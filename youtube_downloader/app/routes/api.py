@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import time
 
 from flask import Blueprint, Response, current_app, jsonify, stream_with_context
@@ -14,6 +15,8 @@ from ..i18n import localize_job
 from ..services.job_manager import JobManager
 
 api_bp = Blueprint("api", __name__)
+SSE_STREAM_LIMIT = 2
+_SSE_STREAM_SLOTS = threading.BoundedSemaphore(SSE_STREAM_LIMIT)
 
 
 def _job_manager() -> JobManager:
@@ -56,6 +59,20 @@ def job_status(job_id: str):
 def job_events():
     """Stream changed job/queue snapshots over Server-Sent Events."""
 
+    if not _SSE_STREAM_SLOTS.acquire(blocking=False):
+        response = jsonify(
+            {
+                "error": (
+                    "Osiągnięto limit aktywnych strumieni zdarzeń. "
+                    "Spróbuj ponownie za kilka sekund."
+                )
+            }
+        )
+        response.status_code = 503
+        response.headers["Retry-After"] = "3"
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     manager = _job_manager()
     language = current_app.config["APP_SETTINGS"].ui_language
     queue_gate = current_app.extensions.get("queue_gate")
@@ -92,6 +109,7 @@ def job_events():
     response = Response(stream(), mimetype="text/event-stream")
     response.headers["Cache-Control"] = "no-cache, no-store"
     response.headers["X-Accel-Buffering"] = "no"
+    response.call_on_close(_SSE_STREAM_SLOTS.release)
     return response
 
 
