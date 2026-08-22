@@ -26,7 +26,7 @@ class PersistentQueueGate:
             payload = json.loads(self.state_path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return False
-        except (OSError, json.JSONDecodeError):
+        except OSError, json.JSONDecodeError:
             LOGGER.warning("Nie można odczytać trwałego stanu kolejki; uruchamiam kolejkę.")
             return False
         return bool(payload.get(QUEUE_PAUSED_KEY) is True) if isinstance(payload, dict) else False
