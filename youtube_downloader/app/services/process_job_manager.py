@@ -114,6 +114,7 @@ class ProcessJobManager(JobManager):
                                 ),
                             )
                         return
+                    self.file_service.storage_manager.ensure_capacity(job.storage_name)
                     self._start(job)
                     self._append_download_parameters(job)
                     request_payload = self._worker_request(job)
