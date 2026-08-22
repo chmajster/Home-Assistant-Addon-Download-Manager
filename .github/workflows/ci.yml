@@ -57,6 +57,7 @@ jobs:
           youtube_downloader/app/services/hardening.py
           youtube_downloader/app/services/job_state.py
           youtube_downloader/tests/test_hardening.py
+          youtube_downloader/tests/test_process_download_stop.py
 
       - name: Ruff format changed Python files
         run: >-
@@ -65,6 +66,7 @@ jobs:
           youtube_downloader/app/services/hardening.py
           youtube_downloader/app/services/job_state.py
           youtube_downloader/tests/test_hardening.py
+          youtube_downloader/tests/test_process_download_stop.py
 
       - name: Mypy changed service modules
         run: >-
