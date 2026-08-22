@@ -22,10 +22,12 @@ jobs:
       PYTHONPATH: youtube_downloader
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.14
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip
@@ -44,31 +46,48 @@ jobs:
 
       # The repository predates this CI workflow and contains legacy style debt.
       # Keep repository-wide checks focused on correctness while enforcing the
-      # complete configured Ruff rules for Python files changed by this PR.
+      # complete configured Ruff rules for Python files changed by each PR/push.
       - name: Ruff critical checks for repository
         run: >-
           ruff check --select E9,F63,F7,F82
           youtube_downloader/app youtube_downloader/tests youtube_downloader/scripts
 
+      - name: Resolve changed Python files
+        id: changed-python
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE_SHA: ${{ github.event.before }}
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            base_sha="${PR_BASE_SHA}"
+          else
+            base_sha="${PUSH_BASE_SHA}"
+          fi
+          if [[ -z "${base_sha}" || "${base_sha}" =~ ^0+$ ]] || ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+            base_sha="$(git rev-parse HEAD^)"
+          fi
+          git diff --name-only --diff-filter=ACMRT "${base_sha}" HEAD \
+            | grep -E '^youtube_downloader/.*\.py$' \
+            > changed-python.txt || true
+          if [[ -s changed-python.txt ]]; then
+            echo "has_files=true" >> "${GITHUB_OUTPUT}"
+            echo "Zmienione pliki Python:"
+            cat changed-python.txt
+          else
+            echo "has_files=false" >> "${GITHUB_OUTPUT}"
+            echo "Brak zmienionych plików Python."
+          fi
+
       - name: Ruff lint changed Python files
-        run: >-
-          ruff check
-          youtube_downloader/app/main.py
-          youtube_downloader/app/services/hardening.py
-          youtube_downloader/app/services/job_state.py
-          youtube_downloader/tests/test_hardening.py
-          youtube_downloader/tests/test_process_download_stop.py
+        if: steps.changed-python.outputs.has_files == 'true'
+        run: xargs -r ruff check < changed-python.txt
 
       - name: Ruff format changed Python files
-        run: >-
-          ruff format --check
-          youtube_downloader/app/main.py
-          youtube_downloader/app/services/hardening.py
-          youtube_downloader/app/services/job_state.py
-          youtube_downloader/tests/test_hardening.py
-          youtube_downloader/tests/test_process_download_stop.py
+        if: steps.changed-python.outputs.has_files == 'true'
+        run: xargs -r ruff format --check < changed-python.txt
 
-      - name: Mypy changed service modules
+      - name: Mypy hardening service modules
         run: >-
           mypy
           youtube_downloader/app/services/hardening.py
@@ -77,7 +96,7 @@ jobs:
       # main.py intentionally binds the development entry point to 0.0.0.0 so
       # the Home Assistant container can expose it. Scan the new security code
       # here instead of suppressing Bandit's B104 globally.
-      - name: Bandit changed service modules
+      - name: Bandit hardening service modules
         run: >-
           bandit -q
           youtube_downloader/app/services/hardening.py
@@ -99,7 +118,7 @@ jobs:
           - linux/arm64
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
