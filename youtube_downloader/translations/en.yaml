@@ -1,52 +1,77 @@
 configuration:
   storage_mode:
     name: "Storage mode"
-    description: "Choose local for a local directory or nfs for network storage. Fill the NFS fields below when nfs is selected."
+    description: >-
+      Choose local for a local directory or nfs for network storage.
+      Fill the NFS fields below when nfs is selected.
   download_dir:
     name: "Download directory"
     description: "Persistent target directory inside /share or /media."
   nfs_download_dir:
     name: "NFS download directory"
-    description: "Path inside an NFS share added in Home Assistant, for example /media/nas/youtube_downloader."
+    description: >-
+      Path inside an NFS share added in Home Assistant,
+      for example /media/nas/youtube_downloader.
   nfs_server:
     name: "NFS server address"
-    description: "IP address or NAS hostname, for example 192.168.1.20 or nas.local."
+    description: >-
+      IP address or NAS hostname, for example 192.168.1.20 or nas.local.
   nfs_export_path:
     name: "NFS export path"
-    description: "Share path on the server, for example /volume1/media or /exports/downloads."
+    description: >-
+      Share path on the server, for example /volume1/media or /exports/downloads.
   nfs_username:
     name: "NFS username"
-    description: "Optional username if your network storage setup requires one. Classic NFS usually does not use it."
+    description: >-
+      Optional username if your network storage setup requires one.
+      Classic NFS usually does not use it.
   nfs_password:
     name: "NFS password"
     description: "Optional password. It is not displayed in the application panel."
   nfs_mount_options:
     name: "NFS mount options"
-    description: "Mount options, for example vers=4,soft,timeo=30. Use values compatible with your NAS and Home Assistant."
+    description: >-
+      Mount options, for example vers=4,soft,timeo=30.
+      Use values compatible with your NAS and Home Assistant.
   max_concurrent_jobs:
     name: "Concurrent job limit"
     description: "Maximum number of simultaneous downloads and live recordings."
+  min_free_space_gb:
+    name: "Minimum free-space reserve"
+    description: >-
+      Minimum free space in GiB that must remain before a new regular download
+      starts. Set 0 to disable the reserve.
   allow_external_port:
     name: "Enable page without Ingress"
-    description: "Starts an additional application port outside Home Assistant. Access requires the token configured below."
+    description: >-
+      Starts an additional application port outside Home Assistant.
+      Access requires the token configured below.
   external_access_token:
     name: "External access token"
-    description: "Secret token at least 20 characters long required on the non-Ingress port. The API accepts a Bearer token or X-API-Key."
+    description: >-
+      Secret token at least 20 characters long required on the non-Ingress port.
+      The API accepts a Bearer token or X-API-Key.
   resume_interrupted_downloads_on_startup:
     name: "Resume interrupted downloads on startup"
-    description: "Automatically resumes regular downloads marked interrupted after an add-on restart. Live recordings are not restarted."
+    description: >-
+      Automatically resumes regular downloads marked interrupted after an
+      add-on restart. Live recordings are not restarted.
   external_port:
     name: "Port without Ingress"
-    description: "Additional token-protected listener. Defaults to 999; it must differ from Ingress port 8099 and be exposed in the add-on Network section."
+    description: >-
+      Additional token-protected listener. Defaults to 999; it must differ from
+      Ingress port 8099 and be exposed in the add-on Network section.
   debug:
     name: "Debug mode"
     description: "Enables verbose application logging."
   preferred_format:
     name: "Preferred format"
-    description: "Default video quality or audio variant presented by the application."
+    description: >-
+      Default video quality or audio variant presented by the application.
   ui_language:
     name: "Interface language"
-    description: "Language used by the Media Web Downloader panel: Polish or English."
+    description: >-
+      Language used by the Media Web Downloader panel: Polish or English.
 network:
   8099/tcp: "Optional external access to the web interface"
   999/tcp: "Token-protected access without Ingress after enabling the option"

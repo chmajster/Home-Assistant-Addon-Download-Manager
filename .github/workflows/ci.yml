@@ -44,6 +44,14 @@ jobs:
       - name: Validate canonical version
         run: python youtube_downloader/scripts/bump_version.py --check
 
+      - name: YAML lint
+        run: >-
+          yamllint
+          repository.yaml
+          youtube_downloader/config.yaml
+          youtube_downloader/translations
+          .github/workflows
+
       # The repository predates this CI workflow and contains legacy style debt.
       # Keep repository-wide checks focused on correctness while enforcing the
       # complete configured Ruff rules for Python files changed by each PR/push.
@@ -87,20 +95,22 @@ jobs:
         if: steps.changed-python.outputs.has_files == 'true'
         run: xargs -r ruff format --check < changed-python.txt
 
-      - name: Mypy hardening service modules
+      - name: Mypy runtime hardening modules
         run: >-
           mypy
           youtube_downloader/app/services/hardening.py
           youtube_downloader/app/services/job_state.py
+          youtube_downloader/app/services/queue_gate.py
 
-      # main.py intentionally binds the development entry point to 0.0.0.0 so
-      # the Home Assistant container can expose it. Scan the new security code
-      # here instead of suppressing Bandit's B104 globally.
-      - name: Bandit hardening service modules
+      - name: Bandit runtime hardening modules
         run: >-
           bandit -q
           youtube_downloader/app/services/hardening.py
           youtube_downloader/app/services/job_state.py
+          youtube_downloader/app/services/queue_gate.py
+
+      - name: Audit Python dependencies
+        run: pip-audit -r youtube_downloader/requirements.txt
 
       - name: Unit and regression tests
         run: python -m unittest discover -s youtube_downloader/tests -p "test_*.py" -v
@@ -120,6 +130,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Resolve build version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+          text = Path('youtube_downloader/config.yaml').read_text(encoding='utf-8')
+          match = re.search(r'^version:\s*"([^"]+)"', text, re.MULTILINE)
+          if not match:
+              raise SystemExit('Missing version in config.yaml')
+          print(match.group(1))
+          PY
+          )"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -133,4 +159,4 @@ jobs:
           platforms: ${{ matrix.platform }}
           push: false
           build-args: |
-            BUILD_VERSION=1.3.101
+            BUILD_VERSION=${{ steps.version.outputs.version }}

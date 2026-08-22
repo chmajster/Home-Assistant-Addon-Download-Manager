@@ -21,7 +21,10 @@ Opcje ustawia się na karcie **Konfiguracja** dodatku w Home Assistant:
 | `nfs_password` | pusty | Opcjonalne hasło, zapisywane jako pole typu password w opcjach dodatku |
 | `nfs_mount_options` | `vers=4` | Opcje montowania NFS używane jako opis konfiguracji udziału |
 | `max_concurrent_jobs` | `2` | Limit równoległych pobrań i zapisów live, od 1 do 5 |
-| `allow_external_port` | `false` | Włącza dodatkowy dostęp do panelu bez Ingress i bez logowania do Home Assistant |
+| `min_free_space_gb` | `1` | Rezerwa wolnego miejsca w GiB wymagana przed uruchomieniem nowego zwykłego pobrania; `0` wyłącza rezerwę |
+| `allow_external_port` | `false` | Włącza dodatkowy dostęp do panelu bez Ingress; wymaga osobnego tokenu |
+| `external_access_token` | pusty | Token o długości co najmniej 20 znaków dla dostępu bez Ingress |
+| `resume_interrupted_downloads_on_startup` | `false` | Automatycznie wznawia zwykłe pobrania przerwane restartem dodatku |
 | `external_port` | `999` | Port dodatkowego dostępu bez Ingress; domyślnie mapowany jako `999/tcp` |
 | `debug` | `false` | Rozszerzone logowanie aplikacji |
 | `preferred_format` | `best` | Domyślna jakość: `best`, `video-1080`, `video-720`, `video-360` albo `audio` |
@@ -39,7 +42,10 @@ nfs_username: ""
 nfs_password: ""
 nfs_mount_options: vers=4
 max_concurrent_jobs: 2
+min_free_space_gb: 1
 allow_external_port: false
+external_access_token: ""
+resume_interrupted_downloads_on_startup: false
 external_port: 999
 debug: false
 preferred_format: best
@@ -50,16 +56,17 @@ Supervisor zapisuje opcje w `/data/options.json`. Aplikacja odczytuje ten plik p
 
 ## Dostęp bez Ingress
 
-Domyślnie panel działa przez Home Assistant Ingress i wymaga zalogowania do Home Assistant. Jeżeli chcesz wejść na stronę bez logowania, ustaw:
+Domyślnie panel działa przez Home Assistant Ingress i wymaga zalogowania do Home Assistant. Jeżeli chcesz udostępnić osobny listener, ustaw co najmniej:
 
 ```yaml
 allow_external_port: true
 external_port: 999
+external_access_token: "bardzo-dlugi-losowy-token"
 ```
 
 Dodatek uruchomi dodatkowy listener aplikacji na tym porcie. W konfiguracji dodatku zadeklarowany jest port `999/tcp`, więc przy domyślnym ustawieniu możesz wejść na stronę przez `http://<adres-home-assistant>:999`. Jeśli zmieniasz port, sprawdź też kartę **Sieć** dodatku i ustaw zgodne mapowanie portu.
 
-Ten tryb nie dodaje osobnego logowania. Każdy, kto ma dostęp do tego adresu i portu, może korzystać z downloadera, dlatego używaj go tylko w zaufanej sieci lokalnej.
+Listener zewnętrzny działa fail-closed: bez tokenu o długości co najmniej 20 znaków zwraca błąd 503. Przeglądarka korzysta z formularza logowania i 12-godzinnej sesji, a klienci API mogą przesłać `Authorization: Bearer <token>` albo `X-API-Key`. Dostęp można zakończyć przez `/external-logout`. Powtarzane błędne próby logowania są ograniczane czasowo. Endpointy healthcheck pozostają publiczne na tym listenerze, aby watchdog mógł działać.
 
 ## Magazyn NFS z Home Assistant
 
@@ -97,6 +104,7 @@ Jeżeli Home Assistant pokazuje te etykiety po angielsku, sprawdź język ustawi
 ## Katalogi
 
 - `/data` zawiera trwałą historię i kolejkę w bazie SQLite `/data/jobs/state.sqlite3`.
+- `/data/jobs/runtime.json` przechowuje trwały stan pauzy kolejki.
 - Baza SQLite ma wersjonowane migracje schematu, indeksowane kolumny historii i kolejki oraz osobną tabelę pełnych logów zadań.
 - `/share` jest zalecanym miejscem na pliki dostępne dla użytkownika; domyślnie używany jest `/share/youtube_downloader`.
 - `/media` może być alternatywnym katalogiem pobrań.
@@ -124,15 +132,19 @@ Po analizie playlisty można zawęzić zakres elementów polami **Od** i **Do**,
 | `GET` | `/diagnostics` | Panel diagnostyczny z wersjami narzędzi, ostatnią aktualizacją, wolnym miejscem, katalogiem pobrań, statusem Home Assistant API i ostatnim błędem |
 | `POST` | `/jobs/retry/<job_id>` | Ponowienie jednego nieudanego zadania |
 | `POST` | `/jobs/retry-failed` | Ponowienie wszystkich nieudanych zadań |
-| `GET` | `/api/jobs` | Lista zadań JSON |
-| `GET` | `/api/jobs/<job_id>` | Stan zadania JSON |
+| `GET` | `/api/jobs`, `/api/v1/jobs` | Lista zadań JSON |
+| `GET` | `/api/jobs/<job_id>`, `/api/v1/jobs/<job_id>` | Stan zadania JSON |
+| `GET` | `/api/events`, `/api/v1/events` | Strumień Server-Sent Events z aktualnym snapshotem zadań i kolejki |
+| `GET` | `/api/runtime`, `/api/v1/runtime` | Stan runtime zadań i kolejki |
+| `POST` | `/api/queue/pause`, `/api/v1/queue/pause` | Trwale wstrzymuje start nowych zwykłych pobrań |
+| `POST` | `/api/queue/resume`, `/api/v1/queue/resume` | Wznawia start nowych zwykłych pobrań |
 | `GET` | `/downloaded/<path:filename>` | Pobranie gotowego pliku, także z podfolderu playlisty |
 | `GET` | `/thumbnails/<filename>` | Podgląd wygenerowanej miniatury filmu |
 | `POST` | `/delete/<path:filename>` | Usunięcie pliku, także z podfolderu playlisty |
 | `GET` | `/health/live` | Liveness procesu aplikacji |
 | `GET` | `/health/ready` | Readiness SQLite, narzędzi, magazynu i managera zadań |
 | `GET` | `/health` | Alias pełnego readiness dla zgodności |
-| `GET` | `/api/home-assistant/state` | Stan dla sensorów REST Home Assistanta: aktywne zadania, kolejka, wolne miejsce, ostatni wynik i gotowość |
+| `GET` | `/api/home-assistant/state`, `/api/v1/home-assistant/state` | Stan dla sensorów REST Home Assistanta: aktywne zadania, kolejka, wolne miejsce, ostatni wynik i gotowość |
 
 ## Podbijanie wersji
 
@@ -169,5 +181,4 @@ Dodatek wysyła trwałe powiadomienia Home Assistant po zakończeniu pobierania 
 
 ## Bezpieczeństwo
 
-Dodatek akceptuje wyłącznie adresy HTTP i HTTPS bez danych logowania i jawnego niestandardowego portu. Dla stron bez konkretnego extractora bezpieczny resolver ponownie sprawdza każdy URL, przekierowanie, iframe i źródło, blokuje localhost, adresy prywatne, loopback, link-local i sieci zarezerwowane oraz ogranicza liczbę przekierowań, głębokość ramek i rozmiar HTML. Dodatek nie implementuje logowania, cookies, dostępu do prywatnych materiałów, omijania DRM ani paywalli. Tokenizowane URL-e nie są pokazywane w UI, logach ani powiadomieniach. Pliki trafiają wyłącznie do skonfigurowanego katalogu w `/share` lub `/media`.
-
+Dodatek akceptuje wyłącznie adresy HTTP i HTTPS bez danych logowania i jawnego niestandardowego portu. Dla stron bez konkretnego extractora bezpieczny resolver ponownie sprawdza każdy URL, przekierowanie, iframe i źródło, blokuje localhost, adresy prywatne, loopback, link-local i sieci zarezerwowane oraz ogranicza liczbę przekierowań, głębokość ramek i rozmiar HTML. Dodatek nie implementuje logowania do serwisów źródłowych, cookies, dostępu do prywatnych materiałów, omijania DRM ani paywalli. Tokenizowane URL-e nie są pokazywane w UI, logach ani powiadomieniach. Pliki trafiają wyłącznie do skonfigurowanego katalogu w `/share` lub `/media`. Dostęp przez Home Assistant Ingress korzysta z uwierzytelnienia Home Assistant; osobny listener wymaga `external_access_token` i działa fail-closed.

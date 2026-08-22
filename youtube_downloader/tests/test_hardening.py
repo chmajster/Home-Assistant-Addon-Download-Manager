@@ -8,16 +8,15 @@ import threading
 import time
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
 from app.services.hardening import (
     MIN_EXTERNAL_TOKEN_LENGTH,
-    QueueGate,
     RuntimeHardeningOptions,
     _install_external_auth,
     load_runtime_hardening_options,
 )
-from app.services.job_state import InvalidJobTransition, JobStatus, ensure_job_transition
+from app.services.job_state import InvalidJobTransition, ensure_job_transition
+from app.services.queue_gate import PersistentQueueGate
 from flask import Flask, jsonify
 
 
@@ -127,6 +126,11 @@ class ExternalAuthenticationTestCase(unittest.TestCase):
         allowed = client.get("/", base_url="http://localhost:999")
         self.assertEqual(allowed.status_code, 200)
 
+        logout = client.post("/external-logout", base_url="http://localhost:999")
+        self.assertEqual(logout.status_code, 302)
+        blocked_again = client.get("/", base_url="http://localhost:999")
+        self.assertEqual(blocked_again.status_code, 302)
+
     def test_external_api_accepts_bearer_and_rejects_missing_token(self) -> None:
         client = self._app().test_client()
         blocked = client.get("/api/probe", base_url="http://localhost:999")
@@ -163,56 +167,82 @@ class ExternalAuthenticationTestCase(unittest.TestCase):
 
 class QueueGateTestCase(unittest.TestCase):
     def test_paused_gate_delays_new_regular_worker_until_resume(self) -> None:
-        called = threading.Event()
-        shutdown_event = threading.Event()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            gate = PersistentQueueGate(Path(temp_dir) / "runtime.json")
+            gate.pause()
+            called = threading.Event()
+            stop_event = threading.Event()
+            shutdown_event = threading.Event()
 
-        def run_download(_job_id: str, _stop_event: threading.Event) -> None:
-            called.set()
+            def worker() -> None:
+                gate.wait_until_runnable(stop_event, shutdown_event)
+                called.set()
 
-        manager = SimpleNamespace(
-            _run_download=run_download,
-            _shutdown_event=shutdown_event,
-            list_jobs=lambda: [],
-            ACTIVE_STATUSES={"pending", "downloading", "stopping", "waiting"},
-            max_concurrent_jobs=2,
-        )
-        gate = QueueGate(manager)
-        gate.pause()
-        stop_event = threading.Event()
-        worker = threading.Thread(
-            target=manager._run_download,
-            args=("job", stop_event),
-        )
-        worker.start()
-        time.sleep(0.05)
-        self.assertFalse(called.is_set())
-        self.assertTrue(gate.snapshot()["paused"])
+            thread = threading.Thread(target=worker)
+            thread.start()
+            time.sleep(0.05)
+            self.assertFalse(called.is_set())
+            self.assertTrue(gate.paused)
 
-        gate.resume()
-        worker.join(timeout=1)
-        self.assertTrue(called.is_set())
-        self.assertFalse(gate.snapshot()["paused"])
+            gate.resume()
+            thread.join(timeout=1)
+            self.assertTrue(called.is_set())
+            self.assertFalse(gate.paused)
 
     def test_stop_event_releases_a_paused_worker(self) -> None:
-        called = threading.Event()
-        manager = SimpleNamespace(
-            _run_download=lambda *_args: called.set(),
-            _shutdown_event=threading.Event(),
-            list_jobs=lambda: [SimpleNamespace(is_live=False, status=JobStatus.PENDING)],
-            ACTIVE_STATUSES={"pending", "downloading", "stopping", "waiting"},
-            max_concurrent_jobs=1,
-        )
-        gate = QueueGate(manager)
-        gate.pause()
-        stop_event = threading.Event()
-        worker = threading.Thread(
-            target=manager._run_download,
-            args=("job", stop_event),
-        )
-        worker.start()
-        stop_event.set()
-        worker.join(timeout=1)
-        self.assertTrue(called.is_set())
+        with tempfile.TemporaryDirectory() as temp_dir:
+            gate = PersistentQueueGate(Path(temp_dir) / "runtime.json")
+            gate.pause()
+            called = threading.Event()
+            stop_event = threading.Event()
+            shutdown_event = threading.Event()
+
+            def worker() -> None:
+                gate.wait_until_runnable(stop_event, shutdown_event)
+                called.set()
+
+            thread = threading.Thread(target=worker)
+            thread.start()
+            stop_event.set()
+            thread.join(timeout=1)
+            self.assertTrue(called.is_set())
+
+    def test_pause_state_survives_gate_recreation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "runtime.json"
+            first = PersistentQueueGate(state_path)
+            first.pause()
+            second = PersistentQueueGate(state_path)
+            self.assertTrue(second.paused)
+            second.resume()
+            third = PersistentQueueGate(state_path)
+            self.assertFalse(third.paused)
+
+    def test_pause_cannot_interleave_with_start_guard(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            gate = PersistentQueueGate(Path(temp_dir) / "runtime.json")
+            pause_done = threading.Event()
+
+            def pause_queue() -> None:
+                gate.pause()
+                pause_done.set()
+
+            with gate.start_guard() as permitted:
+                self.assertTrue(permitted)
+                thread = threading.Thread(target=pause_queue)
+                thread.start()
+                self.assertFalse(pause_done.wait(timeout=0.05))
+
+            self.assertTrue(pause_done.wait(timeout=1))
+            thread.join(timeout=1)
+            self.assertTrue(gate.paused)
+
+    def test_start_guard_denies_start_when_already_paused(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            gate = PersistentQueueGate(Path(temp_dir) / "runtime.json")
+            gate.pause()
+            with gate.start_guard() as permitted:
+                self.assertFalse(permitted)
 
 
 if __name__ == "__main__":

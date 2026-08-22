@@ -4,7 +4,7 @@ FROM mwader/static-ffmpeg:8.1.1 AS ffmpeg
 
 FROM ${BUILD_FROM}
 
-ARG BUILD_VERSION="1.3.101"
+ARG BUILD_VERSION="1.3.102"
 ARG BUILD_ARCH="amd64"
 
 COPY --from=ffmpeg /ffmpeg /usr/local/bin/ffmpeg
@@ -12,6 +12,9 @@ COPY --from=ffmpeg /ffprobe /usr/local/bin/ffprobe
 
 COPY requirements.txt /tmp/requirements.txt
 COPY wheels /tmp/wheels
+ADD --checksum=sha256:f11f2b11d5a8ac4059f9bdf29fa4407dc7c6bb00c5097e95ca22a7a9db518266 \
+    https://files.pythonhosted.org/packages/f9/8a/cd4c9b02c10c563adfe78118310129641900e1cd6de888cfae2452072696/yt_dlp-2026.7.4-py3-none-any.whl \
+    /tmp/wheels/yt_dlp-2026.7.4-py3-none-any.whl
 
 RUN python3.14 -m venv /venv \
     && /venv/bin/python -m pip install --no-cache-dir --no-index --find-links=/tmp/wheels -r /tmp/requirements.txt \

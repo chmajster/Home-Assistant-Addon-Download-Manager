@@ -28,6 +28,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "nfs_password": "",
     "nfs_mount_options": "vers=4",
     "max_concurrent_jobs": 2,
+    "min_free_space_gb": 1.0,
     "allow_external_port": False,
     "enable_ha_events": False,
     "ha_event_job_started": True,
@@ -58,6 +59,7 @@ class HomeAssistantOptions:
     nfs_password: str
     nfs_mount_options: str
     max_concurrent_jobs: int
+    min_free_space_gb: float
     allow_external_port: bool
     enable_ha_events: bool
     ha_event_types: dict[str, bool]
@@ -90,14 +92,10 @@ def _read_json() -> dict[str, Any]:
 def _validated_download_dir(value: Any, default: Path = DEFAULT_DOWNLOAD_DIR) -> Path:
     candidate = Path(str(value)).expanduser()
     if not candidate.is_absolute():
-        LOGGER.warning(
-            "Katalog pobrań musi być ścieżką bezwzględną. Używam wartości domyślnej."
-        )
+        LOGGER.warning("Katalog pobrań musi być ścieżką bezwzględną. Używam wartości domyślnej.")
         return default
     resolved = candidate.resolve()
-    if not any(
-        resolved == root or root in resolved.parents for root in ALLOWED_DOWNLOAD_ROOTS
-    ):
+    if not any(resolved == root or root in resolved.parents for root in ALLOWED_DOWNLOAD_ROOTS):
         LOGGER.warning(
             "Katalog pobrań musi znajdować się w /share lub /media. Używam wartości domyślnej."
         )
@@ -137,7 +135,17 @@ def _validated_int(value: Any, default: int, minimum: int, maximum: int) -> int:
         return default
     try:
         number = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
+        return default
+    return number if minimum <= number <= maximum else default
+
+
+def _validated_float(value: Any, default: float, minimum: float, maximum: float) -> float:
+    if isinstance(value, bool):
+        return default
+    try:
+        number = float(value)
+    except TypeError, ValueError:
         return default
     return number if minimum <= number <= maximum else default
 
@@ -210,13 +218,19 @@ def load_options() -> HomeAssistantOptions:
         nfs_password=_validated_text(values["nfs_password"], max_length=300),
         nfs_mount_options=_validated_text(values["nfs_mount_options"], "vers=4"),
         max_concurrent_jobs=_validated_int(values["max_concurrent_jobs"], 2, 1, 5),
+        min_free_space_gb=_validated_float(values["min_free_space_gb"], 1.0, 0.0, 1024.0),
         allow_external_port=_validated_bool(values["allow_external_port"], False),
         enable_ha_events=_validated_bool(values["enable_ha_events"], False),
         ha_event_types={
             name: _validated_bool(values[f"ha_event_{name}"], True)
             for name in (
-                "job_started", "job_completed", "job_failed", "live_started",
-                "live_finished", "low_storage", "subscription_found_items",
+                "job_started",
+                "job_completed",
+                "job_failed",
+                "live_started",
+                "live_finished",
+                "low_storage",
+                "subscription_found_items",
             )
         },
         external_port=_validated_int(values["external_port"], 999, 1, 65535),

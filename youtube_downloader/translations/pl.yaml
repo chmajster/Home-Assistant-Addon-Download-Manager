@@ -1,49 +1,72 @@
 configuration:
   storage_mode:
     name: "Tryb magazynu"
-    description: "Wybierz local dla katalogu lokalnego albo nfs dla udziału sieciowego. Po wyborze nfs uzupełnij pola NFS poniżej."
+    description: >-
+      Wybierz local dla katalogu lokalnego albo nfs dla udziału sieciowego.
+      Po wyborze nfs uzupełnij pola NFS poniżej.
   download_dir:
     name: "Katalog pobrań"
     description: "Trwały katalog docelowy wewnątrz /share albo /media."
   nfs_download_dir:
     name: "Katalog pobrań NFS"
-    description: "Ścieżka wewnątrz udziału NFS dodanego w Home Assistant, np. /media/nas/youtube_downloader."
+    description: >-
+      Ścieżka wewnątrz udziału NFS dodanego w Home Assistant,
+      np. /media/nas/youtube_downloader.
   nfs_server:
     name: "Adres serwera NFS"
     description: "Adres IP lub nazwa hosta NAS, np. 192.168.1.20 albo nas.local."
   nfs_export_path:
     name: "Ścieżka/export NFS"
-    description: "Ścieżka udziału na serwerze, np. /volume1/media albo /exports/downloads."
+    description: >-
+      Ścieżka udziału na serwerze, np. /volume1/media albo /exports/downloads.
   nfs_username:
     name: "Login NFS"
-    description: "Opcjonalny login, jeśli Twoja konfiguracja magazynu sieciowego go wymaga. Klasyczny NFS zwykle go nie używa."
+    description: >-
+      Opcjonalny login, jeśli Twoja konfiguracja magazynu sieciowego go wymaga.
+      Klasyczny NFS zwykle go nie używa.
   nfs_password:
     name: "Hasło NFS"
     description: "Opcjonalne hasło. Nie jest wyświetlane w panelu aplikacji."
   nfs_mount_options:
     name: "Opcje montowania NFS"
-    description: "Opcje montowania, np. vers=4,soft,timeo=30. Użyj ustawień zgodnych z NAS i Home Assistant."
+    description: >-
+      Opcje montowania, np. vers=4,soft,timeo=30.
+      Użyj ustawień zgodnych z NAS i Home Assistant.
   max_concurrent_jobs:
     name: "Limit równoległych zadań"
     description: "Maksymalna liczba jednoczesnych pobrań i zapisów live."
+  min_free_space_gb:
+    name: "Minimalna rezerwa miejsca"
+    description: >-
+      Minimalna ilość wolnego miejsca w GiB, która musi pozostać przed
+      uruchomieniem nowego zwykłego pobrania. Ustaw 0, aby wyłączyć rezerwę.
   allow_external_port:
     name: "Włącz stronę bez Ingress"
-    description: "Uruchamia dodatkowy port aplikacji dostępny poza Home Assistant. Dostęp wymaga tokenu skonfigurowanego poniżej."
+    description: >-
+      Uruchamia dodatkowy port aplikacji dostępny poza Home Assistant.
+      Dostęp wymaga tokenu skonfigurowanego poniżej.
   external_access_token:
     name: "Token dostępu zewnętrznego"
-    description: "Sekretny token o długości co najmniej 20 znaków wymagany na porcie bez Ingress. API akceptuje Bearer token lub X-API-Key."
+    description: >-
+      Sekretny token o długości co najmniej 20 znaków wymagany na porcie bez
+      Ingress. API akceptuje Bearer token lub X-API-Key.
   resume_interrupted_downloads_on_startup:
     name: "Wznawiaj przerwane pobrania po starcie"
-    description: "Automatycznie ponawia zwykłe pobrania ze statusem przerwane po restarcie dodatku. Nie uruchamia ponownie transmisji live."
+    description: >-
+      Automatycznie ponawia zwykłe pobrania ze statusem przerwane po restarcie
+      dodatku. Nie uruchamia ponownie transmisji live.
   external_port:
     name: "Port strony bez Ingress"
-    description: "Port dodatkowego dostępu chronionego tokenem. Domyślnie 999; musi różnić się od portu Ingress 8099 i być udostępniony w sekcji Sieć dodatku."
+    description: >-
+      Port dodatkowego dostępu chronionego tokenem. Domyślnie 999; musi różnić
+      się od portu Ingress 8099 i być udostępniony w sekcji Sieć dodatku.
   debug:
     name: "Tryb debug"
     description: "Włącza rozszerzone logi aplikacji."
   preferred_format:
     name: "Preferowany format"
-    description: "Domyślna jakość filmu lub wariant audio prezentowany przez aplikację."
+    description: >-
+      Domyślna jakość filmu lub wariant audio prezentowany przez aplikację.
   ui_language:
     name: "Język interfejsu"
     description: "Język panelu Media Web Downloader: polski albo angielski."
