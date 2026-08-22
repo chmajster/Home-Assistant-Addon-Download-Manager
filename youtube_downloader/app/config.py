@@ -36,7 +36,7 @@ class AppConfig:
     secret_key: str
 
     @classmethod
-    def load(cls) -> "AppConfig":
+    def load(cls) -> AppConfig:
         """Load validated settings from /data/options.json."""
 
         options = load_options()
