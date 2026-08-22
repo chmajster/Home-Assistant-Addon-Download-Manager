@@ -92,14 +92,10 @@ def _read_json() -> dict[str, Any]:
 def _validated_download_dir(value: Any, default: Path = DEFAULT_DOWNLOAD_DIR) -> Path:
     candidate = Path(str(value)).expanduser()
     if not candidate.is_absolute():
-        LOGGER.warning(
-            "Katalog pobrań musi być ścieżką bezwzględną. Używam wartości domyślnej."
-        )
+        LOGGER.warning("Katalog pobrań musi być ścieżką bezwzględną. Używam wartości domyślnej.")
         return default
     resolved = candidate.resolve()
-    if not any(
-        resolved == root or root in resolved.parents for root in ALLOWED_DOWNLOAD_ROOTS
-    ):
+    if not any(resolved == root or root in resolved.parents for root in ALLOWED_DOWNLOAD_ROOTS):
         LOGGER.warning(
             "Katalog pobrań musi znajdować się w /share lub /media. Używam wartości domyślnej."
         )
@@ -139,7 +135,7 @@ def _validated_int(value: Any, default: int, minimum: int, maximum: int) -> int:
         return default
     try:
         number = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
     return number if minimum <= number <= maximum else default
 
@@ -149,7 +145,7 @@ def _validated_float(value: Any, default: float, minimum: float, maximum: float)
         return default
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
     return number if minimum <= number <= maximum else default
 
