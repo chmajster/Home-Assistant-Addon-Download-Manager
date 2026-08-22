@@ -10,8 +10,6 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from flask import Flask, jsonify
-
 from app.services.hardening import (
     MIN_EXTERNAL_TOKEN_LENGTH,
     QueueGate,
@@ -20,6 +18,7 @@ from app.services.hardening import (
     load_runtime_hardening_options,
 )
 from app.services.job_state import InvalidJobTransition, JobStatus, ensure_job_transition
+from flask import Flask, jsonify
 
 
 class JobStateTestCase(unittest.TestCase):
