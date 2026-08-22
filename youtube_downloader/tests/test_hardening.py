@@ -15,7 +15,7 @@ from app.services.hardening import (
     _install_external_auth,
     load_runtime_hardening_options,
 )
-from app.services.job_state import InvalidJobTransition, JobStatus, ensure_job_transition
+from app.services.job_state import InvalidJobTransition, ensure_job_transition
 from app.services.queue_gate import PersistentQueueGate
 from flask import Flask, jsonify
 
