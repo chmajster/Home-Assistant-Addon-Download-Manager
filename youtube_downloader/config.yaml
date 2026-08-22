@@ -1,7 +1,7 @@
 name: "Media Web Downloader"
 slug: "youtube_downloader"
 description: "Webowy downloader serwisów obsługiwanych przez yt-dlp z obsługą Ingress i panelem UI w Home Assistant"
-version: "1.3.101"
+version: "1.3.102"
 url: "https://github.com/chmajster/Home-Assistant-Addon-Download-Manager"
 arch:
   - amd64
@@ -38,6 +38,7 @@ options:
   nfs_password: ""
   nfs_mount_options: "vers=4"
   max_concurrent_jobs: 2
+  min_free_space_gb: 1
   allow_external_port: false
   external_access_token: ""
   resume_interrupted_downloads_on_startup: false
@@ -64,6 +65,7 @@ schema:
   nfs_password: password
   nfs_mount_options: str
   max_concurrent_jobs: "int(1,5)"
+  min_free_space_gb: "int(0,1024)"
   allow_external_port: bool
   external_access_token: password
   resume_interrupted_downloads_on_startup: bool
