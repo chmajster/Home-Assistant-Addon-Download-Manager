@@ -6,6 +6,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .error_messages import NO_DISK_SPACE, STORAGE_ERROR_MESSAGE
 from .media_service import MediaServiceError
@@ -44,8 +45,8 @@ class StorageManager:
         self.min_free_space_bytes = max(0, int(min_free_space_bytes))
 
     @classmethod
-    def from_settings(cls, settings: object) -> "StorageManager":
-        download_dir = Path(getattr(settings, "download_dir"))
+    def from_settings(cls, settings: Any) -> StorageManager:
+        download_dir = Path(settings.download_dir)
         nfs_dir = Path(getattr(settings, "nfs_download_dir", download_dir))
         targets = {
             STORAGE_LOCAL: download_dir,
@@ -90,7 +91,9 @@ class StorageManager:
         try:
             usage = shutil.disk_usage(target.path)
         except OSError as error:
-            raise MediaServiceError(f"Nie mozna sprawdzic storage {target.name}: {error}") from error
+            raise MediaServiceError(
+                f"Nie mozna sprawdzic storage {target.name}: {error}"
+            ) from error
         if usage.free < self.min_free_space_bytes:
             required_gb = self.min_free_space_bytes / GIB
             free_gb = usage.free / GIB
