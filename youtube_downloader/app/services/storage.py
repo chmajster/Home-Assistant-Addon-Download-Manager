@@ -57,7 +57,7 @@ class StorageManager:
         default_name = mode if mode in KNOWN_STORAGES else STORAGE_LOCAL
         try:
             min_free_space_gb = float(getattr(settings, "min_free_space_gb", 0.0))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             min_free_space_gb = 0.0
         return cls(
             targets,
