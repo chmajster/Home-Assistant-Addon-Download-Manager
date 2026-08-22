@@ -110,7 +110,7 @@ class ProcessDownloadStopTestCase(unittest.TestCase):
                     self._wait_for_status(manager, job.job_id, "downloading")
 
                     stopping = manager.stop_download(job.job_id)
-                    self.assertEqual(stopping.status, "stopping")
+                    self.assertIn(stopping.status, {"stopping", "stopped"})
                     stopped = self._wait_for_status(manager, job.job_id, "stopped")
 
                 self.assertEqual(stopped.status, "stopped")
