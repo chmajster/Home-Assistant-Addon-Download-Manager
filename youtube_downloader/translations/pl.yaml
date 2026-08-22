@@ -26,6 +26,9 @@ configuration:
   max_concurrent_jobs:
     name: "Limit równoległych zadań"
     description: "Maksymalna liczba jednoczesnych pobrań i zapisów live."
+  min_free_space_gb:
+    name: "Minimalna rezerwa miejsca"
+    description: "Minimalna ilość wolnego miejsca w GiB, która musi pozostać przed uruchomieniem nowego zwykłego pobrania. Ustaw 0, aby wyłączyć rezerwę."
   allow_external_port:
     name: "Włącz stronę bez Ingress"
     description: "Uruchamia dodatkowy port aplikacji dostępny poza Home Assistant. Dostęp wymaga tokenu skonfigurowanego poniżej."
