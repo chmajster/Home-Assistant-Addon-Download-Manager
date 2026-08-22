@@ -14,6 +14,7 @@ STORAGE_LOCAL = "local"
 STORAGE_MEDIA = "media"
 STORAGE_NFS = "nfs"
 KNOWN_STORAGES = {STORAGE_LOCAL, STORAGE_MEDIA, STORAGE_NFS}
+GIB = 1024**3
 
 
 @dataclass(frozen=True)
@@ -28,13 +29,19 @@ class StorageTarget:
 class StorageManager:
     """Validate and expose named storage targets while keeping legacy defaults."""
 
-    def __init__(self, targets: dict[str, Path], default_name: str) -> None:
+    def __init__(
+        self,
+        targets: dict[str, Path],
+        default_name: str,
+        min_free_space_bytes: int = 0,
+    ) -> None:
         self.targets = {
             name: StorageTarget(name=name, path=path.resolve())
             for name, path in targets.items()
             if name in KNOWN_STORAGES
         }
         self.default_name = default_name if default_name in self.targets else STORAGE_LOCAL
+        self.min_free_space_bytes = max(0, int(min_free_space_bytes))
 
     @classmethod
     def from_settings(cls, settings: object) -> "StorageManager":
@@ -47,7 +54,15 @@ class StorageManager:
         }
         mode = getattr(settings, "storage_mode", STORAGE_LOCAL)
         default_name = mode if mode in KNOWN_STORAGES else STORAGE_LOCAL
-        return cls(targets, default_name)
+        try:
+            min_free_space_gb = float(getattr(settings, "min_free_space_gb", 0.0))
+        except (TypeError, ValueError):
+            min_free_space_gb = 0.0
+        return cls(
+            targets,
+            default_name,
+            min_free_space_bytes=int(max(0.0, min_free_space_gb) * GIB),
+        )
 
     def path_for(self, storage_name: str | None = None) -> Path:
         return self.target(storage_name).path
@@ -70,8 +85,14 @@ class StorageManager:
             usage = shutil.disk_usage(target.path)
         except OSError as error:
             raise MediaServiceError(f"Nie mozna sprawdzic storage {target.name}: {error}") from error
-        if usage.free <= 0:
-            raise StorageError(STORAGE_ERROR_MESSAGE, NO_DISK_SPACE)
+        if usage.free < self.min_free_space_bytes:
+            required_gb = self.min_free_space_bytes / GIB
+            free_gb = usage.free / GIB
+            raise StorageError(
+                f"{STORAGE_ERROR_MESSAGE} Wolne: {free_gb:.2f} GiB; "
+                f"wymagana rezerwa: {required_gb:.2f} GiB.",
+                NO_DISK_SPACE,
+            )
         return target
 
 
