@@ -81,6 +81,12 @@ class StorageManager:
             raise MediaServiceError(f"Storage {target.name} nie istnieje: {target.path}.")
         if not os.access(target.path, os.W_OK):
             raise MediaServiceError(f"Storage {target.name} nie jest zapisywalny: {target.path}.")
+        return target
+
+    def ensure_capacity(self, storage_name: str | None = None) -> StorageTarget:
+        """Validate a target and enforce the configured free-space reserve."""
+
+        target = self.validate(storage_name)
         try:
             usage = shutil.disk_usage(target.path)
         except OSError as error:
