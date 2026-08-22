@@ -218,6 +218,32 @@ class QueueGateTestCase(unittest.TestCase):
             third = PersistentQueueGate(state_path)
             self.assertFalse(third.paused)
 
+    def test_pause_cannot_interleave_with_start_guard(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            gate = PersistentQueueGate(Path(temp_dir) / "runtime.json")
+            pause_done = threading.Event()
+
+            def pause_queue() -> None:
+                gate.pause()
+                pause_done.set()
+
+            with gate.start_guard() as permitted:
+                self.assertTrue(permitted)
+                thread = threading.Thread(target=pause_queue)
+                thread.start()
+                self.assertFalse(pause_done.wait(timeout=0.05))
+
+            self.assertTrue(pause_done.wait(timeout=1))
+            thread.join(timeout=1)
+            self.assertTrue(gate.paused)
+
+    def test_start_guard_denies_start_when_already_paused(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            gate = PersistentQueueGate(Path(temp_dir) / "runtime.json")
+            gate.pause()
+            with gate.start_guard() as permitted:
+                self.assertFalse(permitted)
+
 
 if __name__ == "__main__":
     unittest.main()
