@@ -6,6 +6,8 @@ import json
 import logging
 import os
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +53,13 @@ class PersistentQueueGate:
         with self._condition:
             while self._paused and not stop_event.is_set() and not shutdown_event.is_set():
                 self._condition.wait(timeout=0.25)
+
+    @contextmanager
+    def start_guard(self) -> Iterator[bool]:
+        """Serialize pause changes with the final decision to start a regular job."""
+
+        with self._condition:
+            yield not self._paused
 
     def pause(self) -> None:
         with self._condition:
