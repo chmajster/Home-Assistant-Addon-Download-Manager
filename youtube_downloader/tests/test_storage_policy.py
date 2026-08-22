@@ -34,12 +34,18 @@ class StorageReserveTestCase(unittest.TestCase):
                 "local",
                 min_free_space_bytes=2 * GIB,
             )
-            with patch(
-                "app.services.storage.shutil.disk_usage",
-                return_value=SimpleNamespace(total=10 * GIB, used=9 * GIB, free=GIB),
+            with (
+                patch(
+                    "app.services.storage.shutil.disk_usage",
+                    return_value=SimpleNamespace(
+                        total=10 * GIB,
+                        used=9 * GIB,
+                        free=GIB,
+                    ),
+                ),
+                self.assertRaises(StorageError) as raised,
             ):
-                with self.assertRaises(StorageError) as raised:
-                    manager.ensure_capacity("local")
+                manager.ensure_capacity("local")
             self.assertEqual(raised.exception.error_code, NO_DISK_SPACE)
 
     def test_download_capacity_allows_space_above_reserve(self) -> None:
