@@ -16,7 +16,9 @@ from typing import Any
 from .auto_tags import generate_auto_tags
 from .error_messages import DOWNLOAD_STOPPED, operational_error_message
 from .job_manager import PROGRESS_MIN_DELTA_PERCENT, JobManager
+from .job_state import JobStatus, ensure_job_transition
 from .media_service import MediaServiceError
+from .queue_gate import PersistentQueueGate
 
 LOGGER = logging.getLogger(__name__)
 WORKER_POLL_INTERVAL_SECONDS = 0.1
@@ -34,6 +36,50 @@ class WorkerOutcome:
 class ProcessJobManager(JobManager):
     """Run regular yt-dlp jobs in isolated process groups so they can be stopped."""
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.queue_gate = PersistentQueueGate(self.jobs_file.parent / "runtime.json")
+
+    def _start(self, job: Any) -> Any:
+        ensure_job_transition(job.status, JobStatus.DOWNLOADING)
+        return super()._start(job)
+
+    def _finish(
+        self,
+        job: Any,
+        status: str,
+        error_code: str | None = None,
+    ) -> Any:
+        if not (
+            self._shutdown_event.is_set()
+            and job.status == JobStatus.INTERRUPTED
+            and status == JobStatus.ERROR
+        ):
+            ensure_job_transition(job.status, status)
+        return super()._finish(job, status, error_code=error_code)
+
+    def _reset_for_retry(self, job: Any, reset_auto_retry: bool = True) -> Any:
+        ensure_job_transition(job.status, JobStatus.PENDING)
+        return super()._reset_for_retry(job, reset_auto_retry=reset_auto_retry)
+
+    def resume_download(self, job_id: str) -> Any:
+        job = self.get_job(job_id)
+        ensure_job_transition(job.status, JobStatus.PENDING)
+        return super().resume_download(job_id)
+
+    def stop_download(self, job_id: str) -> Any:
+        job = self.get_job(job_id)
+        if job.status in self.STOPPABLE_STATUSES and not job.is_live:
+            target = JobStatus.STOPPED if job.status == JobStatus.PENDING else JobStatus.STOPPING
+            ensure_job_transition(job.status, target)
+        return super().stop_download(job_id)
+
+    def shutdown(self, timeout: float = 20.0) -> None:
+        for job in self.list_jobs():
+            if job.status in self.ACTIVE_STATUSES:
+                ensure_job_transition(job.status, JobStatus.INTERRUPTED)
+        super().shutdown(timeout=timeout)
+
     def _run_download(self, job_id: str, stop_event: threading.Event) -> None:
         process: subprocess.Popen[str] | None = None
         stdout_thread: threading.Thread | None = None
@@ -43,6 +89,10 @@ class ProcessJobManager(JobManager):
         stdout_done = threading.Event()
         outcome = WorkerOutcome()
         stderr_lines: list[str] = []
+
+        gate = getattr(self, "queue_gate", None)
+        if gate is not None:
+            gate.wait_until_runnable(stop_event, self._shutdown_event)
 
         try:
             with self._slots:
@@ -104,9 +154,7 @@ class ProcessJobManager(JobManager):
                 stop_signal_sent = False
                 while True:
                     self._drain_worker_messages(job_id, stdout_queue, outcome)
-                    stderr_lines.extend(
-                        self._drain_worker_stderr(job_id, stderr_queue)
-                    )
+                    stderr_lines.extend(self._drain_worker_stderr(job_id, stderr_queue))
 
                     if (
                         stop_event.is_set()
@@ -131,9 +179,7 @@ class ProcessJobManager(JobManager):
                 if stderr_thread:
                     stderr_thread.join(timeout=1)
                 self._drain_worker_messages(job_id, stdout_queue, outcome)
-                stderr_lines.extend(
-                    self._drain_worker_stderr(job_id, stderr_queue)
-                )
+                stderr_lines.extend(self._drain_worker_stderr(job_id, stderr_queue))
 
                 if process.returncode == 0 and outcome.completed:
                     files = self._record_worker_outputs(job_id, outcome.paths)
