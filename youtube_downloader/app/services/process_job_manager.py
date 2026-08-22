@@ -104,13 +104,9 @@ class ProcessJobManager(JobManager):
                         if self._stop_events.get(job_id) is stop_event:
                             self._finish(
                                 job,
-                                "interrupted"
-                                if self._shutdown_event.is_set()
-                                else "stopped",
+                                "interrupted" if self._shutdown_event.is_set() else "stopped",
                                 error_code=(
-                                    DOWNLOAD_STOPPED
-                                    if self._shutdown_event.is_set()
-                                    else None
+                                    DOWNLOAD_STOPPED if self._shutdown_event.is_set() else None
                                 ),
                             )
                         return
@@ -157,11 +153,7 @@ class ProcessJobManager(JobManager):
                     self._drain_worker_messages(job_id, stdout_queue, outcome)
                     stderr_lines.extend(self._drain_worker_stderr(job_id, stderr_queue))
 
-                    if (
-                        stop_event.is_set()
-                        and not stop_signal_sent
-                        and process.poll() is None
-                    ):
+                    if stop_event.is_set() and not stop_signal_sent and process.poll() is None:
                         stop_signal_sent = True
                         LOGGER.info(
                             "Przerywam grupę procesów zwykłego pobierania %s (pid=%s)",
@@ -186,8 +178,7 @@ class ProcessJobManager(JobManager):
                     files = self._record_worker_outputs(job_id, outcome.paths)
                     if not files:
                         raise MediaServiceError(
-                            "Pobieranie zakończyło się bez gotowego pliku. "
-                            "Sprawdź logi dodatku."
+                            "Pobieranie zakończyło się bez gotowego pliku. Sprawdź logi dodatku."
                         )
                     with self._lock:
                         active = self._jobs[job_id]
@@ -263,8 +254,7 @@ class ProcessJobManager(JobManager):
                 return
             self._fail(
                 job_id,
-                operational_error_message(str(error))
-                or "Nieoczekiwany błąd podczas pobierania.",
+                operational_error_message(str(error)) or "Nieoczekiwany błąd podczas pobierania.",
             )
         finally:
             if process and process.poll() is None:
@@ -334,9 +324,7 @@ class ProcessJobManager(JobManager):
             elif event == "completed":
                 values = payload.get("paths")
                 outcome.paths = (
-                    [str(value) for value in values if value]
-                    if isinstance(values, list)
-                    else []
+                    [str(value) for value in values if value] if isinstance(values, list) else []
                 )
                 outcome.completed = True
             elif event == "error":
@@ -444,7 +432,7 @@ class ProcessJobManager(JobManager):
         for value in values or []:
             try:
                 path = Path(value).resolve()
-            except (OSError, RuntimeError):
+            except OSError, RuntimeError:
                 continue
             if self.file_service.is_managed_file(path):
                 collected.add(path)
