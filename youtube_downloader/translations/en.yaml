@@ -26,6 +26,9 @@ configuration:
   max_concurrent_jobs:
     name: "Concurrent job limit"
     description: "Maximum number of simultaneous downloads and live recordings."
+  min_free_space_gb:
+    name: "Minimum free-space reserve"
+    description: "Minimum free space in GiB that must remain before a new regular download starts. Set 0 to disable the reserve."
   allow_external_port:
     name: "Enable page without Ingress"
     description: "Starts an additional application port outside Home Assistant. Access requires the token configured below."
