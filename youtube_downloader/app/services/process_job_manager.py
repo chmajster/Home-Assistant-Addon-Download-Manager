@@ -80,6 +80,30 @@ class ProcessJobManager(JobManager):
                 ensure_job_transition(job.status, JobStatus.INTERRUPTED)
         super().shutdown(timeout=timeout)
 
+    def _prepare_regular_download(
+        self,
+        job_id: str,
+        stop_event: threading.Event,
+    ) -> dict[str, Any] | None:
+        """Validate and transition a regular job immediately before process start."""
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return None
+            if stop_event.is_set():
+                if self._stop_events.get(job_id) is stop_event:
+                    self._finish(
+                        job,
+                        "interrupted" if self._shutdown_event.is_set() else "stopped",
+                        error_code=DOWNLOAD_STOPPED if self._shutdown_event.is_set() else None,
+                    )
+                return None
+            self.file_service.storage_manager.ensure_capacity(job.storage_name)
+            self._start(job)
+            self._append_download_parameters(job)
+            return self._worker_request(job)
+
     def _run_download(self, job_id: str, stop_event: threading.Event) -> None:
         process: subprocess.Popen[str] | None = None
         stdout_thread: threading.Thread | None = None
@@ -89,143 +113,145 @@ class ProcessJobManager(JobManager):
         stdout_done = threading.Event()
         outcome = WorkerOutcome()
         stderr_lines: list[str] = []
+        slot_acquired = False
+        request_payload: dict[str, Any] | None = None
 
         gate = getattr(self, "queue_gate", None)
-        if gate is not None:
-            gate.wait_until_runnable(stop_event, self._shutdown_event)
 
         try:
-            with self._slots:
-                with self._lock:
-                    job = self._jobs.get(job_id)
-                    if not job:
-                        return
-                    if stop_event.is_set():
-                        if self._stop_events.get(job_id) is stop_event:
-                            self._finish(
-                                job,
-                                "interrupted" if self._shutdown_event.is_set() else "stopped",
-                                error_code=(
-                                    DOWNLOAD_STOPPED if self._shutdown_event.is_set() else None
-                                ),
-                            )
-                        return
-                    self.file_service.storage_manager.ensure_capacity(job.storage_name)
-                    self._start(job)
-                    self._append_download_parameters(job)
-                    request_payload = self._worker_request(job)
+            while request_payload is None:
+                if gate is not None:
+                    gate.wait_until_runnable(stop_event, self._shutdown_event)
+                if stop_event.is_set() or self._shutdown_event.is_set():
+                    return
+                if not self._slots.acquire(timeout=WORKER_POLL_INTERVAL_SECONDS):
+                    continue
+                slot_acquired = True
 
-                process = subprocess.Popen(
-                    [sys.executable, "-m", "app.services.download_worker"],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    bufsize=1,
-                    start_new_session=True,
-                )
-                assert process.stdin is not None
-                assert process.stdout is not None
-                assert process.stderr is not None
+                if gate is None:
+                    request_payload = self._prepare_regular_download(job_id, stop_event)
+                else:
+                    with gate.start_guard() as permitted:
+                        if not permitted:
+                            self._slots.release()
+                            slot_acquired = False
+                            continue
+                        request_payload = self._prepare_regular_download(job_id, stop_event)
 
-                process.stdin.write(json.dumps(request_payload, ensure_ascii=False))
-                process.stdin.write("\n")
-                process.stdin.flush()
-                process.stdin.close()
+                if request_payload is None:
+                    return
 
-                stdout_thread = threading.Thread(
-                    target=self._read_worker_stream,
-                    args=(process.stdout, stdout_queue, stdout_done),
-                    daemon=True,
-                    name=f"download-worker-out-{job_id[:8]}",
-                )
-                stderr_thread = threading.Thread(
-                    target=self._read_worker_stream,
-                    args=(process.stderr, stderr_queue, None),
-                    daemon=True,
-                    name=f"download-worker-err-{job_id[:8]}",
-                )
-                stdout_thread.start()
-                stderr_thread.start()
+            process = subprocess.Popen(
+                [sys.executable, "-m", "app.services.download_worker"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                start_new_session=True,
+            )
+            assert process.stdin is not None
+            assert process.stdout is not None
+            assert process.stderr is not None
 
-                stop_signal_sent = False
-                while True:
-                    self._drain_worker_messages(job_id, stdout_queue, outcome)
-                    stderr_lines.extend(self._drain_worker_stderr(job_id, stderr_queue))
+            process.stdin.write(json.dumps(request_payload, ensure_ascii=False))
+            process.stdin.write("\n")
+            process.stdin.flush()
+            process.stdin.close()
 
-                    if stop_event.is_set() and not stop_signal_sent and process.poll() is None:
-                        stop_signal_sent = True
-                        LOGGER.info(
-                            "Przerywam grupę procesów zwykłego pobierania %s (pid=%s)",
-                            job_id,
-                            process.pid,
-                        )
-                        self._interrupt_process(process)
+            stdout_thread = threading.Thread(
+                target=self._read_worker_stream,
+                args=(process.stdout, stdout_queue, stdout_done),
+                daemon=True,
+                name=f"download-worker-out-{job_id[:8]}",
+            )
+            stderr_thread = threading.Thread(
+                target=self._read_worker_stream,
+                args=(process.stderr, stderr_queue, None),
+                daemon=True,
+                name=f"download-worker-err-{job_id[:8]}",
+            )
+            stdout_thread.start()
+            stderr_thread.start()
 
-                    return_code = process.poll()
-                    if return_code is not None and stdout_done.is_set():
-                        break
-                    time.sleep(WORKER_POLL_INTERVAL_SECONDS)
-
-                if stdout_thread:
-                    stdout_thread.join(timeout=1)
-                if stderr_thread:
-                    stderr_thread.join(timeout=1)
+            stop_signal_sent = False
+            while True:
                 self._drain_worker_messages(job_id, stdout_queue, outcome)
                 stderr_lines.extend(self._drain_worker_stderr(job_id, stderr_queue))
 
-                if process.returncode == 0 and outcome.completed:
-                    files = self._record_worker_outputs(job_id, outcome.paths)
-                    if not files:
-                        raise MediaServiceError(
-                            "Pobieranie zakończyło się bez gotowego pliku. Sprawdź logi dodatku."
-                        )
-                    with self._lock:
-                        active = self._jobs[job_id]
-                        active.output_files = files
-                        active.output_file = files[0]
-                        active.downloaded_bytes = self._output_size(files)
-                        active.total_bytes = active.downloaded_bytes
-                        active.progress = 100.0
-                        active.auto_tags = generate_auto_tags(
-                            active.url,
-                            active.download_type,
-                            active.metadata,
-                            active.is_live,
-                        )
-                        self._finish(active, "completed")
-                    return
-
-                if stop_event.is_set():
-                    with self._lock:
-                        active = self._jobs.get(job_id)
-                        if active:
-                            shutdown = self._shutdown_event.is_set()
-                            self._finish(
-                                active,
-                                "interrupted" if shutdown else "stopped",
-                                error_code=DOWNLOAD_STOPPED if shutdown else None,
-                            )
-                    return
-
-                if outcome.error_message:
-                    self._fail(job_id, outcome.error_message)
-                    return
-
-                if process.returncode != 0:
-                    details = " ".join(stderr_lines[-4:]).strip()
-                    message = (
-                        operational_error_message(details)
-                        or self._redact_log_line(details)
-                        or f"Proces yt-dlp zakończył się kodem {process.returncode}."
+                if stop_event.is_set() and not stop_signal_sent and process.poll() is None:
+                    stop_signal_sent = True
+                    LOGGER.info(
+                        "Przerywam grupę procesów zwykłego pobierania %s (pid=%s)",
+                        job_id,
+                        process.pid,
                     )
-                    self._fail(job_id, message)
-                    return
+                    self._interrupt_process(process)
 
-                self._fail(
-                    job_id,
-                    "Proces pobierania zakończył się bez potwierdzenia wyniku.",
+                return_code = process.poll()
+                if return_code is not None and stdout_done.is_set():
+                    break
+                time.sleep(WORKER_POLL_INTERVAL_SECONDS)
+
+            if stdout_thread:
+                stdout_thread.join(timeout=1)
+            if stderr_thread:
+                stderr_thread.join(timeout=1)
+            self._drain_worker_messages(job_id, stdout_queue, outcome)
+            stderr_lines.extend(self._drain_worker_stderr(job_id, stderr_queue))
+
+            if process.returncode == 0 and outcome.completed:
+                files = self._record_worker_outputs(job_id, outcome.paths)
+                if not files:
+                    raise MediaServiceError(
+                        "Pobieranie zakończyło się bez gotowego pliku. Sprawdź logi dodatku."
+                    )
+                with self._lock:
+                    active = self._jobs[job_id]
+                    active.output_files = files
+                    active.output_file = files[0]
+                    active.downloaded_bytes = self._output_size(files)
+                    active.total_bytes = active.downloaded_bytes
+                    active.progress = 100.0
+                    active.auto_tags = generate_auto_tags(
+                        active.url,
+                        active.download_type,
+                        active.metadata,
+                        active.is_live,
+                    )
+                    self._finish(active, "completed")
+                return
+
+            if stop_event.is_set():
+                with self._lock:
+                    active = self._jobs.get(job_id)
+                    if active:
+                        shutdown = self._shutdown_event.is_set()
+                        self._finish(
+                            active,
+                            "interrupted" if shutdown else "stopped",
+                            error_code=DOWNLOAD_STOPPED if shutdown else None,
+                        )
+                return
+
+            if outcome.error_message:
+                self._fail(job_id, outcome.error_message)
+                return
+
+            if process.returncode != 0:
+                details = " ".join(stderr_lines[-4:]).strip()
+                message = (
+                    operational_error_message(details)
+                    or self._redact_log_line(details)
+                    or f"Proces yt-dlp zakończył się kodem {process.returncode}."
                 )
+                self._fail(job_id, message)
+                return
+
+            self._fail(
+                job_id,
+                "Proces pobierania zakończył się bez potwierdzenia wyniku.",
+            )
         except MediaServiceError as error:
             if self._shutdown_event.is_set() or stop_event.is_set():
                 with self._lock:
@@ -259,6 +285,8 @@ class ProcessJobManager(JobManager):
         finally:
             if process and process.poll() is None:
                 self._interrupt_process(process)
+            if slot_acquired:
+                self._slots.release()
             with self._lock:
                 self._blocking_file_operations.pop(job_id, None)
                 if self._stop_events.get(job_id) is stop_event:
