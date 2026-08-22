@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.102
+
+- Przeniesiono walidację przejść stanów z monkey-patchingu do `ProcessJobManager` i dodano trwałą pauzę kolejki przechowywaną w `/data/jobs/runtime.json`.
+- Dodano wersjonowane endpointy `/api/v1`, strumień Server-Sent Events dla zadań i kolejki oraz zgodność wsteczną z dotychczasowymi ścieżkami `/api`.
+- Dodano konfigurowalną rezerwę wolnego miejsca `min_free_space_gb`, sprawdzaną przed uruchomieniem nowego zwykłego pobrania.
+- Wzmocniono dostęp bez Ingress o 12-godzinną sesję, wylogowanie i ograniczenie błędnych prób logowania; ujednolicono dokumentację z wymaganiem tokenu.
+- Rozszerzono CI o `yamllint`, `pip-audit`, dodatkowe kontrole runtime hardeningu oraz dynamiczne pobieranie wersji obrazu zamiast twardego `BUILD_VERSION`.
+- Dodano testy regresyjne trwałości pauzy kolejki, polityki wolnego miejsca oraz zewnętrznej sesji.
+
 ## 1.3.101
 
 - Zabezpieczono dostęp bez Ingress osobnym tokenem, trybem fail-closed i blokadą współdzielenia portu 8099 z listenerem zewnętrznym.
