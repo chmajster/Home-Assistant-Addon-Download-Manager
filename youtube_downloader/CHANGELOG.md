@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.103
+
+- Dodano uniwersalny fallback dla publicznych odtwarzaczy XFileSharing/JWPlayer, obejmujący formularz `/dl` z `op=embed` i `file_code`, dzięki czemu obsługiwane są m.in. linki LuluVDO bez twardego przypisywania domeny.
+- Dodano bezpieczne, statyczne rozpakowywanie Dean Edwards P.A.C.K.E.R. oraz wykrywanie podpisanych źródeł HLS i bezpośrednich plików wideo bez wykonywania kodu JavaScript.
+- Zachowano walidację publicznych adresów i przekierowań oraz blokadę DRM; dodano testy regresyjne dla spakowanych playerów, formularza embed i wykrywania źródeł.
+
 ## 1.3.102
 
 - Przeniesiono walidację przejść stanów z monkey-patchingu do `ProcessJobManager` i dodano trwałą pauzę kolejki przechowywaną w `/data/jobs/runtime.json`.
