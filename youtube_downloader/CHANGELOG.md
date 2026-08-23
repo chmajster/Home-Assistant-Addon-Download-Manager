@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.103
+## 1.3.104
 
 - Dodano uniwersalny fallback dla publicznych odtwarzaczy XFileSharing/JWPlayer, obejmujący formularz `/dl` z `op=embed` i `file_code`, dzięki czemu obsługiwane są m.in. linki LuluVDO bez twardego przypisywania domeny.
 - Dodano bezpieczne, statyczne rozpakowywanie Dean Edwards P.A.C.K.E.R. oraz wykrywanie podpisanych źródeł HLS i bezpośrednich plików wideo bez wykonywania kodu JavaScript.
@@ -541,7 +541,7 @@
 ## 1.1.0
 
 - Dodano publiczne materiały Instagram obsługiwane przez `yt-dlp`: posty, reels, stories, tagi i profile.
-- Dodano publiczne kanały live, VOD i klipy Kick obsługiwane przez `yt-dlp`.
+- Dodano publiczne kanały live, VOD i klipy Kick obsługiwanych przez `yt-dlp`.
 - Uogólniono mechanizm zapisu aktywnego live i dodano nazwę rozpoznanego serwisu w wyniku analizy.
 - Zachowano dotychczasowy slug oraz katalog pobrań, aby aktualizacja nie zmieniała lokalizacji danych.
 
