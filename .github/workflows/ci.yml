@@ -16,7 +16,10 @@ concurrency:
 jobs:
   quality:
     name: Python quality and tests
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
     timeout-minutes: 20
     env:
       PYTHONPATH: youtube_downloader
@@ -118,7 +121,10 @@ jobs:
   container-build:
     name: Build ${{ matrix.platform }}
     needs: quality
-    runs-on: ubuntu-latest
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
     timeout-minutes: 30
     strategy:
       fail-fast: false
