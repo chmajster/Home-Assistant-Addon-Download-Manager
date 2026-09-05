@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.105
+
+- Zaktualizowano statyczny FFmpeg z `8.1.1` do `8.1.2` przez scalenie aktualizacji Dependabot.
+- Dostosowano aktualizację GitHub Actions z konfliktującego PR-a Dependabot do bieżącego `main`: `docker/setup-qemu-action` i `docker/setup-buildx-action` podniesiono z `v3` do `v4`, a `docker/build-push-action` z `v6` do `v7`.
+- Zachowano nowsze wersje `actions/checkout@v7` i `actions/setup-python@v7` obecne już w repozytorium, bez cofania ich do wersji z nieaktualnego PR-a.
+
 ## 1.3.104
 
 - Dodano uniwersalny fallback dla publicznych odtwarzaczy XFileSharing/JWPlayer, obejmujący formularz `/dl` z `op=embed` i `file_code`, dzięki czemu obsługiwane są m.in. linki LuluVDO bez twardego przypisywania domeny.
