@@ -1,3 +1,18 @@
+{% set workspace_labels = {
+  'skip': 'Przejdź do treści', 'new_download': 'Nowe pobranie',
+  'shortcut': 'Ctrl+Enter: analiza. Każdy adres możesz wkleić w osobnym wierszu.',
+  'request_uncertain': 'Nie udało się potwierdzić wyniku. Sprawdź kolejkę przed ponownym wysłaniem.',
+  'session_expired': 'Nieprawidłowa odpowiedź serwera lub wygasła sesja. Odśwież stronę.',
+  'copy_failed': 'Nie udało się skopiować adresów. Zaznacz je i skopiuj ręcznie.',
+  'loading': 'Trwa pobieranie danych', 'javascript': 'Włącz JavaScript, aby korzystać z kolejki i szybkiego pobierania.'
+} if t('lang') == 'pl' else {
+  'skip': 'Skip to content', 'new_download': 'New download',
+  'shortcut': 'Ctrl+Enter: analyze. You can paste each URL on a separate line.',
+  'request_uncertain': 'The result could not be confirmed. Check the queue before submitting again.',
+  'session_expired': 'Invalid server response or expired session. Refresh the page.',
+  'copy_failed': 'Could not copy the URLs. Select and copy them manually.',
+  'loading': 'Loading data', 'javascript': 'Enable JavaScript to use the queue and quick downloads.'
+} %}
 <!doctype html>
 <html lang="{{ t('lang') }}">
   <head>
@@ -7,15 +22,16 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script id="active-job-statuses" type="application/json">{{ active_job_statuses|tojson }}</script>
     <script id="ui-translations" type="application/json">{{ ui_translations|tojson }}</script>
+    <script id="workspace-translations" type="application/json">{{ workspace_labels|tojson }}</script>
     <script>
       (() => {
+        let theme = window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         try {
-          const storedTheme = localStorage.getItem("media-web-downloader-theme");
-          const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          document.documentElement.setAttribute("data-bs-theme", storedTheme || preferredTheme);
-        } catch {
-          document.documentElement.setAttribute("data-bs-theme", "light");
-        }
+          const stored = localStorage.getItem("media-web-downloader-theme");
+          if (stored === "dark" || stored === "light") theme = stored;
+        } catch { /* Keep the system preference when storage is unavailable. */ }
+        document.documentElement.setAttribute("data-bs-theme", theme);
+        document.documentElement.style.colorScheme = theme;
       })();
     </script>
     <title>{% block title %}Media Web Downloader{% endblock %}</title>
@@ -23,59 +39,57 @@
     <link href="{{ ingress_url('static', filename='css/style.css') }}" rel="stylesheet">
     <link href="{{ ingress_url('static', filename='css/mobile.css') }}" rel="stylesheet">
     <link href="{{ ingress_url('static', filename='css/desktop.css') }}" rel="stylesheet">
+    <link href="{{ ingress_url('static', filename='css/workspace.css') }}" rel="stylesheet">
   </head>
-  <body>
+  <body class="workspace">
+    <a class="workspace-skip" href="#main-content">{{ workspace_labels.skip }}</a>
     {% set active_endpoint = request.endpoint or "" %}
     {% set start_active = active_endpoint in ["web.index", "web.analyze"] %}
     {% set jobs_active = active_endpoint in ["web.jobs", "web.job_details", "web.job_log"] %}
-    <nav class="navbar navbar-expand-md sticky-top app-navbar">
-      <div class="container-fluid app-container">
-        <a class="navbar-brand app-brand" href="{{ ingress_url('web.index') }}">
-          <span class="brand-mark" aria-hidden="true">MWD</span>
-          <span>
-            <strong>Media Web Downloader</strong>
-            <small>Home Assistant</small>
-          </span>
+    <header class="workspace-sidebar">
+      <a class="workspace-brand" href="{{ ingress_url('web.index') }}">
+        <span class="workspace-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>
+        </span>
+        <span><strong>Media Web <br>Downloader</strong><small>Home Assistant</small></span>
+      </a>
+      <button class="workspace-menu-toggle" type="button" data-workspace-toggle aria-controls="app-navbar-menu" aria-expanded="false" aria-label="{{ t('nav.open_menu') }}" title="{{ t('nav.open_menu') }}" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <nav class="workspace-nav" id="app-navbar-menu" aria-label="{{ t('nav.open_menu') }}">
+        <a class="nav-link{% if start_active %} active{% endif %}" href="{{ ingress_url('web.index') }}"{% if start_active %} aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>
+          <span>{{ t('nav.start') }}</span>
         </a>
-        <button class="navbar-toggler app-navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#app-navbar-menu" aria-controls="app-navbar-menu" aria-expanded="false" aria-label="{{ t('nav.open_menu') }}" title="{{ t('nav.open_menu') }}">
-          <span class="navbar-toggler-icon"></span>
+        <a class="nav-link{% if jobs_active %} active{% endif %}" href="{{ ingress_url('web.jobs') }}"{% if jobs_active %} aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12M3 6h1M3 12h1M3 18h1"/></svg>
+          <span>{{ t('nav.jobs') }}</span><span id="active-jobs-badge" class="badge rounded-pill" aria-label="{{ t('nav.active_jobs', count=0) }}">0</span>
+        </a>
+        <a class="nav-link{% if active_endpoint == 'web.diagnostics' %} active{% endif %}" href="{{ ingress_url('web.diagnostics') }}"{% if active_endpoint == 'web.diagnostics' %} aria-current="page"{% endif %}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+          <span>{{ t('nav.diagnostics') }}</span>
+        </a>
+      </nav>
+      <div class="workspace-sidebar-footer">
+        <span>Media Web Downloader</span>
+        <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="{{ t('theme.change') }}" aria-pressed="false" title="{{ t('theme.change') }}">
+          <svg class="theme-icon theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
+          <svg class="theme-icon theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
         </button>
-        <div class="collapse navbar-collapse app-navbar-menu" id="app-navbar-menu">
-          <div class="navbar-nav app-nav ms-md-auto">
-            <a class="nav-link{% if start_active %} active{% endif %}" href="{{ ingress_url('web.index') }}"{% if start_active %} aria-current="page"{% endif %}>{{ t('nav.start') }}</a>
-            <a class="nav-link{% if jobs_active %} active{% endif %}" href="{{ ingress_url('web.jobs') }}"{% if jobs_active %} aria-current="page"{% endif %}>
-              {{ t('nav.jobs') }} <span id="active-jobs-badge" class="badge rounded-pill text-bg-light ms-1" aria-label="{{ t('nav.active_jobs', count=0) }}">0</span>
-            </a>
-            <a class="nav-link{% if active_endpoint == 'web.diagnostics' %} active{% endif %}" href="{{ ingress_url('web.diagnostics') }}"{% if active_endpoint == 'web.diagnostics' %} aria-current="page"{% endif %}>{{ t('nav.diagnostics') }}</a>
-            <button class="theme-toggle" id="theme-toggle" type="button" data-theme-toggle aria-label="{{ t('theme.change') }}" aria-pressed="false" title="{{ t('theme.change') }}">
-              <svg class="theme-icon theme-icon-sun" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/></svg>
-              <svg class="theme-icon theme-icon-moon" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"/></svg>
-            </button>
-          </div>
-        </div>
       </div>
-    </nav>
-    <main class="container-fluid app-container py-4">
-      <div id="jobs-refresh-error" class="alert alert-warning app-alert d-none" role="status">
-        {{ t('jobs.refresh_error') }}
-      </div>
+    </header>
+    <main id="main-content" class="workspace-content container-fluid app-container" tabindex="-1">
+      <noscript><div class="alert alert-warning">{{ workspace_labels.javascript }}</div></noscript>
+      <div id="jobs-refresh-error" class="alert alert-warning app-alert d-none" role="status">{{ t('jobs.refresh_error') }}</div>
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           <div class="toast-container app-toast-container position-fixed top-0 end-0 p-3">
             {% for category, message in messages %}
               {% set toast_class = {"success": "text-bg-success", "warning": "text-bg-warning", "danger": "text-bg-danger", "info": "text-bg-info"}.get(category, "text-bg-primary") %}
-              {% set close_light = category in ["success", "danger"] %}
-              {% set message_text = message|string %}
-              {% set show_jobs_link = category == "success" and ("Uruchomiono" in message_text or "Zaimportowano" in message_text or "Wznowiono" in message_text or "ponowne pobrania" in message_text) %}
-              <div class="toast app-toast {{ toast_class }}" data-app-toast role="{% if category == 'danger' %}alert{% else %}status{% endif %}" aria-live="{% if category == 'danger' %}assertive{% else %}polite{% endif %}" aria-atomic="true" data-bs-delay="5200">
+              <div class="toast show app-toast {{ toast_class }}" data-app-toast role="{% if category == 'danger' %}alert{% else %}status{% endif %}" aria-live="{% if category == 'danger' %}assertive{% else %}polite{% endif %}" aria-atomic="true" data-bs-delay="6500">
                 <div class="d-flex">
-                  <div class="toast-body">
-                    <span>{{ message }}</span>
-                    {% if show_jobs_link %}
-                      <a class="toast-action-link" href="{{ ingress_url('web.jobs') }}">{{ t('nav.go_jobs') }}</a>
-                    {% endif %}
-                  </div>
-                  <button type="button" class="btn-close{% if close_light %} btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="{{ t('common.close') }}" title="{{ t('common.close') }}"></button>
+                  <div class="toast-body"><span>{{ message }}</span>{% if category == 'success' %}<a class="toast-action-link" href="{{ ingress_url('web.jobs') }}">{{ t('nav.go_jobs') }}</a>{% endif %}</div>
+                  <button type="button" class="btn-close{% if category in ['success', 'danger'] %} btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="{{ t('common.close') }}" title="{{ t('common.close') }}"></button>
                 </div>
               </div>
             {% endfor %}
@@ -86,5 +100,6 @@
     </main>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ ingress_url('static', filename='js/app.js') }}"></script>
+    <script src="{{ ingress_url('static', filename='js/workspace.js') }}"></script>
   </body>
 </html>

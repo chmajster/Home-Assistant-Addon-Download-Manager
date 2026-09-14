@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.106
+
+- Przebudowano interfejs: boczna nawigacja na komputerze, rozwijane menu na telefonie, osobny formularz pobierania i panel magazynu, spójne motywy jasny/ciemny oraz obsługa klawiatury.
+- Wydzielono obsługę formularza; naprawiono blokadę przycisków po błędzie w ukrytej karcie i powrocie z historii przeglądarki, dodano limit czasu bez automatycznego ponawiania oraz ochronę przed podwójnym wysłaniem.
+- Zachowano odznaczone adresy przy edycji listy URL; dodano komunikaty przy formularzu i walidację odpowiedzi JSON, nie zmieniając tokenów CSRF ani adresów Ingress.
+- Masowe usuwanie obejmuje wszystkie pliki zadania, usuwa powtórzenia i kontynuuje pracę po błędach dostępu; ponawianie zachowuje opcje pobrania, magazyn i identyfikator źródła.
+- Naprawiono sprzątanie tymczasowych ZIP-ów po błędzie i zamknięciu odpowiedzi WSGI; zabezpieczono nazwy elementów archiwum i rozróżniono kolizje nazw.
+- Poprawiono oznaczenie magazynu /media, zakres wskaźnika zajętości dysku, wybór motywu oraz układ aplikacji w trybie kinowym.
+- Dodano testy regresyjne operacji zbiorczych i modułu JavaScript oraz opis zakresu weryfikacji.
+
 ## 1.3.105
 
 - Zaktualizowano statyczny FFmpeg z `8.1.1` do `8.1.2` przez scalenie aktualizacji Dependabot.

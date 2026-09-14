@@ -1,149 +1,112 @@
 {% extends "base.html" %}
 {% block title %}{{ t('index.title') }}{% endblock %}
 {% block content %}
-  <section class="download-panel card app-card mb-3" aria-labelledby="download-heading">
-    <div class="card-body p-3 p-lg-4">
-      <div class="section-heading compact-heading mb-3">
-        <div>
-          <span class="eyebrow">{{ t('nav.start') }}</span>
-          <h1 id="download-heading" class="h3 mb-1">{{ t('index.download_media') }}</h1>
-          <p class="section-copy mb-0">{{ t('index.download_media_copy') }}</p>
-        </div>
-      </div>
-      <form action="{{ ingress_url('web.analyze') }}" method="post" class="url-form needs-validation" novalidate>
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="download_type" value="{{ app_settings.preferred_format or 'best' }}">
-        <input type="hidden" name="storage_name" value="{{ app_settings.storage_mode or 'local' }}">
-        <input type="hidden" name="quick_download" value="1">
-        <label class="visually-hidden" for="media-url">{{ t('index.url_label') }}</label>
-        <div class="input-group download-input-group">
-          <span class="input-group-text" aria-hidden="true">URL</span>
-          <textarea class="form-control media-url" id="media-url" name="url" rows="1" placeholder="{{ t('index.url_placeholder') }}" required autocomplete="url"></textarea>
-          <button class="btn btn-outline-secondary url-clear-button" type="button" data-url-clear disabled aria-label="{{ t('index.clear_url') }}" title="{{ t('index.clear_url') }}">
-            <span aria-hidden="true">×</span>
-            <span>{{ t('index.clear') }}</span>
-          </button>
-          <button class="btn btn-accent analyze-submit" type="submit">
-            <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
-            <span class="analyze-submit-label">{{ t('index.analyze') }}</span>
-          </button>
-          <button class="btn btn-primary quick-download-submit" type="submit" formaction="{{ ingress_url('web.start_download') }}" data-quick-download-submit>
-            <span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span>
-            <span class="quick-download-submit-label">{{ t('index.quick_download') }}</span>
-          </button>
-          <div class="invalid-feedback">{{ t('index.invalid_url') }}</div>
-        </div>
-        <div class="bulk-url-review d-none mt-3" data-bulk-url-review>
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-            <div>
-              <strong>{{ t('index.detected_urls') }}</strong>
-              <small class="d-block text-body-secondary">{{ t('index.detected_urls_help') }}</small>
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-select="all">{{ t('index.all') }}</button>
-              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-select="none">{{ t('index.none') }}</button>
-              <button class="btn btn-sm btn-soft" type="button" data-bulk-url-copy-invalid disabled>{{ t('index.copy_invalid') }}</button>
-              <button class="btn btn-sm btn-outline-danger" type="button" data-bulk-url-remove-invalid disabled>{{ t('index.remove_invalid') }}</button>
-            </div>
-          </div>
-          <div class="bulk-url-list" data-bulk-url-list></div>
-          <small class="bulk-url-summary text-body-secondary mt-2 d-block" data-bulk-url-summary></small>
-        </div>
-        <div class="analyze-loading alert alert-info d-none mt-3 mb-0" role="status" aria-live="polite">
-          <div class="analyze-loading-header">
-            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-            <div>
-              <strong data-loading-title>{{ t('index.loading_analyze') }}</strong>
-              <small class="d-block" data-loading-copy>{{ t('index.loading_analyze_copy') }}</small>
-            </div>
-          </div>
-          <ul class="analyze-check-list" data-loading-analysis-details>
-            <li>{{ t('index.loading_check_source') }}</li>
-            <li>{{ t('index.loading_check_access') }}</li>
-            <li>{{ t('index.loading_check_metadata') }}</li>
-            <li>{{ t('index.loading_check_content') }}</li>
-            <li>{{ t('index.loading_check_formats') }}</li>
-            <li>{{ t('index.loading_check_duplicates') }}</li>
-          </ul>
-          <small class="analyze-loading-note" data-loading-analysis-note>{{ t('index.loading_analyze_note') }}</small>
-        </div>
-      </form>
-    </div>
-  </section>
-
-  <section class="dashboard-stats mb-3" aria-label="{{ t('index.stats_label') }}">
-    <article class="stat-card"><span>{{ t('index.stat_active') }}</span><strong id="stat-active">0</strong></article>
-    <article class="stat-card"><span>{{ t('index.stat_queued') }}</span><strong id="stat-queued">0</strong></article>
-    <article class="stat-card"><span>{{ t('index.stat_errors') }}</span><strong id="stat-errors">0</strong></article>
+  <header class="page-heading">
+    <span class="eyebrow">Home Assistant</span>
+    <h1 id="download-heading" class="mb-2">{{ t('index.download_media') }}</h1>
+    <p class="section-copy mb-0">{{ t('index.download_media_copy') }}</p>
+  </header>
+  <section class="dashboard-stats" aria-label="{{ t('index.stats_label') }}">
+    <article class="stat-card"><span>{{ t('index.stat_active') }}</span><strong id="stat-active">—</strong></article>
+    <article class="stat-card"><span>{{ t('index.stat_queued') }}</span><strong id="stat-queued">—</strong></article>
+    <article class="stat-card"><span>{{ t('index.stat_errors') }}</span><strong id="stat-errors">—</strong></article>
     <article class="stat-card"><span>{{ t('index.stat_free') }}</span><strong>{{ storage.free|filesize }}</strong></article>
   </section>
-
-  <section id="active-downloads-section" class="card app-card mb-3 d-none" aria-labelledby="active-downloads-heading">
-    <div class="card-body p-3 p-lg-4">
-      <div class="section-heading compact-heading">
-        <div>
-          <span class="eyebrow">{{ t('index.live_status') }}</span>
-          <h2 id="active-downloads-heading" class="h5 mb-1">{{ t('index.active_downloads') }}</h2>
+  <div class="workspace-dashboard">
+    <div class="workspace-primary">
+      <section class="download-panel card app-card mb-3" aria-labelledby="new-download-heading">
+        <div class="card-body">
+          <h2 id="new-download-heading" class="h5 mb-4">{{ workspace_labels.new_download }}</h2>
+          <form action="{{ ingress_url('web.analyze') }}" method="post" class="download-form needs-validation" data-download-form data-jobs-url="{{ ingress_url('web.jobs') }}" aria-busy="false" novalidate>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="download_type" value="{{ app_settings.preferred_format or 'best' }}">
+            <input type="hidden" name="storage_name" value="{{ app_settings.storage_mode or 'local' }}">
+            <input type="hidden" name="quick_download" value="1">
+            <div class="workspace-download-label">
+              <label for="media-url">{{ t('index.url_label') }}</label>
+              <button class="btn btn-sm btn-soft url-clear-button" type="button" data-url-clear disabled aria-label="{{ t('index.clear_url') }}" title="{{ t('index.clear_url') }}">{{ t('index.clear') }}</button>
+            </div>
+            <textarea class="form-control media-url" id="media-url" name="url" rows="3" placeholder="{{ t('index.url_placeholder') }}" required autocomplete="url" spellcheck="false" aria-describedby="download-hint download-feedback"></textarea>
+            <small class="workspace-hint" id="download-hint">{{ workspace_labels.shortcut }}</small>
+            <div class="bulk-url-review mt-3" data-bulk-url-review hidden>
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <div><strong>{{ t('index.detected_urls') }}</strong><small class="d-block text-body-secondary">{{ t('index.detected_urls_help') }}</small></div>
+                <div class="d-flex flex-wrap gap-2">
+                  <button class="btn btn-sm btn-soft" type="button" data-bulk-url-select="all">{{ t('index.all') }}</button>
+                  <button class="btn btn-sm btn-soft" type="button" data-bulk-url-select="none">{{ t('index.none') }}</button>
+                  <button class="btn btn-sm btn-soft" type="button" data-bulk-url-copy-invalid disabled>{{ t('index.copy_invalid') }}</button>
+                  <button class="btn btn-sm btn-outline-danger" type="button" data-bulk-url-remove-invalid disabled>{{ t('index.remove_invalid') }}</button>
+                </div>
+              </div>
+              <div class="bulk-url-list" data-bulk-url-list></div>
+              <small class="bulk-url-summary text-body-secondary mt-2 d-block" data-bulk-url-summary aria-live="polite"></small>
+            </div>
+            <div class="workspace-download-actions">
+              <button class="btn btn-soft analyze-submit" type="submit"><span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span><span class="analyze-submit-label">{{ t('index.analyze') }}</span></button>
+              <button class="btn btn-primary quick-download-submit" type="submit" formaction="{{ ingress_url('web.start_download') }}" data-quick-download-submit><span class="spinner-border spinner-border-sm me-2 d-none" aria-hidden="true"></span><span class="quick-download-submit-label">{{ t('index.quick_download') }}</span></button>
+            </div>
+            <div class="analyze-loading alert alert-info mt-3 mb-0" role="status" aria-live="polite" hidden>
+              <strong data-loading-title>{{ t('index.loading_analyze') }}</strong>
+            </div>
+            <div class="download-feedback alert" id="download-feedback" role="status" aria-atomic="true" hidden></div>
+          </form>
         </div>
-        <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.jobs', filter='active') }}">{{ t('nav.go_jobs') }}</a>
-      </div>
-      <div id="active-downloads-list" class="library-list library-list-compact" data-library-limit="3"></div>
+      </section>
+      <section id="active-downloads-section" class="card app-card mb-3 d-none" aria-labelledby="active-downloads-heading">
+        <div class="card-body p-3 p-lg-4">
+          <div class="section-heading compact-heading">
+            <div><span class="eyebrow">{{ t('index.live_status') }}</span><h2 id="active-downloads-heading" class="h5 mb-1">{{ t('index.active_downloads') }}</h2></div>
+            <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.jobs', filter='active') }}">{{ t('nav.go_jobs') }}</a>
+          </div>
+          <div id="active-downloads-list" class="library-list library-list-compact" data-library-limit="3"></div>
+        </div>
+      </section>
+      <section class="card app-card mb-3" aria-labelledby="recent-downloads-heading">
+        <div class="card-body p-3 p-lg-4">
+          <div class="section-heading compact-heading">
+            <div><span class="eyebrow">{{ t('index.library') }}</span><h2 id="recent-downloads-heading" class="h5 mb-1">{{ t('index.recent_jobs') }}</h2><p class="section-copy mb-0">{{ t('index.recent_jobs_copy') }}</p></div>
+            <a class="btn btn-sm btn-soft" href="{{ ingress_url('web.jobs') }}">{{ t('nav.go_jobs') }}</a>
+          </div>
+          <div id="recent-downloads-list" class="library-list library-list-compact" data-library-limit="5"></div>
+          <div id="recent-downloads-empty" class="library-empty-state">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16v12H4zM8 4h8v3M9 12h6M12 9v6"/></svg>
+            <strong>{{ t('index.no_jobs') }}</strong><small>{{ t('index.no_jobs_copy') }}</small>
+          </div>
+        </div>
+      </section>
     </div>
-  </section>
-
-  <section class="card app-card mb-3" aria-labelledby="recent-downloads-heading">
-    <div class="card-body p-3 p-lg-4">
-      <div class="section-heading compact-heading">
-        <div>
-          <span class="eyebrow">{{ t('index.library') }}</span>
-          <h2 id="recent-downloads-heading" class="h5 mb-1">{{ t('index.recent_jobs') }}</h2>
-          <p class="section-copy mb-0">{{ t('index.recent_jobs_copy') }}</p>
+    <aside class="secondary-settings workspace-settings" aria-label="{{ t('index.config') }}">
+      <details class="settings-disclosure" open>
+        <summary>{{ t('index.disk_space') }}</summary>
+        <div class="settings-disclosure-body">
+          {% set used_percent = [100, [0, storage.used_percent|float]|max]|min %}
+          <div class="progress storage-progress mb-3" role="progressbar" aria-label="{{ t('index.disk_space') }}" aria-valuenow="{{ used_percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar{% if used_percent >= 90 %} bg-danger{% elif used_percent >= 75 %} bg-warning{% else %} bg-success{% endif %}" style="width: {{ used_percent }}%">{{ used_percent }}%</div>
+          </div>
+          <dl class="small"><dt>{{ t('common.free') }}</dt><dd class="fw-semibold">{{ storage.free|filesize }}</dd><dt>{{ t('index.used') }}</dt><dd>{{ storage.used|filesize }}</dd><dt>{{ t('index.total') }}</dt><dd>{{ storage.total|filesize }}</dd></dl>
         </div>
-        <a class="btn btn-sm btn-primary" href="{{ ingress_url('web.jobs') }}">{{ t('nav.go_jobs') }}</a>
-      </div>
-      <div id="recent-downloads-list" class="library-list library-list-compact" data-library-limit="5"></div>
-      <div id="recent-downloads-empty" class="library-empty-state">
-        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M4 7h16v12H4zM8 4h8v3M9 12h6M12 9v6"/></svg>
-        <strong>{{ t('index.no_jobs') }}</strong>
-        <small>{{ t('index.no_jobs_copy') }}</small>
-      </div>
-    </div>
-  </section>
-
-  <section class="secondary-settings" aria-label="{{ t('index.config') }}">
-    <details class="settings-disclosure">
-      <summary>{{ t('index.addon_settings') }}</summary>
-      <div class="settings-disclosure-body">
-        <dl class="row mb-0 small">
-          <dt class="col-sm-5">{{ t('index.storage_mode') }}</dt><dd class="col-sm-7">{{ t('index.storage_nfs') if options.storage_mode == "nfs" else t('index.local') }}</dd>
-          <dt class="col-sm-5">{{ t('index.download_dir') }}</dt><dd class="col-sm-7 text-break">{{ options.download_dir }}</dd>
-          {% if options.storage_mode == "nfs" %}
-            <dt class="col-sm-5">{{ t('index.nfs_server') }}</dt><dd class="col-sm-7 text-break">{{ options.nfs_server or t('index.configured_ha') }}</dd>
-            <dt class="col-sm-5">{{ t('index.nfs_export') }}</dt><dd class="col-sm-7 text-break">{{ options.nfs_export_path or t('index.configured_ha') }}</dd>
-            <dt class="col-sm-5">{{ t('index.nfs_dir') }}</dt><dd class="col-sm-7 text-break">{{ options.nfs_download_dir }}</dd>
-            <dt class="col-sm-5">{{ t('index.username') }}</dt><dd class="col-sm-7">{{ options.nfs_username or t('common.none') }}</dd>
-            <dt class="col-sm-5">{{ t('index.password') }}</dt><dd class="col-sm-7">{{ t('index.set') if options.nfs_password else t('index.not_set') }}</dd>
-            <dt class="col-sm-5">{{ t('index.nfs_options') }}</dt><dd class="col-sm-7 text-break">{{ options.nfs_mount_options or t('index.default') }}</dd>
-          {% endif %}
-          <dt class="col-sm-5">{{ t('index.job_limit') }}</dt><dd class="col-sm-7">{{ options.max_concurrent_jobs }}</dd>
-          <dt class="col-sm-5">{{ t('index.default_format') }}</dt><dd class="col-sm-7">{{ download_type_labels.get(options.preferred_format, options.preferred_format) }}</dd>
-          <dt class="col-sm-5">{{ t('index.language') }}</dt><dd class="col-sm-7">{{ t('index.language_en') if options.ui_language == "en" else t('index.language_pl') }}</dd>
-          <dt class="col-sm-5">{{ t('index.external_access') }}</dt><dd class="col-sm-7">{{ t('index.external_port', value=options.external_port) if options.allow_external_port else t('index.disabled') }}</dd>
-        </dl>
-      </div>
-    </details>
-    <details class="settings-disclosure">
-      <summary>{{ t('index.disk_space') }}</summary>
-      <div class="settings-disclosure-body">
-        <div class="progress storage-progress mb-3" role="progressbar" aria-label="{{ t('index.disk_space') }}" aria-valuenow="{{ storage.used_percent }}" aria-valuemin="0" aria-valuemax="100">
-          <div class="progress-bar{% if storage.used_percent >= 90 %} bg-danger{% elif storage.used_percent >= 75 %} bg-warning{% else %} bg-success{% endif %}" style="width: {{ storage.used_percent }}%">{{ storage.used_percent }}%</div>
+      </details>
+      <details class="settings-disclosure" open>
+        <summary>{{ t('index.addon_settings') }}</summary>
+        <div class="settings-disclosure-body">
+          <dl class="small">
+            <dt>{{ t('index.storage_mode') }}</dt><dd>{{ t('index.storage_nfs') if options.storage_mode == 'nfs' else '/media' if options.storage_mode == 'media' else t('index.local') }}</dd>
+            <dt>{{ t('index.download_dir') }}</dt><dd>{{ options.download_dir }}</dd>
+            <dt>{{ t('index.job_limit') }}</dt><dd>{{ options.max_concurrent_jobs }}</dd>
+            <dt>{{ t('index.default_format') }}</dt><dd>{{ download_type_labels.get(options.preferred_format, options.preferred_format) }}</dd>
+            <dt>{{ t('index.language') }}</dt><dd>{{ t('index.language_en') if options.ui_language == 'en' else t('index.language_pl') }}</dd>
+            <dt>{{ t('index.external_access') }}</dt><dd>{{ t('index.external_port', value=options.external_port) if options.allow_external_port else t('index.disabled') }}</dd>
+            {% if options.storage_mode == 'nfs' %}
+              <dt>{{ t('index.nfs_server') }}</dt><dd>{{ options.nfs_server or t('index.configured_ha') }}</dd>
+              <dt>{{ t('index.nfs_export') }}</dt><dd>{{ options.nfs_export_path or t('index.configured_ha') }}</dd>
+              <dt>{{ t('index.nfs_dir') }}</dt><dd>{{ options.nfs_download_dir }}</dd>
+              <dt>{{ t('index.username') }}</dt><dd>{{ options.nfs_username or t('common.none') }}</dd>
+              <dt>{{ t('index.password') }}</dt><dd>{{ t('index.set') if options.nfs_password else t('index.not_set') }}</dd>
+              <dt>{{ t('index.nfs_options') }}</dt><dd>{{ options.nfs_mount_options or t('index.default') }}</dd>
+            {% endif %}
+          </dl>
         </div>
-        <dl class="row mb-0 small">
-          <dt class="col-6">{{ t('common.free') }}</dt><dd class="col-6 text-end fw-semibold">{{ storage.free|filesize }}</dd>
-          <dt class="col-6">{{ t('index.used') }}</dt><dd class="col-6 text-end">{{ storage.used|filesize }}</dd>
-          <dt class="col-6">{{ t('index.total') }}</dt><dd class="col-6 text-end">{{ storage.total|filesize }}</dd>
-        </dl>
-      </div>
-    </details>
-  </section>
+      </details>
+    </aside>
+  </div>
 {% endblock %}

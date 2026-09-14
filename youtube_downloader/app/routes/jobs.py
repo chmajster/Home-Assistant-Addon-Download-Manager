@@ -2,21 +2,45 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
+import json
 import zipfile
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
-from flask import send_file
+from flask import current_app, flash, redirect, render_template, request, send_file
 
-from .shared import *  # noqa: F401,F403
+from ..i18n import localize_job
+from ..services.bulk_operations import (
+    create_download_archive,
+    output_filenames,
+    remove_archive,
+    repeat_download_options,
+)
+from ..services.file_service import UnsafeFilenameError
+from ..services.job_manager import JobManager
+from ..services.media_service import MediaServiceError
+from .shared import (
+    LOGGER,
+    _ensure_ytdlp_recent,
+    _file_service,
+    _flash_bulk_history_result,
+    _flash_deleted_jobs,
+    _job_manager,
+    _job_parameter_snapshot,
+    _job_retry_history,
+    _job_timeline,
+    _language,
+    _limited,
+    _valid_form,
+    ingress_url,
+    web_bp,
+)
 
 
 @web_bp.post("/jobs/delete/<job_id>")
 def delete_job(job_id: str):
     """Delete one inactive job from the queue."""
-
     if not _valid_form():
         return redirect(ingress_url("web.jobs"))
     try:
@@ -28,10 +52,10 @@ def delete_job(job_id: str):
         flash(str(error), "warning")
     return redirect(ingress_url("web.jobs"))
 
+
 @web_bp.post("/jobs/delete")
 def delete_jobs():
     """Delete selected inactive jobs from the queue."""
-
     if not _valid_form():
         return redirect(ingress_url("web.jobs"))
     job_ids = request.form.getlist("job_ids")
@@ -42,10 +66,10 @@ def delete_jobs():
     _flash_deleted_jobs(removed, skipped)
     return redirect(ingress_url("web.jobs"))
 
+
 @web_bp.post("/history/jobs/bulk")
 def bulk_history_jobs():
     """Run one bulk action for completed jobs shown in the unified history."""
-
     return_endpoint = "web.jobs" if request.form.get("return_to") == "jobs" else "web.index"
     if not _valid_form():
         return redirect(ingress_url(return_endpoint))
@@ -70,74 +94,57 @@ def bulk_history_jobs():
         files: list[tuple[str, Path]] = []
         seen_paths: set[Path] = set()
         for job in selected_jobs:
-            filenames = list(job.output_files or [])
-            if not filenames and job.output_file:
-                filenames = [job.output_file]
-            for filename in filenames:
+            for filename in output_filenames(job):
                 try:
-                    path = _file_service().resolve_download(str(filename))
-                except (FileNotFoundError, UnsafeFilenameError):
+                    path = _file_service().resolve_download(filename)
+                except (OSError, UnsafeFilenameError):
+                    LOGGER.warning("Pominięto niedostępny plik archiwum: %s", filename)
                     continue
-                if path in seen_paths:
-                    continue
-                seen_paths.add(path)
-                files.append((str(filename).replace("\\", "/"), path))
+                if path not in seen_paths:
+                    seen_paths.add(path)
+                    files.append((filename, path))
         if not files:
             flash("Nie znaleziono lokalnych plików do pobrania.", "warning")
             return redirect(ingress_url(return_endpoint))
 
-        descriptor, archive_name = tempfile.mkstemp(
-            prefix="media-web-downloader-", suffix=".zip"
-        )
-        os.close(descriptor)
-        archive_path = Path(archive_name)
+        archive_path = None
         try:
-            with zipfile.ZipFile(
+            archive_path = create_download_archive(files)
+            download_name = f"biblioteka-{datetime.now(UTC):%Y%m%d-%H%M%S}.zip"
+            response = send_file(
                 archive_path,
-                mode="w",
-                compression=zipfile.ZIP_STORED,
-                allowZip64=True,
-                strict_timestamps=False,
-            ) as archive:
-                for filename, path in files:
-                    archive.write(path, arcname=filename)
+                as_attachment=True,
+                download_name=download_name,
+                mimetype="application/zip",
+            )
+            # send_file's direct passthrough otherwise bypasses Response.close()
+            # and its cleanup callbacks in a real WSGI server.
+            response.direct_passthrough = False
+            response.headers["Cache-Control"] = "no-store"
+            response.call_on_close(partial(remove_archive, archive_path))
+            return response
         except (OSError, ValueError, zipfile.BadZipFile) as error:
-            archive_path.unlink(missing_ok=True)
+            if archive_path is not None:
+                remove_archive(archive_path)
             LOGGER.warning("Nie można utworzyć archiwum pobrań: %s", error)
             flash("Nie udało się utworzyć archiwum ZIP.", "danger")
             return redirect(ingress_url(return_endpoint))
-
-        download_name = f"biblioteka-{datetime.now(UTC):%Y%m%d-%H%M%S}.zip"
-        response = send_file(
-            archive_path,
-            as_attachment=True,
-            download_name=download_name,
-            mimetype="application/zip",
-        )
-        response.headers["Cache-Control"] = "no-store"
-        response.call_on_close(lambda: archive_path.unlink(missing_ok=True))
-        return response
     if action == "delete_jobs":
         removed, skipped = manager.delete_jobs([job.job_id for job in selected_jobs])
         _flash_deleted_jobs(removed, skipped)
     elif action == "delete_files":
         done = 0
-        skipped = 0
-        filenames = {
-            str(job.output_file or "")
-            for job in selected_jobs
-            if job.output_file
-        }
+        skipped = sum(not output_filenames(job) for job in selected_jobs)
+        filenames = dict.fromkeys(
+            filename for job in selected_jobs for filename in output_filenames(job)
+        )
         for filename in filenames:
             try:
                 _file_service().delete_file(filename)
                 done += 1
-            except FileNotFoundError:
+            except (OSError, UnsafeFilenameError) as error:
+                LOGGER.warning("Nie można usunąć pliku %s: %s", filename, error)
                 skipped += 1
-            except UnsafeFilenameError:
-                LOGGER.warning("Odrzucono próbę masowego usunięcia %s", filename)
-                skipped += 1
-        skipped += len(selected_jobs) - len(filenames)
         _flash_bulk_history_result("delete_files", done, skipped)
     elif action == "repeat":
         candidates = [
@@ -163,6 +170,8 @@ def bulk_history_jobs():
                     download_type=job.download_type,
                     format_id=job.format_id,
                     duration=job.duration,
+                    source_id=getattr(job, "source_id", None),
+                    download_options=repeat_download_options(job),
                 )
                 done += 1
             except MediaServiceError as error:
@@ -173,20 +182,20 @@ def bulk_history_jobs():
         flash("Wybierz poprawną akcję dla zaznaczonych wpisów.", "warning")
     return redirect(ingress_url(return_endpoint))
 
+
 @web_bp.post("/jobs/clear")
 def clear_jobs():
     """Delete all inactive jobs from the queue."""
-
     if not _valid_form():
         return redirect(ingress_url("web.jobs"))
     removed, skipped = _job_manager().clear_jobs()
     _flash_deleted_jobs(removed, skipped)
     return redirect(ingress_url("web.jobs"))
 
+
 @web_bp.post("/jobs/retry-failed")
 def retry_failed_jobs():
     """Retry every failed job in the queue."""
-
     if not _valid_form():
         return redirect(ingress_url("web.jobs"))
     if _limited("jobs-retry-failed", 6):
@@ -206,10 +215,10 @@ def retry_failed_jobs():
         flash(f"Pominięto zadania: {skipped}.", "warning")
     return redirect(ingress_url("web.jobs"))
 
+
 @web_bp.post("/jobs/retry/<job_id>")
 def retry_job(job_id: str):
     """Retry one failed job from the queue."""
-
     if not _valid_form():
         return redirect(ingress_url("web.jobs", filter="errors"))
     if _limited("jobs-retry-one", 20):
@@ -225,20 +234,12 @@ def retry_job(job_id: str):
         flash(str(error), "danger")
     return redirect(ingress_url("web.jobs", filter="errors"))
 
+
 @web_bp.get("/jobs")
 def jobs():
     """Render active and completed jobs."""
-
     manager = _job_manager()
-    allowed_filters = {
-        "all",
-        "active",
-        "queued",
-        "completed",
-        "errors",
-        "stopped",
-        "interrupted",
-    }
+    allowed_filters = {"all", "active", "queued", "completed", "errors", "stopped", "interrupted"}
     requested_filter = request.args.get("filter")
     if requested_filter == "in_progress":
         requested_filter = "active"
@@ -249,10 +250,10 @@ def jobs():
         job_filter=job_filter,
     )
 
+
 @web_bp.get("/jobs/<job_id>")
 def job_details(job_id: str):
     """Render detailed diagnostics for one queued job."""
-
     try:
         job = _job_manager().get_job(job_id)
     except KeyError:
@@ -264,21 +265,17 @@ def job_details(job_id: str):
         job=payload,
         parameters=parameters,
         parameters_json=json.dumps(
-            parameters,
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-            default=str,
+            parameters, ensure_ascii=False, indent=2, sort_keys=True, default=str
         ),
         timeline=_job_timeline(payload),
         retry_history=_job_retry_history(payload),
         removable_statuses=JobManager.DELETABLE_STATUSES,
     )
 
+
 @web_bp.get("/jobs/log/<job_id>")
 def job_log(job_id: str):
     """Render the full saved log for one job."""
-
     try:
         job = _job_manager().get_job(job_id)
     except KeyError:
@@ -287,6 +284,7 @@ def job_log(job_id: str):
         "job_log.html",
         job=localize_job(_job_manager().job_dict(job, include_full_log=True), _language()),
     )
+
 
 @web_bp.get("/jobs/log/<job_id>.txt")
 def job_log_text(job_id: str):
