@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.107
+
+- Podniesiono wersję dodatku do 1.3.107 po scaleniu PR #8 z przebudową interfejsu i poprawkami operacji zbiorczych; zsynchronizowano manifest oraz wersję obrazu. Bez dodatkowych zmian funkcjonalnych względem 1.3.106.
+
 ## 1.3.106
 
 - Przebudowano interfejs: boczna nawigacja na komputerze, rozwijane menu na telefonie, osobny formularz pobierania i panel magazynu, spójne motywy jasny/ciemny oraz obsługa klawiatury.
