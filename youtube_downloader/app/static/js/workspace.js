@@ -4,9 +4,9 @@
   const REQUEST_TIMEOUT_MS = 120000;
   const initializedForms = new WeakSet();
 
-  // Keep the separator contract used by the server's bulk URL parser.
+  // One URL per line. Commas and semicolons may be valid URL characters.
   const parseUrls = (value) => [...new Set(String(value || "")
-    .split(/[\n\r,;]+/).map((item) => item.trim()).filter(Boolean))];
+    .split(/[\n\r]+/).map((item) => item.trim()).filter(Boolean))];
   const validMediaUrl = (value) => {
     try {
       const url = new URL(value);
