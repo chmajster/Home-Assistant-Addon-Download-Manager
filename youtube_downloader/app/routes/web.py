@@ -6,18 +6,17 @@ Importing this module registers all route modules while preserving the public
 
 from __future__ import annotations
 
+from importlib import import_module
+
 from . import shared as _shared
 from .request_parsing import _bulk_url_candidates
+from .shared import _automatic_download_type, socket, subprocess, web_bp
 
-# Keep the shared compatibility layer and wildcard route imports on the same
+# Keep the shared compatibility layer and route modules on the same
 # newline-only URL parser. Commas and semicolons may be valid URL characters.
 _shared._bulk_url_candidates = _bulk_url_candidates
 
-from .shared import socket, subprocess, web_bp, _automatic_download_type
-from . import diagnostics as _diagnostics_routes  # noqa: F401
-from . import downloads as _downloads_routes  # noqa: F401
-from . import history as _history_routes  # noqa: F401
-from . import jobs as _jobs_routes  # noqa: F401
-from . import system as _system_routes  # noqa: F401
+for _route_module in ("diagnostics", "downloads", "history", "jobs", "system"):
+    import_module(f"{__package__}.{_route_module}")
 
 __all__ = ["web_bp", "_automatic_download_type", "socket", "subprocess"]
