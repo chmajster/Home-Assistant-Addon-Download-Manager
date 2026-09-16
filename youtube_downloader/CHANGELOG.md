@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.108
+
+- Usunięto zależność interfejsu od zewnętrznego CDN: Bootstrap 5.3.3 jest pobierany podczas budowy z przypiętego oficjalnego commita i serwowany lokalnie przez dodatek.
+- Poprawiono import wielu URL-i w frontendzie i backendzie: separatorem jest wyłącznie nowa linia, dzięki czemu przecinki i średniki w podpisanych adresach nie są już błędnie rozcinane.
+- Link „Przejdź do zadań” w komunikatach sukcesu jest wyświetlany tylko dla operacji dotyczących kolejki zamiast dla każdego komunikatu `success`.
+- Dodano testy regresyjne dla lokalnych assetów Bootstrap, parsera URL i kontekstowej akcji w toastach.
+
 ## 1.3.107
 
 - Podniesiono wersję dodatku do 1.3.107 po scaleniu PR #8 z przebudową interfejsu i poprawkami operacji zbiorczych; zsynchronizowano manifest oraz wersję obrazu. Bez dodatkowych zmian funkcjonalnych względem 1.3.106.
