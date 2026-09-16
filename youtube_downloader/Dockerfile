@@ -23,6 +23,10 @@ RUN python3.14 -m venv /venv \
     && rm -rf /tmp/requirements.txt /tmp/wheels
 
 COPY app /app
+ADD https://raw.githubusercontent.com/twbs/bootstrap/6e1f75f420f68e1d52733b8e407fc7c3766c9dba/dist/css/bootstrap.min.css \
+    /app/static/vendor/bootstrap/bootstrap.min.css
+ADD https://raw.githubusercontent.com/twbs/bootstrap/6e1f75f420f68e1d52733b8e407fc7c3766c9dba/dist/js/bootstrap.bundle.min.js \
+    /app/static/vendor/bootstrap/bootstrap.bundle.min.js
 COPY rootfs /
 
 RUN mkdir -p /share/youtube_downloader /data/jobs /data/logs \
