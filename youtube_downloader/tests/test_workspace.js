@@ -3,11 +3,15 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { parseUrls, validMediaUrl, translate, REQUEST_TIMEOUT_MS } = require("../app/static/js/workspace.js");
 
-test("bulk parser preserves order and deduplicates", () => {
-  assert.deepEqual(parseUrls(" https://example.com/a\nhttps://example.com/b;https://example.com/a "), ["https://example.com/a", "https://example.com/b"]);
+test("bulk parser preserves order and deduplicates line-separated URLs", () => {
+  assert.deepEqual(parseUrls(" https://example.com/a\nhttps://example.com/b\nhttps://example.com/a "), ["https://example.com/a", "https://example.com/b"]);
+});
+test("bulk parser preserves commas and semicolons inside one URL", () => {
+  const signed = "https://example.com/video;token=abc,def?signature=a,b;c";
+  assert.deepEqual(parseUrls(signed), [signed]);
 });
 test("empty input produces no candidates", () => {
-  for (const input of [null, undefined, "", " \r\n ; , "]) assert.deepEqual(parseUrls(input), []);
+  for (const input of [null, undefined, "", " \r\n \n "]) assert.deepEqual(parseUrls(input), []);
 });
 test("URL validation rejects unsafe schemes, credentials and non-default ports", () => {
   for (const input of ["javascript:alert(1)", "file:///etc/passwd", "https://user:pass@example.com", "http://example.com:8080", "not a URL"]) assert.equal(validMediaUrl(input), false);
